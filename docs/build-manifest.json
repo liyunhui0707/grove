@@ -1,20 +1,20 @@
 {
   "version": "0.3.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261114T145233-60acdf286b",
+  "buildId": "trial-20261114T151417-67e6805a40",
   "architecture": "arm64",
-  "sourceDigest": "60acdf286bea955657b4ef81f07812f779cd47a4e8d9b60a4bae9a57a94e94c7",
-  "binarySha256": "4a7860edd8e2de87cf67c203a4f7fb003792707d6eead25bd89de959b814e38d",
+  "sourceDigest": "67e6805a407a912b2836e7398b3a0a7de2a415fd9f0a031ae725eb6fcfbd0b22",
+  "binarySha256": "58d6c196bcff12834290f8ac997826a8edfd64682fb770e3ee95127dc7fb3d82",
   "artifacts": [
     {
       "name": "Moment-Grove-0.3.0-macOS-arm64.zip",
-      "bytes": 5562280,
-      "sha256": "edd2db6713822b0f55c73c59cd3666e9a9e821575703923c65af975627fe669d"
+      "bytes": 5562272,
+      "sha256": "8c28c91e04e7f6951cbdc1fdbd145a85550f680673e9f5d2ae7a93db14520b1a"
     },
     {
       "name": "Moment-Grove-0.3.0-macOS-arm64.dmg",
-      "bytes": 6385741,
-      "sha256": "e31d68c425c997dd6d38fe2c9a718a558a4757825224b98dac2fe2702374fc3b"
+      "bytes": 6384730,
+      "sha256": "8a7cea6063e16d9472d645470a7f954b7452d54fedf0d752de1deebb6611c2d8"
     }
   ],
   "validation": {
@@ -99,12 +99,46 @@
         }
       ]
     },
-    "nativeUpgrade": "3000 old identities/ratings/history/pending and real snapshot retained; HDR HEIC/PQ preview; watermark2/2 in sRGB with XMP4/5; 3004 originals unchanged",
-    "nativeLongObservation": "pending final bounded observation",
-    "rollbackAndUploadedDownload": "pending final verification",
+    "nativeUpgrade": "3000 old identities/ratings/history/pending and real snapshot retained; same schema2",
+    "nativeLongObservation": {
+      "durationSeconds": 950.203,
+      "samples": 190,
+      "peakPhysicalFootprintMiB": 645.6010284423828,
+      "warmMedianMiB": 479.3989677429199,
+      "lateMedianMiB": 381.42271423339844,
+      "medianGrowthMiB": -97.97625350952148,
+      "peakLimitMiB": 1024,
+      "growthLimitMiB": 128,
+      "method": "resource coalition incl. WebKit, picker and QuickLook helpers; not JS heap",
+      "workload": "3000 mixed generated files, progressive scan, search, rating, repeated scrolls and12MPdetail; quiet intervals; not continuous decode soak",
+      "candidate": "trial-20261114T145233-60acdf286b",
+      "scopeNote": "before SDR label-only layout correction; final candidate separately rechecked, not claimed same-binary long soak",
+      "passed": true
+    },
+    "rollbackAndUploadedDownload": "passed: three uploaded assets fully downloaded with matching SHA256 and size; 12 payload files and strict ad-hoc signature verified; installed from downloaded ZIP and resumed 04-pq.heic at4/4, dark, autoAdvance=false; normal quit; 3004 originals/logical rows, pending5/history5 and old snapshot unchanged",
     "signing": "ad-hoc; no Developer ID/notarization",
     "browserQuarantineGatekeeper": "not accepted",
     "update": "manual replacement",
-    "personalLibraryAcceptance": false
+    "personalLibraryAcceptance": false,
+    "finalNativeRecheck": {
+      "buildId": "trial-20261114T151417-67e6805a40",
+      "inlineSdrLabel": "visually correct beside review toolbar",
+      "resumedLargeLibrarySearchAndRating": true,
+      "hdrHeicPreviews": 2,
+      "watermarkOutputs": 2,
+      "watermarkJpegBytesMatchInitial": true,
+      "sRGB": true,
+      "xmpRatings": [
+        4,
+        5
+      ],
+      "originalsUnchanged": 3004,
+      "logicalRowsUnchanged": 3004,
+      "pendingUnchanged": 5,
+      "historyUnchanged": 5,
+      "oldSnapshotUnchanged": true,
+      "normalQuit": true
+    },
+    "rollback": "public 0.2.0 read all 3004 rows, pending5/history5 and new 3-star final photo; normal quit"
   }
 }

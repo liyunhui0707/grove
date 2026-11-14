@@ -91,6 +91,9 @@ test('large mixed library virtualizes, rates the searched occurrence and resumes
     page.locator('.photo-pane').getByRole('button', { name: '5 星', exact: true }),
   ).toHaveClass(/rated/);
   await expect(page.getByText('SDR 预览', { exact: true })).toBeVisible();
+  const labelBox = await page.getByText('SDR 预览', { exact: true }).boundingBox();
+  const modeBox = await page.locator('.view-mode-label').boundingBox();
+  expect(Math.abs(labelBox!.y - modeBox!.y)).toBeLessThan(12);
   await page.keyboard.press('Escape');
   await page.getByRole('textbox', { name: '搜索照片' }).fill('');
   await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();

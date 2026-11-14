@@ -1415,12 +1415,8 @@ export function App() {
               </button>
               <span className="view-mode-label">
                 {mode === 'compare' ? `${compareIds.length} 图比较` : '专注审片'}
-                <span
-                  className="format-tag"
-                  title="预览统一显示为 SDR；不改变原件或保留 HDR 显示效果"
-                >
-                  SDR 预览
-                </span>
+                {' · '}
+                <span title="预览统一显示为 SDR；不改变原件或保留 HDR 显示效果">SDR 预览</span>
                 {detail ? ' · 细节' : ''}
               </span>
               <div className="review-tools">
