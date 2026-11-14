@@ -46,11 +46,6 @@ unsafe extern "C" {
         options: CFDictionaryRef,
     ) -> *mut core_graphics::sys::CGImage;
     fn CGImageSourceGetCount(source: Object) -> usize;
-    fn CGImageSourceCopyAuxiliaryDataInfoAtIndex(
-        source: Object,
-        index: usize,
-        kind: CFStringRef,
-    ) -> CFDictionaryRef;
     fn CGImageDestinationCreateWithData(
         data: CFMutableDataRef,
         kind: CFStringRef,
@@ -67,7 +62,6 @@ unsafe extern "C" {
     static kCGImageSourceCreateThumbnailWithTransform: CFStringRef;
     static kCGImageSourceThumbnailMaxPixelSize: CFStringRef;
     static kCGImageSourceShouldCache: CFStringRef;
-    static kCGImageAuxiliaryDataTypeHDRGainMap: CFStringRef;
     static kCGImageDestinationLossyCompressionQuality: CFStringRef;
 }
 #[link(name = "CoreText", kind = "framework")]
@@ -155,32 +149,7 @@ fn metadata(source: &CFType, p: &Dict, o: &Options) -> Result<Info> {
         .and_then(|d| string(&d, "DateTimeOriginal"))
         .and_then(|s| exif_date(&s));
     let info = caption(w, h, date, profile.clone(), o)?;
-    if number(p, "Depth").is_some_and(|n| n > 8)
-        || profile.as_ref().is_some_and(|s| {
-            ["2100", "hdr", "pq", "hlg"]
-                .iter()
-                .any(|k| s.to_lowercase().contains(k))
-        })
-    {
-        return Err("HDR/高位深照片的色调映射尚未验证，暂不生成水印副本".into());
-    }
-    if value(p, "AuxiliaryData")
-        .and_then(|v| v.downcast::<CFArray>())
-        .is_some_and(|a| !a.is_empty())
-    {
-        return Err("照片含辅助图层，首版暂不转换".into());
-    }
-    let gain = unsafe {
-        CGImageSourceCopyAuxiliaryDataInfoAtIndex(
-            source.as_CFTypeRef(),
-            0,
-            kCGImageAuxiliaryDataTypeHDRGainMap,
-        )
-    };
-    if !gain.is_null() {
-        let _owned = unsafe { Dict::wrap_under_create_rule(gain) };
-        return Err("检测到HDR增益图，首版暂不转换".into());
-    }
+    crate::imaging::sdr_options(source, p)?;
     Ok(info)
 }
 pub fn inspect(bytes: &[u8], options: &Options) -> Result<Info> {
@@ -282,7 +251,7 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
         .min(info.width.max(info.height));
     let manual = crate::imaging::unequal_density(&props);
     let orientation = number(&props, "Orientation").unwrap_or(1);
-    let attrs = CFDictionary::from_CFType_pairs(&[
+    let mut attrs = vec![
         (
             key(unsafe { kCGImageSourceCreateThumbnailFromImageAlways }),
             CFBoolean::true_value().as_CFType(),
@@ -295,7 +264,9 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
             key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),
             CFNumber::from(i64::from(max)).as_CFType(),
         ),
-    ]);
+    ];
+    attrs.extend(crate::imaging::sdr_options(&source, &props)?);
+    let attrs = CFDictionary::from_CFType_pairs(&attrs);
     let raw = unsafe {
         CGImageSourceCreateThumbnailAtIndex(source.as_CFTypeRef(), 0, attrs.as_concrete_TypeRef())
     };

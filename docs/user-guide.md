@@ -1,6 +1,6 @@
-# Moment Grove 0.2.0 预发布使用指南
+# Moment Grove 0.3.0 预发布使用指南
 
-当前版本0.2.0，面向技术试用者，先用本地测试副本试用。首批包为Apple Silicon macOS；实际验收系统见随包测试报告。包声明最低macOS12，不代表每个系统版本均已测试。
+当前版本0.3.0，面向技术试用者，先用本地测试副本试用。首批包为Apple Silicon macOS；实际验收系统见随包测试报告。包声明最低macOS12，不代表每个系统版本均已测试。
 
 ## 安装与打开
 
@@ -37,6 +37,8 @@
 
 ## 当前范围
 
-JPEG、PNG、WebP和单帧 SDR HEIC/HEIF；预览转为 sRGB，透明区域使用白底。支持边界见 [格式说明](format-support.md)。HDR、高位深、多帧和完整 Live Photo/RAW 配对暂不支持；不进行跨卷移动。预览失败可点“重试预览”或继续查看其他照片。
+JPEG、PNG、WebP和静态 HEIC/HEIF；预览转为 sRGB，透明区域使用白底。macOS14+ 对已验证的增益图JPEG/HEIC及10位PQ HEIC显式生成SDR预览与水印。未知高位深、多帧和完整Live Photo/RAW配对仍不支持；不进行跨卷移动。支持边界见[格式说明](format-support.md)。预览失败可重试或继续查看其他照片。
 
 当前不自动联网、查询城市、上传照片或云同步。反馈入口为 [GitHub Issues](https://github.com/liyunhui0707/moment-grove/issues)，请先遮盖图片、日志中的个人信息。
+
+本版在 macOS14+ 上对已验证的 HDR JPEG/HEIC 显式生成 SDR 预览和分享水印副本，保留原件但不保留 HDR 显示效果。未知高位深与多帧仍拒绝；具体样本和系统范围见格式说明。

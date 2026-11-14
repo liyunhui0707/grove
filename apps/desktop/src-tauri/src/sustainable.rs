@@ -77,15 +77,8 @@ fn licensed_devices_preview_export_and_resume() {
     let assets = captured.lock().unwrap().clone();
     assert_eq!(assets.len(), 3);
     let mut supported = Vec::new();
-    let mut unsupported = Vec::new();
     for a in &assets {
         assert!(a.captured.is_some());
-        if a.name == "01-iphone13.jpg" {
-            let error = imaging::render(&s, &a.id, 1600).unwrap_err();
-            assert!(error.contains("HDR增益图"));
-            unsupported.push(error);
-            continue;
-        }
         supported.push(a.id.clone());
         for size in [480, 1600] {
             let bytes = imaging::render(&s, &a.id, size).unwrap();
@@ -150,10 +143,6 @@ fn licensed_devices_preview_export_and_resume() {
         city: "试用样本".into(),
         ..Default::default()
     };
-    assert!(
-        exports::prepare_watermark(&c, &roots, folder.id, &targets, &output, &data, &options)
-            .is_err()
-    );
     let watermark_targets: Vec<_> = targets
         .iter()
         .filter(|t| supported.contains(&t.id))
@@ -177,7 +166,7 @@ fn licensed_devices_preview_export_and_resume() {
         "{}",
         serde_json::to_string(&report).unwrap()
     );
-    assert_eq!(report.verified, 2);
+    assert_eq!(report.verified, 3);
     for row in &report.items {
         let bytes = fs::read(Path::new(&report.destination).join(&row.output)).unwrap();
         assert!(image::load_from_memory(&bytes).is_ok());
@@ -202,6 +191,6 @@ fn licensed_devices_preview_export_and_resume() {
     assert_eq!(pending, 3);
     println!(
         "SUSTAINABLE_DEVICES {}",
-        serde_json::json!({"models":models,"sourcePhotos":3,"previews":4,"copies":3,"watermarks":2,"unsupported":unsupported,"restartRatingPreserved":true,"pending":pending,"sourceBytesUnchanged":true})
+        serde_json::json!({"models":models,"sourcePhotos":3,"previews":6,"copies":3,"watermarks":3,"unsupported":[],"restartRatingPreserved":true,"pending":pending,"sourceBytesUnchanged":true})
     );
 }

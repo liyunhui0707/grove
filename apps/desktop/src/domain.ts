@@ -36,6 +36,7 @@ export type ScanEvent =
   | { kind: 'cancelled' };
 export const ratingLabel = (r: Rating) =>
   r === null ? '未评分' : r === 0 ? '淘汰候选' : `${r} 星`;
+const photoNames = new Intl.Collator('zh-CN', { numeric: true });
 export function filterAssets(assets: Asset[], filter: Filter, search: string, sort: Sort): Asset[] {
   const q = search.trim().toLocaleLowerCase();
   return assets
@@ -66,9 +67,7 @@ export function filterAssets(assets: Asset[], filter: Filter, search: string, so
         const diff = time(b) - time(a);
         if (diff) return diff;
       }
-      return (
-        a.relative.localeCompare(b.relative, 'zh-CN', { numeric: true }) || a.id.localeCompare(b.id)
-      );
+      return photoNames.compare(a.relative, b.relative) || a.id.localeCompare(b.id);
     });
 }
 export function applyChanges(assets: Asset[], changes: Change[]): Asset[] {

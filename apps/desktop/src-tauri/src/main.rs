@@ -6,6 +6,10 @@ mod catalog;
 mod demo;
 mod exports;
 mod imaging;
+#[cfg(test)]
+mod large_library;
+#[cfg(all(test, target_os = "macos"))]
+mod mobile;
 mod moves;
 mod preparation;
 mod relocation;
@@ -784,6 +788,12 @@ fn scan_directory(
                     e.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
                         .map(|f| f.display_value().to_string())
                 });
+            #[cfg(target_os = "macos")]
+            let (width, height, captured) = if ["heic", "heif"].contains(&format.as_str()) {
+                imaging::header(path).unwrap_or((width, height, captured))
+            } else {
+                (width, height, captured)
+            };
             Ok::<_, String>(Asset {
                 id,
                 folder_id,

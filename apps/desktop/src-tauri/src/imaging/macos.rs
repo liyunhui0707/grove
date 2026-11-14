@@ -119,6 +119,132 @@ pub(crate) fn draw_oriented(context: &CGContext, rect: CGRect, image: &CGImage, 
     );
     context.restore();
 }
+// Resolve newer ImageIO constants at runtime: importing them strongly would
+// prevent ordinary SDR browsing from launching on the declared older systems.
+fn optional_string(symbol: &std::ffi::CStr) -> Option<CFString> {
+    unsafe extern "C" {
+        fn dlsym(handle: *mut c_void, symbol: *const std::ffi::c_char) -> *mut c_void;
+    }
+    let address = unsafe { dlsym((-2isize) as *mut c_void, symbol.as_ptr()) };
+    if address.is_null() {
+        return None;
+    }
+    let value = unsafe { *(address as *const CFStringRef) };
+    if value.is_null() {
+        None
+    } else {
+        Some(key(value))
+    }
+}
+fn check_sdr_policy(kind: &str, depth: i64, hdr: bool, available: bool) -> Result<()> {
+    if depth > 16 || (depth > 8 && !["public.heic", "public.heif"].contains(&kind)) {
+        return Err(
+            "暂不转换此高位深格式；支持范围为静态 JPEG、HEIC/HEIF 的已验证 SDR 解码".into(),
+        );
+    }
+    if hdr && !["public.jpeg", "public.heic", "public.heif"].contains(&kind) {
+        return Err("此HDR格式尚未验证，未转换；请保留原件".into());
+    }
+    if hdr && !available {
+        return Err("此 HDR 照片需要 macOS 14 或更新系统的 SDR 解码能力；原件保持不变".into());
+    }
+    Ok(())
+}
+pub(crate) fn sdr_options(source: &CFType, props: &Dict) -> Result<Vec<(CFString, CFType)>> {
+    let raw_kind = unsafe { CGImageSourceGetType(source.as_CFTypeRef()) };
+    if raw_kind.is_null() {
+        return Err("无法识别照片格式".into());
+    }
+    let kind = key(raw_kind).to_string();
+    if ![
+        "public.jpeg",
+        "public.png",
+        "org.webmproject.webp",
+        "public.webp",
+        "public.heic",
+        "public.heif",
+    ]
+    .contains(&kind.as_str())
+    {
+        return Err("仅转换静态 JPEG、PNG、WebP 和 HEIC/HEIF".into());
+    }
+    let mut gain = false;
+    let mut types = vec![key(unsafe { kCGImageAuxiliaryDataTypeHDRGainMap })];
+    if let Some(iso) = optional_string(c"kCGImageAuxiliaryDataTypeISOGainMap") {
+        types.push(iso);
+    }
+    for t in types {
+        let raw = unsafe {
+            CGImageSourceCopyAuxiliaryDataInfoAtIndex(
+                source.as_CFTypeRef(),
+                0,
+                t.as_concrete_TypeRef(),
+            )
+        };
+        if !raw.is_null() {
+            let _owned = unsafe { Dict::wrap_under_create_rule(raw) };
+            gain = true;
+        }
+    }
+    let profile = props
+        .find(CFString::new("ProfileName"))
+        .and_then(|v| v.downcast::<CFString>())
+        .map(|s| s.to_string().to_lowercase())
+        .unwrap_or_default();
+    let depth = number(props, "Depth").unwrap_or(8);
+    let hdr = gain
+        || depth > 8
+        || ["2100", "hdr", "pq", "hlg", "linear"]
+            .iter()
+            .any(|p| profile.contains(p));
+    let decode = optional_string(c"kCGImageSourceDecodeRequest")
+        .zip(optional_string(c"kCGImageSourceDecodeToSDR"));
+    check_sdr_policy(&kind, depth, hdr, decode.is_some())?;
+    Ok(decode
+        .map(|(key, value)| vec![(key, value.as_CFType())])
+        .unwrap_or_default())
+}
+
+pub(crate) fn header(path: &Path) -> Result<(u32, u32, Option<String>)> {
+    let url = CFURL::from_path(path, false).ok_or("照片路径无效")?;
+    let options = Dict::from_CFType_pairs(&[(
+        key(unsafe { kCGImageSourceShouldCache }),
+        CFBoolean::false_value().as_CFType(),
+    )]);
+    let source = owned(unsafe {
+        CGImageSourceCreateWithURL(url.as_concrete_TypeRef(), options.as_concrete_TypeRef())
+    })?;
+    let raw = unsafe { CGImageSourceCopyPropertiesAtIndex(source.as_CFTypeRef(), 0, ptr::null()) };
+    if raw.is_null() {
+        return Err("照片元数据无法读取".into());
+    }
+    let p = unsafe { Dict::wrap_under_create_rule(raw) };
+    let width = number(&p, "PixelWidth")
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or("照片宽度无效")?;
+    let height = number(&p, "PixelHeight")
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or("照片高度无效")?;
+    let orientation = number(&p, "Orientation").unwrap_or(1);
+    if !(1..=8).contains(&orientation) {
+        return Err("照片方向无效".into());
+    }
+    let date = p
+        .find(CFString::new("{Exif}"))
+        .and_then(|v| v.downcast::<CFDictionary>())
+        .map(|d| unsafe { Dict::wrap_under_get_rule(d.as_concrete_TypeRef()) })
+        .and_then(|d| {
+            d.find(CFString::new("DateTimeOriginal"))
+                .and_then(|v| v.downcast::<CFString>())
+                .map(|v| v.to_string())
+        });
+    Ok(if orientation >= 5 {
+        (height, width, date)
+    } else {
+        (width, height, date)
+    })
+}
+
 pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     let url = CFURL::from_path(path, false).ok_or("照片路径无效")?;
     let options = Dict::from_CFType_pairs(&[(
@@ -155,30 +281,7 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     if width <= 0 || height <= 0 || width > 30000 || height > 30000 || width * height > 64_000_000 {
         return Err("预览限6400万像素且边长不超过30000px".into());
     }
-    let profile = props
-        .find(CFString::new("ProfileName"))
-        .and_then(|v| v.downcast::<CFString>())
-        .map(|v| v.to_string().to_lowercase());
-    if number(&props, "Depth").is_some_and(|n| n > 8)
-        || profile.is_some_and(|s| {
-            ["2100", "hdr", "pq", "hlg", "linear"]
-                .iter()
-                .any(|k| s.contains(k))
-        })
-    {
-        return Err("HDR/高位深照片暂不预览；原件保持不变".into());
-    }
-    let gain = unsafe {
-        CGImageSourceCopyAuxiliaryDataInfoAtIndex(
-            source.as_CFTypeRef(),
-            0,
-            kCGImageAuxiliaryDataTypeHDRGainMap,
-        )
-    };
-    if !gain.is_null() {
-        let _gain = unsafe { Dict::wrap_under_create_rule(gain) };
-        return Err("检测到HDR增益图，暂不预览；原件保持不变".into());
-    }
+    let decode = sdr_options(&source, &props)?;
     let orientation = number(&props, "Orientation").unwrap_or(1);
     if !(1..=8).contains(&orientation) {
         return Err("照片方向信息无效".into());
@@ -190,7 +293,7 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
         return Err("细节预览超过2400万像素，请使用普通预览".into());
     }
     let manual = unequal_density(&props);
-    let attrs = Dict::from_CFType_pairs(&[
+    let mut attrs = vec![
         (
             key(unsafe { kCGImageSourceCreateThumbnailFromImageAlways }),
             CFBoolean::true_value().as_CFType(),
@@ -203,7 +306,9 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
             key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),
             CFNumber::from(max).as_CFType(),
         ),
-    ]);
+    ];
+    attrs.extend(decode);
+    let attrs = Dict::from_CFType_pairs(&attrs);
     let raw = unsafe {
         CGImageSourceCreateThumbnailAtIndex(source.as_CFTypeRef(), 0, attrs.as_concrete_TypeRef())
     };
@@ -216,6 +321,9 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     } else {
         (image.width(), image.height())
     };
+    if image.bits_per_component() > 8 {
+        return Err("系统未返回8位SDR预览，未显示未经验证的转换".into());
+    }
     if w == 0
         || h == 0
         || w > max as usize
@@ -286,6 +394,21 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::preview;
+    #[test]
+    fn hdr_policy_keeps_old_systems_and_unknown_high_depth_safe() {
+        use super::check_sdr_policy;
+        assert!(check_sdr_policy("public.jpeg", 8, false, false).is_ok());
+        assert!(
+            check_sdr_policy("public.jpeg", 8, true, false)
+                .unwrap_err()
+                .contains("macOS 14")
+        );
+        assert!(check_sdr_policy("public.heic", 10, true, true).is_ok());
+        assert!(check_sdr_policy("public.png", 16, true, true).is_err());
+        assert!(check_sdr_policy("public.png", 8, true, true).is_err());
+        assert!(check_sdr_policy("public.heic", 32, true, true).is_err());
+    }
+
     #[test]
     fn unequal_print_density_preserves_pixels_and_all_exif_orientations() {
         use image::{GenericImageView, metadata::Orientation};

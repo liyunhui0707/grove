@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.2.0 is a public test prerelease for Apple Silicon Macs.** The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.3.0 targets technical trial users on Apple Silicon Macs.** The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -13,6 +13,9 @@
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.
 - Resume the last folder, exact photo and essential review settings after a normal quit.
 - Keep comparison references visible while replacing only the active candidate with `[` / `]`.
+- On macOS 14+, view tested Apple gain-map JPEG/HEIC and 10-bit PQ HEIC as SDR and export independent sRGB watermark JPEGs. HDR appearance is not retained.
+- Read HEIC pixel dimensions and EXIF capture dates correctly in the list.
+- Reuse the natural-name sorter for large photo batches; distinct occurrences and rating targets remain separate.
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
@@ -21,7 +24,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [the 0.2.0 prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.2.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [available tagged releases](https://github.com/liyunhui0707/moment-grove/releases). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -33,7 +36,7 @@ Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP a
 
 **Signing:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block the first opening. Follow [Apple's instructions for opening software from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) only if you trust the source. No security-disabling commands are required. A browser-download Gatekeeper flow has not been accepted as part of this prerelease.
 
-**Native upgrade check:** the publicly downloaded 0.1.0 App was replaced by the exact 0.2.0 package at the same isolated installation path. All 24 generated photo identities, existing ratings, pending writes and undo history were retained. New scoring, a verified two-photo copy export, normal quit and rollback to 0.1.0 passed. This does not certify personal libraries or the browser-quarantine Gatekeeper path.
+**Native upgrade check:** the exact released 0.2.0 App established a 3,000-photo catalog, ratings and a real snapshot. Replacing it with 0.3.0 at the same isolated install/data paths retained all old identities, ratings, history and pending writes. Gain-map HEIC and 10-bit PQ HEIC rendered in the App; two full-size SDR watermark outputs and rating XMP verified. Continuing checks and precise limits are recorded in the release manifest. Browser-quarantine/Gatekeeper first opening is not accepted.
 
 **System scope:** arm64 / Apple Silicon; tested on macOS 27.2.1. The bundle declares macOS 12 as its minimum, but other OS versions, Intel Macs, Windows and Linux have not been validated for this release.
 
@@ -49,7 +52,7 @@ See [installation, upgrade and rollback](docs/installation-upgrade.md), the [use
 
 The app does not upload photos, require an account, query online city services, or perform automatic updates. System file pickers determine which folders it can use. Catalog snapshots contain ratings/catalog data, not photo backups.
 
-Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. The 0.1.0 ↔ 0.2.0/schema2 pair was tested with generated data; arbitrary version rollback is not promised. Old versions ignore the new resume state. Uninstalling the app does not automatically erase the photo folder or application data.
+Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. Rollback is limited to the exact pairs and data described in the release evidence; arbitrary version rollback is not promised. Retain the old app and an independent catalog snapshot before replacing it. Uninstalling the app does not automatically erase the photo folder or application data.
 
 ## Build from source
 
@@ -71,7 +74,7 @@ npm run check:rust
 node --test scripts/tests/release-version.test.mjs
 ```
 
-Browser checks require installed Google Chrome. macOS decoder tests use system ImageIO/ColorSync and generated fixtures; other platforms are not supported by this release. Performance and destructive-fault helper cases are opt-in and should only run in an owned test environment.
+Browser checks require installed Google Chrome. macOS decoder tests use system ImageIO/ColorSync and generated fixtures; the optional mobile matrix additionally uses attributed samples and a separate Core Image SDR reference; other platforms are not supported by this release. Performance and destructive-fault helper cases are opt-in and should only run in an owned test environment.
 
 To build the macOS arm64 prerelease archives:
 

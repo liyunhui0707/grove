@@ -416,7 +416,8 @@ export function WatermarkDialog({
             <ShieldCheck size={17} />
             <p>
               右下角叠加在原画面内，独立导出 sRGB JPEG 与当前评分 XMP。成品不带源
-              EXIF/GPS；原件、源评分与待同步项不变。首版支持 macOS 静态 SDR，≤2400万像素、≤32MiB。
+              EXIF/GPS；原件、源评分与待同步项不变。支持静态照片；macOS 14+ 可将已支持的 HDR
+              JPEG/HEIC 转为 SDR，不保留 HDR 效果。≤2400万像素、≤32MiB。
             </p>
           </div>
           {error && (

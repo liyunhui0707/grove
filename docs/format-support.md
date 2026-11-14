@@ -1,4 +1,4 @@
-# Photo support in 0.2.0
+# Photo support in 0.3.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
@@ -8,7 +8,8 @@ The public prerelease targets Apple Silicon macOS. Runtime evidence is from macO
 | Single-frame 8-bit SDR HEIC/HEIF | System ImageIO; generated SDR HEIC tested | Generated SDR HEIC tested; same limits |
 | Embedded Display P3 SDR | Converted to sRGB for preview; generated sample compared to system ColorSync output | System colour-managed SDR conversion; camera-specific colour fidelity is not comprehensively validated |
 | Transparency | Flattened over white for JPEG previews | Flattened over white for JPEG derivatives |
-| HDR, high bit depth, multi-frame input | Detected cases are rejected with a message; no HDR rendering promise | Unsupported cases are rejected; no tone-mapping promise |
+| Apple gain-map JPEG/HEIC and tested 10-bit PQ HEIC, macOS 14+ | Explicit system SDR decode, then 8-bit sRGB preview; no HDR display | Independent 8-bit sRGB JPEG; HDR effect is not retained |
+| Other high bit depth / multi-frame input, or HDR on systems without SDR decode | Refused with a specific message | Refused; no silent clipping or unsupported conversion |
 | Live Photos / RAW pairs | Full resource-group handling is not implemented | Paired file operations are blocked rather than split |
 
 Previews: 128MiB source limit, at most 64MP / 30,000px per source edge; generated preview bitmap at most 24MP. Grid previews use 480px, regular panes 1600px, one requested detail pane up to 8192px. The detail request may be refused when its pixel budget is exceeded. The backend bounds decode workers to two and queue slots to 24; frontend fetch concurrency is four. A failed preview has a retry action and does not prevent reviewing other files.
@@ -23,8 +24,14 @@ Three original licensed JPEG files are retained outside the repository, with sou
 
 | Source and license | EXIF camera | Observed scope |
 |---|---|---|
-| [Apple IPhone 2024](https://commons.wikimedia.org/wiki/File:Apple_IPhone_2024.jpg), OneTrueKingLives, [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Apple iPhone 13 | HDR gain map detected: explicit preview/watermark refusal; raw copy remains byte-identical |
+| [Apple IPhone 2024](https://commons.wikimedia.org/wiki/File:Apple_IPhone_2024.jpg), OneTrueKingLives, [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | Apple iPhone 13 | Apple gain-map JPEG: SDR preview/watermark verified on macOS 27.2.1; raw copy remains byte-identical |
 | [IPhone 13, January 28, 2024](https://commons.wikimedia.org/wiki/File:IPhone_13,_January_28,_2024.jpg), メイド理世, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | MEIZU 20 (the subject is an iPhone) | SDR preview and watermark; unequal horizontal/vertical print DPI exposed a pixel-aspect bug, now regression-covered |
 | [Hopetoun falls](https://commons.wikimedia.org/wiki/File:Hopetoun_falls.jpg), DAVID ILIFF, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | Canon EOS 10D | SDR preview, watermark and byte-identical raw copy |
 
 ImageIO's [thumbnail transform](https://developer.apple.com/documentation/imageio/kcgimagesourcecreatethumbnailwithtransform) can also scale for aspect information. For unequal print DPI, this app decodes without that transform and applies EXIF orientation to the pixel canvas itself. All eight orientations are checked with generated asymmetric corner fixtures; preview cache generation changed so an older distorted thumbnail is not reused. Existing pixel/memory and full-size watermark checks remain in force.
+
+## 0.3.0 SDR compatibility matrix
+
+The unmodified CC0 iPhone 13 JPEG above and ten derivatives generated with ImageIO are tested outside source control: normal SDR HEIC, Apple gain-map HEIC, 10-bit PQ HEIC, and seven gain-map JPEG orientation variants (2–8). The HEIC files are generated derivatives, not original phone HEIC captures. Core Image with `expandToHDR=false`, orientation applied and RGBA8/sRGB output provides an independent reference. Per-image pixel differences, dimensions and source hashes are recorded in the release evidence; this is not a visual-fidelity guarantee for every camera.
+
+ImageIO's [explicit SDR decode request](https://developer.apple.com/documentation/imageio/kcgimagesourcedecodetosdr) is available from macOS 14. Constants are looked up at runtime to preserve ordinary SDR use on earlier declared systems; an unavailable HDR decoder produces an error. Only macOS 27.2.1/arm64 was actually tested. Unknown high-depth PNG, multi-frame content, true HDR rendering, complete Live Photo resources and RAW processing remain unsupported. HEIC listing dimensions and EXIF dates now come from ImageIO metadata without decoding the full image.

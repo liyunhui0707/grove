@@ -10,7 +10,7 @@ use std::{
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub(crate) use macos::{draw_oriented, unequal_density};
+pub(crate) use macos::{draw_oriented, header, sdr_options, unequal_density};
 #[cfg(not(target_os = "macos"))]
 use std::io::BufReader;
 
@@ -92,7 +92,7 @@ pub fn render_with_refresh(
     let cache = state
         .data
         .join("cache")
-        .join(format!("sdr-v3-{id}-{before}-{size}.jpg"));
+        .join(format!("sdr-v4-{id}-{before}-{size}.jpg"));
     // Explicit retry repairs a damaged cache without weakening grant/identity checks.
     if !refresh && let Ok(bytes) = fs::read(&cache) {
         return Ok(bytes);

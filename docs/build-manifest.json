@@ -1,37 +1,110 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261114T135223-c59c54fbb2",
+  "buildId": "trial-20261114T145233-60acdf286b",
   "architecture": "arm64",
-  "sourceDigest": "c59c54fbb2ea6c4072666db79aca8dcb64381bfb613daa492003a4e7cf1237a1",
-  "binarySha256": "8311fed233ca316b1f5155434bdcc7209b8eb898f63c64f966941013d95bb064",
+  "sourceDigest": "60acdf286bea955657b4ef81f07812f779cd47a4e8d9b60a4bae9a57a94e94c7",
+  "binarySha256": "4a7860edd8e2de87cf67c203a4f7fb003792707d6eead25bd89de959b814e38d",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.2.0-macOS-arm64.zip",
-      "bytes": 5548796,
-      "sha256": "c9caf1534e3717b0a290891bfe759b7bacd287e4976129aaadcef7f748615d72"
+      "name": "Moment-Grove-0.3.0-macOS-arm64.zip",
+      "bytes": 5562280,
+      "sha256": "edd2db6713822b0f55c73c59cd3666e9a9e821575703923c65af975627fe669d"
     },
     {
-      "name": "Moment-Grove-0.2.0-macOS-arm64.dmg",
-      "bytes": 6373901,
-      "sha256": "c4a15c36c160cf83bf470fa4bbcbdca4bf73b86427d1486201962c606a02ed3b"
+      "name": "Moment-Grove-0.3.0-macOS-arm64.dmg",
+      "bytes": 6385741,
+      "sha256": "e31d68c425c997dd6d38fe2c9a718a558a4757825224b98dac2fe2702374fc3b"
     }
   ],
   "validation": {
     "system": "macOS 27.2.1 arm64",
-    "backendPassed": 99,
-    "backendIgnoredByDefault": 12,
-    "attributedDeviceSamples": 3,
-    "frontendLogicPassed": 6,
-    "browserPassed": 38,
-    "releaseVersionChecksPassed": 2,
-    "archiveInstall": "ZIP and read-only mounted DMG: same 12 payload files, exact byte hashes and strict ad-hoc signature",
-    "upgrade": "Publicly downloaded 0.1.0 \u2192 0.2.0, same isolated installation/data paths; 24 generated occurrences retained, old 4 ratings/history/pending preserved, new photo 07 rated 3, two original-byte copies plus ratings verified",
-    "rollback": "Retained public 0.1.0 App reads all 5 ratings including new one; catalog, snapshot and originals unchanged",
-    "normalGuiQuit": true,
-    "downloadedCandidateLaunch": "All 3 uploaded assets fully re-downloaded and hashes/sizes verified; extracted App installed at same path, auto-resumed photo 07 and retained dark/autoAdvance=false; normal quit; IDs/ratings/pending/history/originals/snapshot unchanged",
-    "browserQuarantineGatekeeper": "not accepted; ad-hoc signature, no Developer ID/notarization",
-    "update": "manual replacement only",
+    "backendPassed": 100,
+    "backendIgnored": 15,
+    "logicPassed": 7,
+    "browserPassed": 39,
+    "mobileMatrix": {
+      "inputs": 11,
+      "checksPassed": 2,
+      "reference": "Core Image expandToHDR=false RGBA8 sRGB; max sampled MAE 2.18/255; all EXIF orientations",
+      "provenance": "one unmodified attributed CC0 camera JPEG; 10 ImageIO-generated derivatives, not original phone HEIC captures"
+    },
+    "attributedDeviceTrialPassed": true,
+    "largeBackend": {
+      "coldScanMs": 1022.9766250000001,
+      "firstBatchMs": 33.765583,
+      "formats": {
+        "jpeg": 2700,
+        "png": 150,
+        "webp": 150
+      },
+      "idsRatingsRevisionsPreserved": true,
+      "integrity": "ok",
+      "metric": "real scanner/catalog, not UI latency",
+      "originalsUnchanged": 3000,
+      "otherDimensions": [
+        320,
+        240
+      ],
+      "photos": 3000,
+      "restartScanMs": 541.439583,
+      "run": "optimized",
+      "twelveMegapixelJpegs": 30
+    },
+    "sort": {
+      "engine": "v26.8.2",
+      "metric": "Node JS sort/filter only, not native UI latency",
+      "results": [
+        {
+          "n": 3000,
+          "sort": "name",
+          "beforeMs": 86.969,
+          "afterMs": 3.9082910000000197,
+          "sameIdsRatingsRevisions": true
+        },
+        {
+          "n": 3000,
+          "sort": "date",
+          "beforeMs": 39.659042,
+          "afterMs": 18.49354100000005,
+          "sameIdsRatingsRevisions": true
+        },
+        {
+          "n": 3000,
+          "sort": "rating",
+          "beforeMs": 60.006125,
+          "afterMs": 3.074041999999963,
+          "sameIdsRatingsRevisions": true
+        },
+        {
+          "n": 10000,
+          "sort": "name",
+          "beforeMs": 341.0888749999999,
+          "afterMs": 15.694292000000132,
+          "sameIdsRatingsRevisions": true
+        },
+        {
+          "n": 10000,
+          "sort": "date",
+          "beforeMs": 180.98887499999955,
+          "afterMs": 72.86333300000024,
+          "sameIdsRatingsRevisions": true
+        },
+        {
+          "n": 10000,
+          "sort": "rating",
+          "beforeMs": 261.6829170000001,
+          "afterMs": 12.728124999999636,
+          "sameIdsRatingsRevisions": true
+        }
+      ]
+    },
+    "nativeUpgrade": "3000 old identities/ratings/history/pending and real snapshot retained; HDR HEIC/PQ preview; watermark2/2 in sRGB with XMP4/5; 3004 originals unchanged",
+    "nativeLongObservation": "pending final bounded observation",
+    "rollbackAndUploadedDownload": "pending final verification",
+    "signing": "ad-hoc; no Developer ID/notarization",
+    "browserQuarantineGatekeeper": "not accepted",
+    "update": "manual replacement",
     "personalLibraryAcceptance": false
   }
 }

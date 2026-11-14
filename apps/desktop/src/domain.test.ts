@@ -57,3 +57,37 @@ describe('review semantics', () => {
     expect(nextComparisonId([], [], '', 1)).toBeNull();
   });
 });
+
+it('sorts natural photo names while retaining distinct occurrences and all seven rating states', () => {
+  const rows = [
+    '照片10.jpg',
+    '照片2.jpg',
+    '照片02.jpg',
+    '照片1.jpg',
+    '照片20.jpg',
+    '照片3.jpg',
+    '照片4.jpg',
+  ].map(
+    (relative, i) =>
+      ({
+        id: `id-${i}`,
+        relative,
+        name: relative,
+        rating: [null, 0, 1, 2, 3, 4, 5][i],
+        modified: 0,
+        captured: null,
+      }) as Asset,
+  );
+  expect(filterAssets(rows, 'all', '', 'name').map((a) => a.id)).toEqual([
+    'id-3',
+    'id-1',
+    'id-2',
+    'id-5',
+    'id-6',
+    'id-0',
+    'id-4',
+  ]);
+  expect(filterAssets(rows, 'unreviewed', '', 'name').map((a) => a.id)).toEqual(['id-0']);
+  expect(filterAssets(rows, 'reject', '', 'name').map((a) => a.id)).toEqual(['id-1']);
+  expect(rows.map((a) => a.rating)).toEqual([null, 0, 1, 2, 3, 4, 5]);
+});
