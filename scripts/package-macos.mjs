@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { root } from './toolchain.mjs';
+import { releaseVersion, releaseArchiveStem } from './release-version.mjs';
 
 if (process.platform !== 'darwin' || process.arch !== 'arm64')
   throw Error('This packaging entry supports the macOS Apple Silicon candidate only');
@@ -25,10 +26,49 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json')));
 const config = JSON.parse(
   fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/tauri.conf.json')),
 );
-if (pkg.version !== config.version || config.identifier !== 'app.momentgrove.desktop')
-  throw Error('Candidate version or application identity mismatch');
+releaseVersion({
+  pkg,
+  lock: JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'))),
+  tauri: config,
+  cargoToml: fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8'),
+  cargoLock: fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.lock'), 'utf8'),
+});
+const sourcePaths = [
+  'package.json',
+  'package-lock.json',
+  'vite.config.ts',
+  'tsconfig.json',
+  'scripts/package-macos.mjs',
+  'scripts/release-version.mjs',
+  'scripts/toolchain.mjs',
+  'scripts/desktop.mjs',
+  'apps/desktop/src-tauri/Cargo.toml',
+  'apps/desktop/src-tauri/Cargo.lock',
+  'apps/desktop/src-tauri/build.rs',
+  'apps/desktop/src-tauri/tauri.conf.json',
+  ...files(path.join(root, 'apps/desktop/src-tauri/capabilities')).map(
+    (p) => 'apps/desktop/src-tauri/capabilities/' + p,
+  ),
+  ...files(path.join(root, 'apps/desktop/src')).map((p) => 'apps/desktop/src/' + p),
+  ...files(path.join(root, 'apps/desktop/src-tauri/src')).map(
+    (p) => 'apps/desktop/src-tauri/src/' + p,
+  ),
+  ...files(path.join(root, 'apps/desktop/src-tauri/icons')).map(
+    (p) => 'apps/desktop/src-tauri/icons/' + p,
+  ),
+];
+const sources = sourcePaths.map((p) => ({
+  path: p,
+  sha256: sha(fs.readFileSync(path.join(root, p))),
+}));
+const sourceRaw = JSON.stringify(sources, null, 2);
+
+const buildId = `trial-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${sha(sourceRaw).slice(0, 10)}`;
+process.env.MOMENT_GROVE_BUILD_ID = buildId;
+process.env.MOMENT_GROVE_CHANNEL = channel;
 const out = path.join(root, '.local', 'deliveries', `macos-${crypto.randomUUID()}`);
 fs.mkdirSync(out, { recursive: true, mode: 0o700 });
+fs.writeFileSync(path.join(out, 'source-manifest.json'), sourceRaw, { mode: 0o600 });
 process.stdout.write(
   run(process.execPath, [
     path.join(root, 'scripts/desktop.mjs'),
@@ -78,35 +118,11 @@ function files(dir, prefix = '') {
       return e.isDirectory() ? files(path.join(dir, e.name), relative + '/') : [relative];
     });
 }
-const sourcePaths = [
-  'package.json',
-  'package-lock.json',
-  'vite.config.ts',
-  'tsconfig.json',
-  'apps/desktop/src-tauri/Cargo.toml',
-  'apps/desktop/src-tauri/Cargo.lock',
-  'apps/desktop/src-tauri/build.rs',
-  'apps/desktop/src-tauri/tauri.conf.json',
-  ...files(path.join(root, 'apps/desktop/src-tauri/capabilities')).map(
-    (p) => 'apps/desktop/src-tauri/capabilities/' + p,
-  ),
-  ...files(path.join(root, 'apps/desktop/src')).map((p) => 'apps/desktop/src/' + p),
-  ...files(path.join(root, 'apps/desktop/src-tauri/src')).map(
-    (p) => 'apps/desktop/src-tauri/src/' + p,
-  ),
-  ...files(path.join(root, 'apps/desktop/src-tauri/icons')).map(
-    (p) => 'apps/desktop/src-tauri/icons/' + p,
-  ),
-];
-const sources = sourcePaths.map((p) => ({
-  path: p,
-  sha256: sha(fs.readFileSync(path.join(root, p))),
-}));
-const sourceRaw = JSON.stringify(sources, null, 2);
-fs.writeFileSync(path.join(out, 'source-manifest.json'), sourceRaw, { mode: 0o600 });
 for (const [from, to] of [
   ['docs/user-guide.md', '使用说明.md'],
   ['docs/format-support.md', 'format-support.md'],
+  ['docs/installation-upgrade.md', 'installation-upgrade.md'],
+  ['docs/release-notes.md', 'release-notes.md'],
   ['LICENSE', 'LICENSE'],
   ['docs/third-party.md', 'THIRD-PARTY.md'],
   ['THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.txt'],
@@ -116,6 +132,7 @@ const candidate = {
   product: 'Moment Grove',
   version: pkg.version,
   channel,
+  buildId,
   architecture: 'arm64',
   minimumSystemDeclaration: info.LSMinimumSystemVersion,
   testedSystems: [],
@@ -137,13 +154,14 @@ fs.writeFileSync(
   entries.map((e) => `${e.sha256}  ${e.path}`).join('\n') + '\n',
 );
 fs.symlinkSync('/Applications', path.join(payload, 'Applications'));
-const zip = path.join(out, `Moment-Grove-${pkg.version}-macOS-arm64.zip`);
+const archiveStem = releaseArchiveStem(pkg.version, buildId, channel);
+const zip = path.join(out, `${archiveStem}.zip`);
 run('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', payload, zip]);
-const dmg = path.join(out, `Moment-Grove-${pkg.version}-macOS-arm64.dmg`);
+const dmg = path.join(out, `${archiveStem}.dmg`);
 run('/usr/bin/hdiutil', [
   'create',
   '-volname',
-  channel === 'public-prerelease' ? 'Moment Grove 0.1.0 Preview' : 'Moment Grove Trial',
+  channel === 'public-prerelease' ? `Moment Grove ${pkg.version} Preview` : 'Moment Grove Trial',
   '-srcfolder',
   payload,
   '-format',
@@ -163,6 +181,10 @@ const receipt = {
   nativeGuiAcceptance: 'NOT_RUN',
   installationAcceptance: 'NOT_RUN',
 };
+fs.writeFileSync(
+  path.join(out, 'SHA256SUMS.txt'),
+  receipt.artifacts.map((a) => `${a.sha256}  ${a.name}`).join('\n') + '\n',
+);
 fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2), { mode: 0o600 });
 fs.writeFileSync(
   path.join(
@@ -176,3 +198,13 @@ fs.writeFileSync(
 console.log(
   JSON.stringify({ status: receipt.status, directory: out, artifacts: receipt.artifacts }, null, 2),
 );
+
+if (channel === 'local-trial') {
+  const entry = path.join(root, '.local', 'current-trial');
+  if (fs.existsSync(entry) && !fs.lstatSync(entry).isSymbolicLink())
+    throw Error('Stable candidate entry is not a symlink');
+  const pending = path.join(root, '.local', `current-trial-${crypto.randomUUID()}`);
+  fs.symlinkSync(payload, pending);
+  fs.renameSync(pending, entry);
+  console.log(JSON.stringify({ entry: path.join(entry, 'Moment Grove.app'), buildId }));
+}

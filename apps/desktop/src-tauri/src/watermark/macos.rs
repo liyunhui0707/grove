@@ -280,6 +280,8 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     let max = preview
         .unwrap_or(info.width.max(info.height))
         .min(info.width.max(info.height));
+    let manual = crate::imaging::unequal_density(&props);
+    let orientation = number(&props, "Orientation").unwrap_or(1);
     let attrs = CFDictionary::from_CFType_pairs(&[
         (
             key(unsafe { kCGImageSourceCreateThumbnailFromImageAlways }),
@@ -287,7 +289,7 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
         ),
         (
             key(unsafe { kCGImageSourceCreateThumbnailWithTransform }),
-            CFBoolean::true_value().as_CFType(),
+            CFBoolean::from(!manual).as_CFType(),
         ),
         (
             key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),
@@ -301,7 +303,11 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
         return Err("系统无法解码这张照片".into());
     }
     let image = unsafe { CGImage::from_ptr(raw) };
-    let (width, height) = (image.width(), image.height());
+    let (width, height) = if manual && orientation >= 5 {
+        (image.height(), image.width())
+    } else {
+        (image.width(), image.height())
+    };
     if image.bits_per_component() > 8 {
         return Err("暂不输出高位深/HDR照片".into());
     }
@@ -336,7 +342,11 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     );
     context.set_rgb_fill_color(1., 1., 1., 1.);
     context.fill_rect(canvas);
-    context.draw_image(canvas, &image);
+    if manual {
+        crate::imaging::draw_oriented(&context, canvas, &image, orientation);
+    } else {
+        context.draw_image(canvas, &image);
+    }
     let mut bounds = None;
     let mut font_size = 0.;
     if !info.text.is_empty() {

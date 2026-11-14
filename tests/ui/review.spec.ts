@@ -1,5 +1,113 @@
 import { test, expect, type Page } from '@playwright/test';
 
+test('unreadable folder offers rescan and recovers without choosing another folder', async ({
+  page,
+}) => {
+  await installMoveMock(page);
+  await page.addInitScript(() => {
+    const internal = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const invoke = internal.invoke;
+    let scans = 0;
+    internal.invoke = async (cmd, args) => {
+      if (cmd === 'scan_folder' && ++scans === 1)
+        throw Error('文件夹暂时离线，请重新扫描或选择文件夹');
+      return invoke(cmd, args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  await expect(page.getByRole('heading', { name: '扫描未完成', exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('文件夹暂时离线');
+  await page.screenshot({ path: 'test-results/scan-unavailable-light.png' });
+  await page.getByRole('button', { name: '重新扫描当前文件夹', exact: true }).click();
+  await expect(page.locator('.photo-card')).toHaveCount(2);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const calls = await page.evaluate(
+    () => (window as unknown as { __moveCalls: { cmd: string }[] }).__moveCalls,
+  );
+  expect(calls.filter((c) => c.cmd === 'create_demo')).toHaveLength(1);
+});
+
+test('stopped scan labels partial results and can restart', async ({ page }) => {
+  await installMoveMock(page);
+  await page.addInitScript(() => {
+    const internal = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const invoke = internal.invoke;
+    let scans = 0;
+    internal.invoke = async (cmd, args) => {
+      if (cmd === 'scan_folder' && ++scans === 1) {
+        const channel = args!.onEvent as { onmessage: (event: unknown) => void };
+        return invoke(cmd, {
+          ...args,
+          onEvent: {
+            onmessage: (event: { kind: string; items: unknown[] }) => {
+              channel.onmessage(
+                event.kind === 'batch'
+                  ? { ...event, items: event.items.slice(0, 1) }
+                  : { kind: 'cancelled' },
+              );
+            },
+          },
+        });
+      }
+      return invoke(cmd, args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  await expect(page.locator('.photo-card')).toHaveCount(1);
+  await expect(page.locator('.statusbar')).toContainText('扫描已停止');
+  await page.getByRole('button', { name: '重新扫描当前文件夹', exact: true }).click();
+  await expect(page.locator('.photo-card')).toHaveCount(2);
+  await expect(page.locator('.statusbar')).not.toContainText('扫描已停止');
+});
+
+test('readable empty folder explains supported formats instead of search filters', async ({
+  page,
+}) => {
+  await installMoveMock(page);
+  await page.addInitScript(() => {
+    const internal = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const invoke = internal.invoke;
+    internal.invoke = async (cmd, args) => {
+      if (cmd === 'scan_folder') {
+        (args!.onEvent as { onmessage: (event: unknown) => void }).onmessage({
+          kind: 'done',
+          count: 0,
+          warnings: [],
+        });
+        return;
+      }
+      return invoke(cmd, args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  await expect(page.getByRole('heading', { name: '未找到支持的照片', exact: true })).toBeVisible();
+  await expect(page.locator('.empty-results')).toContainText('JPEG、PNG、WebP、HEIC');
+  await page.getByLabel('切换暗色主题').click();
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.screenshot({ path: 'test-results/scan-empty-dark-small.png' });
+});
+
 test('failed native preview can retry without changing selection or rating', async ({ page }) => {
   await installMoveMock(page);
   await page.addInitScript(() => {
@@ -10,7 +118,10 @@ test('failed native preview can retry without changing selection or rating', asy
   });
   let failed = false;
   await page.route('http://grove.localhost/generated-preview/**', async (route) => {
-    if (!route.request().url().includes('size=480') && !failed) {
+    if (
+      !route.request().url().includes('size=480') &&
+      !route.request().url().includes('refresh=1')
+    ) {
       failed = true;
       await route.fulfill({ status: 422, contentType: 'text/plain', body: '照片暂时离线，可重试' });
     } else {
@@ -29,6 +140,7 @@ test('failed native preview can retry without changing selection or rating', asy
   await pane.getByRole('button', { name: '重试预览', exact: true }).click();
   await expect(pane.locator('img')).toBeVisible();
   await expect(pane.locator('img')).toHaveJSProperty('naturalWidth', 80);
+  expect(failed).toBe(true);
   await expect(pane.getByRole('button', { name: '重试预览' })).toHaveCount(0);
   const changes = await page.evaluate(() =>
     (window as unknown as { __moveCalls: { cmd: string }[] }).__moveCalls.filter((c) =>
@@ -142,6 +254,8 @@ async function installMoveMock(page: Page) {
           `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"><path fill="#617b68" d="M0 0h48v32H0z"/></svg>')}`,
         invoke: async (cmd: string, args: Record<string, unknown> = {}) => {
           if (cmd !== 'scan_folder') calls.push({ cmd, args: JSON.parse(JSON.stringify(args)) });
+          if (cmd === 'load_workspace') return null;
+          if (cmd === 'save_workspace') return;
           if (cmd === 'create_demo') return { id: 1, name: 'Generated test folder', demo: true };
           if (cmd === 'cancel_scan') return;
           if (cmd === 'scan_folder') {
@@ -743,7 +857,7 @@ test('grid is virtualized and empty search and shortcuts remain usable', async (
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await expect(page.locator('.photo-card')).not.toHaveCount(24);
   await page.getByLabel('搜索照片').fill('不存在');
-  await expect(page.getByRole('heading', { name: '这里还没有照片' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '没有符合条件的照片' })).toBeVisible();
   await page.getByLabel('搜索照片').clear();
   await page.getByRole('button', { name: '快捷键', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '快捷键' })).toBeVisible();
@@ -894,6 +1008,8 @@ async function installBatchMock(page: Page, kind: 'copy' | 'watermark' | 'move')
                 'generated-trial-catalog',
               isolated: true,
             };
+          if (cmd === 'load_workspace') return null;
+          if (cmd === 'save_workspace') return;
           if (cmd === 'create_demo') return { id: 1, name: 'Generated 100', demo: true };
           if (cmd === 'cancel_scan') return;
           if (cmd === 'scan_folder') {

@@ -1,4 +1,4 @@
-THIRD-PARTY NOTICES — Moment Grove 0.1.0
+THIRD-PARTY NOTICES — Moment Grove 0.2.0
 
 Third-party components retain their own licenses. System frameworks, codecs, profiles and fonts are provided by macOS and are not bundled. Test media is generated; no personal media is included.
 

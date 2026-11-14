@@ -81,6 +81,19 @@ export function applyChanges(assets: Asset[], changes: Change[]): Asset[] {
 export function nextId(queue: string[], current: string, delta = 1): string {
   return queue[Math.max(0, Math.min(queue.length - 1, queue.indexOf(current) + delta))] ?? current;
 }
+export function nextComparisonId(
+  queue: string[],
+  shown: string[],
+  current: string,
+  delta: -1 | 1,
+): string | null {
+  const start = queue.indexOf(current);
+  if (start < 0 || !shown.includes(current)) return null;
+  for (let i = start + delta; i >= 0 && i < queue.length; i += delta) {
+    if (!shown.includes(queue[i])) return queue[i];
+  }
+  return null;
+}
 export function isTyping(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&

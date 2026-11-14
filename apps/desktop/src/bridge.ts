@@ -1,5 +1,6 @@
 import { Channel, convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import type { Asset, Batch, Folder, Rating, ScanEvent } from './domain';
+import type { ReviewView, SavedWorkspace } from './workspace';
 
 export const native = isTauri();
 export type Snapshot = {
@@ -121,8 +122,19 @@ const progressChannel = (onProgress: (p: PreparationProgress) => void) => {
   return channel;
 };
 export const bridge = {
+  loadWorkspace: () =>
+    native ? invoke<SavedWorkspace | null>('load_workspace') : Promise.resolve(null),
+  resumeWorkspace: () => invoke<Folder | null>('resume_workspace'),
+  saveWorkspace: (folderId: number | null, view: ReviewView) =>
+    native ? invoke<void>('save_workspace', { folderId, view }) : Promise.resolve(),
   applicationInfo: () =>
-    invoke<{ version: string; dataDirectory: string; isolated: boolean }>('application_info'),
+    invoke<{
+      version: string;
+      buildId: string;
+      channel: string;
+      dataDirectory: string;
+      isolated: boolean;
+    }>('application_info'),
   moveHistory: () => invoke<MoveReport[]>('move_history'),
   chooseMove: (
     folderId: number | null,
@@ -252,9 +264,9 @@ async function browserUndo(token: string): Promise<Batch> {
     }),
   };
 }
-export function mediaSource(asset: Asset, size: 480 | 1600 | 8192): string {
+export function mediaSource(asset: Asset, size: 480 | 1600 | 8192, attempt = 0): string {
   return native
-    ? `${convertFileSrc(asset.id, 'grove')}?size=${size}&stamp=${asset.modified}`
+    ? `${convertFileSrc(asset.id, 'grove')}?size=${size}&stamp=${asset.modified}${attempt ? `&refresh=1&attempt=${attempt}` : ''}`
     : sampleSource(Number(asset.id.split('-')[1]));
 }
 // Browser previews are explicitly illustrative. Desktop persistence always goes through SQLite.

@@ -1,6 +1,14 @@
 /* Keep distributable CSS independent of private docs and dependency notices. */
 @import 'tailwindcss' source('.');
 
+.workspace-status {
+  flex: 0 0 auto;
+  padding: 4px 24px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
 .sync-dialog {
   width: min(720px, calc(100vw - 80px));
 }
@@ -1650,6 +1658,37 @@ kbd {
   display: grid;
   gap: 13px;
   padding: 0 24px 18px;
+}
+.compare-replace-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px 12px;
+}
+.compare-replace-scope {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--subtle);
+}
+.compare-replace-scope span,
+.compare-replace-scope small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-replace-scope small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.compare-replace-bar > button {
+  flex-shrink: 0;
+  padding: 7px 9px;
+  gap: 5px;
+  font-size: 11px;
 }
 .photo-pane {
   min-height: 0;

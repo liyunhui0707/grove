@@ -79,6 +79,7 @@ fn high_resolution(soak: bool) {
     let state = AppState {
         catalog: Mutex::new(Catalog::open(&data.join("catalog.sqlite")).unwrap()),
         allowed: Mutex::new(HashMap::new()),
+        granted_identities: Mutex::new(HashMap::new()),
         data,
         generation: AtomicU64::new(0),
         decode: Arc::new(tokio::sync::Semaphore::new(2)),
@@ -203,6 +204,7 @@ fn generated_library_scan_and_warm_cache() {
     let state = AppState {
         catalog: Mutex::new(Catalog::open(&data.join("catalog.sqlite")).unwrap()),
         allowed: Mutex::new(HashMap::new()),
+        granted_identities: Mutex::new(HashMap::new()),
         data,
         generation: AtomicU64::new(1),
         decode: Arc::new(tokio::sync::Semaphore::new(2)),

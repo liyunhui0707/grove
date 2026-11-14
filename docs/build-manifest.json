@@ -1,27 +1,37 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "channel": "public-prerelease",
+  "buildId": "trial-20261114T135223-c59c54fbb2",
   "architecture": "arm64",
-  "sourceDigest": "b0fd9cc28c7ef0e3c92482a66e7a5a7943e0bfc064077a488f22fb2b52938f07",
-  "binarySha256": "8d54efb2f37919aa267b04c9e2dc6eab4915df53fe178e7a6c4749ed0bbcc8f4",
+  "sourceDigest": "c59c54fbb2ea6c4072666db79aca8dcb64381bfb613daa492003a4e7cf1237a1",
+  "binarySha256": "8311fed233ca316b1f5155434bdcc7209b8eb898f63c64f966941013d95bb064",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.1.0-macOS-arm64.zip",
-      "bytes": 5508046,
-      "sha256": "3a515d924a56c6b20a69c61f261558bc510237ff709fd6d524a060571f5e7ec4"
+      "name": "Moment-Grove-0.2.0-macOS-arm64.zip",
+      "bytes": 5548796,
+      "sha256": "c9caf1534e3717b0a290891bfe759b7bacd287e4976129aaadcef7f748615d72"
     },
     {
-      "name": "Moment-Grove-0.1.0-macOS-arm64.dmg",
-      "bytes": 6324430,
-      "sha256": "8b97b8e1331c7d75fb1d303b8709380646984e55d540f49e6b3a865a818ae342"
+      "name": "Moment-Grove-0.2.0-macOS-arm64.dmg",
+      "bytes": 6373901,
+      "sha256": "c4a15c36c160cf83bf470fa4bbcbdca4bf73b86427d1486201962c606a02ed3b"
     }
   ],
   "validation": {
-    "backendPassed": 90,
-    "browserPassed": 24,
-    "nativeArchiveInstall": "verified; identical App in ZIP and DMG",
-    "currentNativeLaunch": "observed process; additional walkthrough blocked by control channel",
-    "normalGuiQuit": "not claimed for this additional check",
-    "signing": "ad-hoc, not notarized"
+    "system": "macOS 27.2.1 arm64",
+    "backendPassed": 99,
+    "backendIgnoredByDefault": 12,
+    "attributedDeviceSamples": 3,
+    "frontendLogicPassed": 6,
+    "browserPassed": 38,
+    "releaseVersionChecksPassed": 2,
+    "archiveInstall": "ZIP and read-only mounted DMG: same 12 payload files, exact byte hashes and strict ad-hoc signature",
+    "upgrade": "Publicly downloaded 0.1.0 \u2192 0.2.0, same isolated installation/data paths; 24 generated occurrences retained, old 4 ratings/history/pending preserved, new photo 07 rated 3, two original-byte copies plus ratings verified",
+    "rollback": "Retained public 0.1.0 App reads all 5 ratings including new one; catalog, snapshot and originals unchanged",
+    "normalGuiQuit": true,
+    "downloadedCandidateLaunch": "pending final uploaded-asset readback",
+    "browserQuarantineGatekeeper": "not accepted; ad-hoc signature, no Developer ID/notarization",
+    "update": "manual replacement only",
+    "personalLibraryAcceptance": false
   }
 }

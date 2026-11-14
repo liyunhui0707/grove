@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { filterAssets, nextId, applyChanges, type Asset, type Rating } from './domain';
+import {
+  filterAssets,
+  nextId,
+  nextComparisonId,
+  applyChanges,
+  type Asset,
+  type Rating,
+} from './domain';
 const make = (id: string, rating: Rating): Asset => ({
   id,
   rating,
@@ -37,5 +44,16 @@ describe('review semantics', () => {
     expect(updated[1].rating).toBeNull();
     expect(updated[0].rating).toBe(4);
     expect(assets[0].rating).toBeNull();
+  });
+  it('replaces only with a candidate outside the current group, without wrapping', () => {
+    const queue = ['a', 'b', 'c', 'd', 'e'];
+    expect(nextComparisonId(queue, ['a', 'b', 'c'], 'b', 1)).toBe('d');
+    expect(nextComparisonId(queue, ['b', 'd', 'e'], 'd', -1)).toBe('c');
+    expect(nextComparisonId(queue, ['a', 'b'], 'a', -1)).toBeNull();
+    expect(nextComparisonId(queue, ['a', 'e'], 'e', 1)).toBeNull();
+    expect(nextComparisonId(queue, queue, 'c', 1)).toBeNull();
+    expect(nextComparisonId(queue, ['a', 'missing'], 'missing', 1)).toBeNull();
+    expect(nextComparisonId(queue, ['a', 'b'], 'c', 1)).toBeNull();
+    expect(nextComparisonId([], [], '', 1)).toBeNull();
   });
 });

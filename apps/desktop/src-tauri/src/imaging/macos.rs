@@ -13,7 +13,7 @@ use core_graphics::{
     base::{kCGBitmapByteOrder32Big, kCGImageAlphaPremultipliedLast},
     color_space::{CGColorSpace, kCGColorSpaceSRGB},
     context::CGContext,
-    geometry::{CGPoint, CGRect, CGSize},
+    geometry::{CGAffineTransform, CGPoint, CGRect, CGSize},
     image::CGImage,
 };
 use foreign_types::ForeignType;
@@ -86,6 +86,39 @@ fn key(raw: CFStringRef) -> CFString {
 fn number(d: &Dict, k: &str) -> Option<i64> {
     d.find(CFString::new(k))?.downcast::<CFNumber>()?.to_i64()
 }
+// ImageIO's thumbnail transform also corrects non-square print density. A photo's
+// pixel canvas must retain its aspect ratio, independently of its print DPI.
+pub(crate) fn unequal_density(props: &Dict) -> bool {
+    let dpi = |key| {
+        props
+            .find(CFString::new(key))?
+            .downcast::<CFNumber>()?
+            .to_f64()
+    };
+    matches!((dpi("DPIWidth"), dpi("DPIHeight")), (Some(x), Some(y)) if x != y)
+}
+
+pub(crate) fn draw_oriented(context: &CGContext, rect: CGRect, image: &CGImage, orientation: i64) {
+    let (a, b, c, d, tx, ty) = match orientation {
+        2 => (-1., 0., 0., 1., 1., 0.),
+        3 => (-1., 0., 0., -1., 1., 1.),
+        4 => (1., 0., 0., -1., 0., 1.),
+        5 => (0., -1., -1., 0., 1., 1.),
+        6 => (0., -1., 1., 0., 0., 1.),
+        7 => (0., 1., 1., 0., 0., 0.),
+        8 => (0., 1., -1., 0., 1., 0.),
+        _ => (1., 0., 0., 1., 0., 0.),
+    };
+    context.save();
+    context.translate(rect.origin.x, rect.origin.y);
+    context.scale(rect.size.width, rect.size.height);
+    context.concat_ctm(CGAffineTransform::new(a, b, c, d, tx, ty));
+    context.draw_image(
+        CGRect::new(&CGPoint::new(0., 0.), &CGSize::new(1., 1.)),
+        image,
+    );
+    context.restore();
+}
 pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     let url = CFURL::from_path(path, false).ok_or("照片路径无效")?;
     let options = Dict::from_CFType_pairs(&[(
@@ -156,6 +189,7 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     if width as f64 * height as f64 * ratio * ratio > 24_000_000. {
         return Err("细节预览超过2400万像素，请使用普通预览".into());
     }
+    let manual = unequal_density(&props);
     let attrs = Dict::from_CFType_pairs(&[
         (
             key(unsafe { kCGImageSourceCreateThumbnailFromImageAlways }),
@@ -163,7 +197,7 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
         ),
         (
             key(unsafe { kCGImageSourceCreateThumbnailWithTransform }),
-            CFBoolean::true_value().as_CFType(),
+            CFBoolean::from(!manual).as_CFType(),
         ),
         (
             key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),
@@ -177,7 +211,11 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
         return Err("系统无法解码这张照片，可重试或跳过".into());
     }
     let image = unsafe { CGImage::from_ptr(raw) };
-    let (w, h) = (image.width(), image.height());
+    let (w, h) = if manual && orientation >= 5 {
+        (image.height(), image.width())
+    } else {
+        (image.width(), image.height())
+    };
     if w == 0
         || h == 0
         || w > max as usize
@@ -206,7 +244,11 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     let rect = CGRect::new(&CGPoint::new(0., 0.), &CGSize::new(w as f64, h as f64));
     context.set_rgb_fill_color(1., 1., 1., 1.);
     context.fill_rect(rect);
-    context.draw_image(rect, &image);
+    if manual {
+        draw_oriented(&context, rect, &image, orientation);
+    } else {
+        context.draw_image(rect, &image);
+    }
     let output = context.create_image().ok_or("无法生成预览")?;
     let raw = unsafe { CFDataCreateMutable(ptr::null(), 0) };
     if raw.is_null() {
@@ -239,4 +281,53 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
         return Err("预览编码失败".into());
     }
     Ok(data.bytes().to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preview;
+    #[test]
+    fn unequal_print_density_preserves_pixels_and_all_exif_orientations() {
+        use image::{GenericImageView, metadata::Orientation};
+        let temp = tempfile::tempdir().unwrap();
+        for orientation in 1..=8 {
+            let mut bytes = crate::watermark::tests::fixture(
+                640,
+                480,
+                orientation,
+                Some("2026:10:25 23:59:59"),
+            );
+            let jfif = bytes.windows(5).position(|b| b == b"JFIF\0").unwrap();
+            bytes[jfif + 7] = 1;
+            bytes[jfif + 8..jfif + 10].copy_from_slice(&80u16.to_be_bytes());
+            bytes[jfif + 10..jfif + 12].copy_from_slice(&40u16.to_be_bytes());
+            let path = temp.path().join(format!("orientation-{orientation}.jpg"));
+            std::fs::write(&path, &bytes).unwrap();
+            let mut expected = image::load_from_memory(&bytes).unwrap();
+            expected.apply_orientation(Orientation::from_exif(orientation as u8).unwrap());
+            let watermarked =
+                crate::watermark::render(&bytes, &crate::watermark::Options::default(), None)
+                    .unwrap()
+                    .jpeg;
+            for output in [preview(&path, 1600).unwrap(), watermarked] {
+                let actual = image::load_from_memory(&output).unwrap();
+                assert_eq!(
+                    actual.dimensions(),
+                    expected.dimensions(),
+                    "orientation {orientation}"
+                );
+                let (w, h) = actual.dimensions();
+                for (x, y) in [(8, 8), (w - 9, 8), (8, h - 9), (w - 9, h - 9)] {
+                    let a = actual.get_pixel(x, y);
+                    let b = expected.get_pixel(x, y);
+                    for channel in 0..3 {
+                        assert!(
+                            (i32::from(a[channel]) - i32::from(b[channel])).abs() < 25,
+                            "orientation {orientation}, corner {x},{y}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

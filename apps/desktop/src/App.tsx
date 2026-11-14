@@ -1,4 +1,5 @@
 import { GuideDialog } from './GuideDialog';
+import { restoreReview, type ReviewView } from './workspace';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -45,6 +46,7 @@ import {
   gridColumns,
   isTyping,
   nextId,
+  nextComparisonId,
   ratingLabel,
   type Asset,
   type Filter,
@@ -414,8 +416,17 @@ export function App() {
   }, [theme]);
   const [folder, setFolder] = useState<Folder | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(native);
+  const [workspaceReady, setWorkspaceReady] = useState(!native);
+  const [workspaceStatus, setWorkspaceStatus] = useState('');
+  const [workspaceError, setWorkspaceError] = useState('');
+  const [gridOffset, setGridOffset] = useState(0);
+  const workspaceWrites = useRef<{
+    running: boolean;
+    next: { folderId: number | null; view: ReviewView } | null;
+  }>({ running: false, next: null });
   const [scanning, setScanning] = useState(false);
+  const [scanOutcome, setScanOutcome] = useState<'complete' | 'cancelled' | 'failed' | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -437,6 +448,10 @@ export function App() {
   const [history, setHistory] = useState<History[]>([]);
   const [help, setHelp] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const guideReturnFocus = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!guideOpen && guideReturnFocus.current?.isConnected) guideReturnFocus.current.focus();
+  }, [guideOpen]);
   const [backupsOpen, setBackupsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [relocationOpen, setRelocationOpen] = useState(false);
@@ -496,10 +511,11 @@ export function App() {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const open = async (demo: boolean, provided?: Folder) => {
-    if (saveLock.current || loading) return;
+  const open = async (demo: boolean, provided?: Folder, restored?: ReviewView) => {
+    if (saveLock.current || (loading && !restored)) return;
     setError('');
     setLoading(true);
+    let scanStarted = false;
     try {
       const chosen = provided ?? (demo ? await bridge.demo() : await bridge.chooseFolder());
       if (!chosen) return;
@@ -516,23 +532,146 @@ export function App() {
       setSearch('');
       setWarnings([]);
       scrollOffset.current = 0;
+      setGridOffset(0);
+      setWorkspaceStatus('');
+      const scanned: Asset[] = [];
       setScanning(true);
+      setScanOutcome(null);
+      scanStarted = true;
       await bridge.scan(chosen.id, (event) => {
         if (scanGeneration.current !== generation) return;
-        if (event.kind === 'batch') setAssets((current) => [...current, ...event.items]);
+        if (event.kind === 'batch') {
+          scanned.push(...event.items);
+          setAssets((current) => [...current, ...event.items]);
+        }
         if (event.kind === 'done') {
           setScanning(false);
           setWarnings(event.warnings);
+          setScanOutcome('complete');
+          if (restored) {
+            const resume = restoreReview(scanned, restored);
+            setFilter(restored.filter);
+            setSearch(restored.search);
+            setSort(restored.sort);
+            setActive(resume.active);
+            setReviewQueue(resume.queue);
+            setMode(resume.mode);
+            scrollOffset.current = restored.offset;
+            setGridOffset(restored.offset);
+            toast(
+              resume.missing
+                ? '上次照片已不在当前目录，已恢复照片列表；评分仍保存在资料库。'
+                : '已接着上次的位置继续挑选',
+            );
+          }
         }
-        if (event.kind === 'cancelled') setScanning(false);
+        if (event.kind === 'cancelled') {
+          setScanning(false);
+          setScanOutcome('cancelled');
+        }
       });
     } catch (e) {
       setError(String(e));
       setScanning(false);
+      if (scanStarted) setScanOutcome('failed');
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    let stale = false;
+    if (native)
+      void (async () => {
+        try {
+          const saved = await bridge.loadWorkspace();
+          if (stale) return;
+          if (saved) {
+            setTheme(saved.view.theme);
+            setSize(saved.view.size);
+            setAutoAdvance(saved.view.autoAdvance);
+            setSort(saved.view.sort);
+            if (saved.folderId !== null) {
+              const chosen = await bridge.resumeWorkspace();
+              if (stale) return;
+              if (chosen) await open(false, chosen, saved.view);
+            }
+          }
+        } catch (e) {
+          if (!stale) setError(String(e));
+        } finally {
+          if (!stale) {
+            setLoading(false);
+            setWorkspaceReady(true);
+          }
+        }
+      })();
+    return () => {
+      stale = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (
+      !native ||
+      !workspaceReady ||
+      loading ||
+      scanning ||
+      saving ||
+      !folder ||
+      scanOutcome !== 'complete'
+    )
+      return;
+    const writer = workspaceWrites.current;
+    writer.next = {
+      folderId: folder.id,
+      view: {
+        mode: mode === 'review' ? 'review' : 'grid',
+        active,
+        filter,
+        sort,
+        search,
+        size,
+        autoAdvance,
+        theme,
+        offset: gridOffset,
+      },
+    };
+    setWorkspaceStatus('正在保存审片位置…');
+    setWorkspaceError('');
+    if (writer.running) return;
+    writer.running = true;
+    void (async () => {
+      while (writer.next) {
+        const next = writer.next;
+        writer.next = null;
+        try {
+          await bridge.saveWorkspace(next.folderId, next.view);
+          if (!writer.next) setWorkspaceStatus('审片位置已保存');
+        } catch (e) {
+          if (!writer.next) {
+            setWorkspaceStatus('审片位置未保存');
+            setWorkspaceError(`审片位置未保存：${String(e)}。评分保存独立处理。`);
+          }
+        }
+      }
+      writer.running = false;
+    })();
+  }, [
+    workspaceReady,
+    loading,
+    scanning,
+    saving,
+    folder,
+    scanOutcome,
+    mode,
+    active,
+    filter,
+    sort,
+    search,
+    size,
+    autoAdvance,
+    theme,
+    gridOffset,
+  ]);
   const select = (id: string, extend: boolean, range: boolean) => {
     if (range && active) {
       const start = visible.findIndex((a) => a.id === active);
@@ -564,6 +703,7 @@ export function App() {
       return;
     }
     setCompareIds(ids);
+    setReviewQueue(visible.map((a) => a.id));
     setActive(ids[0]);
     setMode('compare');
     setDetail(false);
@@ -578,6 +718,21 @@ export function App() {
     if (mode === 'grid') setSelected([id]);
     setDetail(false);
     setViewports({});
+  };
+  const previousCandidate = nextComparisonId(reviewQueue, compareIds, active, -1);
+  const followingCandidate = nextComparisonId(reviewQueue, compareIds, active, 1);
+  const canReplace = mode === 'compare' && !detail && !saving && !scanning && !loading;
+  const replaceCandidate = (delta: -1 | 1) => {
+    if (mode !== 'compare' || detail || saveLock.current || scanning || loading) return;
+    const id = nextComparisonId(reviewQueue, compareIds, active, delta);
+    if (!id || !byId.has(id)) return;
+    const group = compareIds.map((shown) => (shown === active ? id : shown));
+    setCompareIds(group);
+    setSelected(group);
+    setActive(id);
+    // Linked zoom intentionally carries the same relative framing to the new
+    // candidate; independent panes keep their framing while the new one fits.
+    setViewports((current) => ({ ...current, [id]: fit }));
   };
   const rate = async (rating: Rating, explicitId?: string) => {
     if (saveLock.current || scanning) return;
@@ -695,6 +850,9 @@ export function App() {
       } else if (e.key.toLowerCase() === 'u') {
         e.preventDefault();
         void rate(null);
+      } else if ((e.key === '[' || e.key === ']') && mode === 'compare') {
+        e.preventDefault();
+        replaceCandidate(e.key === ']' ? 1 : -1);
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         move(e.key === 'ArrowRight' ? 1 : -1);
@@ -861,7 +1019,11 @@ export function App() {
               <Keyboard size={16} />
               快捷键
             </button>
-            <IconButton label="使用说明与资料" onClick={() => setGuideOpen(true)}>
+            <IconButton
+              label="使用说明与资料"
+              buttonRef={guideReturnFocus}
+              onClick={() => setGuideOpen(true)}
+            >
               <BookOpen size={16} />
             </IconButton>
             <IconButton
@@ -962,6 +1124,15 @@ export function App() {
               <FolderOpen size={15} />
               打开文件夹
             </button>
+            {folder && (
+              <IconButton
+                label="重新扫描当前文件夹"
+                disabled={loading || scanning || saving}
+                onClick={() => void open(false, folder)}
+              >
+                <RotateCcw size={17} />
+              </IconButton>
+            )}
           </div>
         </header>
         {error && (
@@ -970,6 +1141,11 @@ export function App() {
             <IconButton label="关闭错误提示" onClick={() => setError('')}>
               <X size={14} />
             </IconButton>
+          </div>
+        )}
+        {workspaceError && (
+          <div className="error-banner" role="alert">
+            {workspaceError}
           </div>
         )}
         {warnings.length > 0 && (
@@ -1136,6 +1312,7 @@ export function App() {
                   initialOffset={scrollOffset.current}
                   onOffset={(n) => {
                     scrollOffset.current = n;
+                    setGridOffset(n);
                   }}
                   onSelect={select}
                   onOpen={startReview}
@@ -1143,9 +1320,27 @@ export function App() {
               ) : (
                 <div className="empty-results">
                   {scanning ? <LoaderCircle size={30} className="spin" /> : <Search size={30} />}
-                  <h2>{scanning ? '正在寻找照片' : '这里还没有照片'}</h2>
+                  <h2>
+                    {scanning
+                      ? '正在寻找照片'
+                      : scanOutcome === 'failed'
+                        ? '扫描未完成'
+                        : scanOutcome === 'cancelled'
+                          ? '扫描已停止'
+                          : assets.length
+                            ? '没有符合条件的照片'
+                            : '未找到支持的照片'}
+                  </h2>
                   <p>
-                    {scanning ? '第一批照片准备好后就会出现。' : '试试其他评分，或换一个搜索词。'}
+                    {scanning
+                      ? '第一批照片准备好后就会出现。'
+                      : scanOutcome === 'failed'
+                        ? '请查看上方提示，恢复目录后重新扫描；需要授权时请重新打开文件夹。'
+                        : scanOutcome === 'cancelled'
+                          ? '当前结果可能不完整，可点击右上角重新扫描。'
+                          : assets.length
+                            ? '试试其他评分，或换一个搜索词。'
+                            : '当前支持 JPEG、PNG、WebP、HEIC 和 HEIF。可重新扫描或打开其他文件夹。'}
                   </p>
                 </div>
               )}
@@ -1166,6 +1361,11 @@ export function App() {
                 ) : (
                   <>
                     <span className="status-dot" />
+                    {scanOutcome === 'cancelled'
+                      ? '扫描已停止 · '
+                      : scanOutcome === 'failed'
+                        ? '扫描未完成 · '
+                        : ''}
                     {visible.length} 张照片
                     {selected.length ? ` · 已选择 ${selected.length} 张` : ''}
                   </>
@@ -1259,6 +1459,38 @@ export function App() {
                 </IconButton>
               </div>
             </div>
+            {mode === 'compare' && (
+              <div className="compare-replace-bar" role="group" aria-label="连续比较">
+                <div className="compare-replace-scope">
+                  <span title={byId.get(active)?.relative}>
+                    活动照片 · {byId.get(active)?.name}
+                  </span>
+                  <small>
+                    只替换活动照片，其他照片保留 · 列表 {reviewQueue.indexOf(active) + 1} /{' '}
+                    {reviewQueue.length}
+                  </small>
+                </div>
+                <button
+                  className="button subtle"
+                  aria-label="上一候选"
+                  disabled={!canReplace || !previousCandidate}
+                  onClick={() => replaceCandidate(-1)}
+                >
+                  <ChevronLeft size={14} />
+                  上一候选<kbd>[</kbd>
+                </button>
+                <button
+                  className="button subtle"
+                  aria-label="下一候选"
+                  disabled={!canReplace || !followingCandidate}
+                  onClick={() => replaceCandidate(1)}
+                >
+                  下一候选
+                  <ChevronRight size={14} />
+                  <kbd>]</kbd>
+                </button>
+              </div>
+            )}
             <div
               className={`comparison-stage ${shown.length === 1 ? 'single-stage' : ''}`}
               style={{
@@ -1319,6 +1551,11 @@ export function App() {
               )}
             </div>
           </section>
+        )}
+        {workspaceStatus && (
+          <div className="workspace-status" aria-live="polite">
+            {workspaceStatus}
+          </div>
         )}
         {notice && (
           <div className="toast" role="status">
@@ -1444,6 +1681,7 @@ export function App() {
                 ['← / →', '上一张 / 下一张'],
                 ['⌘ / Ctrl + Z', '撤销评分并恢复位置'],
                 ['C', '比较已选择的 2–8 张'],
+                ['[ / ]', '比较中替换活动照片，其他保留'],
                 ['Enter', '进入审片'],
                 ['Space', '临时查看细节'],
                 ['Esc', '返回上一级'],

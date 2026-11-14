@@ -2,15 +2,17 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.1.0 is a public prerelease for Apple Silicon Macs.** The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.2.0 is a public test prerelease for Apple Silicon Macs.** The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
-![Illustrative eight-photo comparison using generated demo artwork](docs/images/comparison.png)
+![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
 *Browser preview using generated demo artwork; this is not a photograph or a native macOS screenshot.*
 
 ## What you can do
 
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.
+- Resume the last folder, exact photo and essential review settings after a normal quit.
+- Keep comparison references visible while replacing only the active candidate with `[` / `]`.
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
@@ -19,19 +21,19 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [Releases](https://github.com/liyunhui0707/moment-grove/releases). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [the 0.2.0 prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.2.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
-shasum -a 256 -c SHA256SUMS.txt
+shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
 ```
 
-Keep the checksum file and both archives in the same folder for that command, or compare the checksum for only the archive you downloaded. Checksums detect changes; they are not an independent developer signature.
+Keep the checksum file and the chosen ZIP or DMG in the same folder. Require `OK` and a successful exit; if no file is verified or a checksum fails, stop without extracting or running it. Checksums detect changes; they are not an independent developer signature.
 
 Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP and copy the app. Quit any older copy before replacing it.
 
 **Signing:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block the first opening. Follow [Apple's instructions for opening software from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) only if you trust the source. No security-disabling commands are required. A browser-download Gatekeeper flow has not been accepted as part of this prerelease.
 
-**Additional desktop check:** the final package installed and started on the test Mac, but a Screen Sharing failure blocked the added native format/retry walkthrough. It remains unaccepted; see the [precise validation boundary](docs/release-notes.md#exact-package-native-check-boundary).
+**Native upgrade check:** the publicly downloaded 0.1.0 App was replaced by the exact 0.2.0 package at the same isolated installation path. All 24 generated photo identities, existing ratings, pending writes and undo history were retained. New scoring, a verified two-photo copy export, normal quit and rollback to 0.1.0 passed. This does not certify personal libraries or the browser-quarantine Gatekeeper path.
 
 **System scope:** arm64 / Apple Silicon; tested on macOS 27.2.1. The bundle declares macOS 12 as its minimum, but other OS versions, Intel Macs, Windows and Linux have not been validated for this release.
 
@@ -41,13 +43,13 @@ Choose **体验示例图库** for generated demo photos, or open a folder of dis
 
 Use 0–5 to rate, U to clear, ⌘Z to undo, and C to compare a selection. Ratings save to the local catalog; **评分同步** explicitly writes XMP. **导出副本** preserves original bytes and metadata. Watermark exports omit the source EXIF/GPS. Review every file-operation plan before confirming.
 
-See the [user guide](docs/user-guide.md), [format support](docs/format-support.md), and [release notes](docs/release-notes.md).
+See [installation, upgrade and rollback](docs/installation-upgrade.md), the [user guide](docs/user-guide.md), [format support](docs/format-support.md), and [release notes](docs/release-notes.md).
 
 ## Privacy, updates and recovery
 
 The app does not upload photos, require an account, query online city services, or perform automatic updates. System file pickers determine which folders it can use. Catalog snapshots contain ratings/catalog data, not photo backups.
 
-Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. An older app must support the current database schema; arbitrary version rollback is not promised. Uninstalling the app does not automatically erase the photo folder or application data.
+Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. The 0.1.0 ↔ 0.2.0/schema2 pair was tested with generated data; arbitrary version rollback is not promised. Old versions ignore the new resume state. Uninstalling the app does not automatically erase the photo folder or application data.
 
 ## Build from source
 
@@ -66,6 +68,7 @@ npm test
 npm run test:rust
 npm run test:ui
 npm run check:rust
+node --test scripts/tests/release-version.test.mjs
 ```
 
 Browser checks require installed Google Chrome. macOS decoder tests use system ImageIO/ColorSync and generated fixtures; other platforms are not supported by this release. Performance and destructive-fault helper cases are opt-in and should only run in an owned test environment.

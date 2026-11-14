@@ -10,7 +10,12 @@ mod moves;
 mod preparation;
 mod relocation;
 mod sidecar;
+#[cfg(test)]
+mod stability;
+#[cfg(test)]
+mod sustainable;
 mod watermark;
+mod workspace;
 mod xmp;
 
 use catalog::{Asset, Batch, Catalog, Result};
@@ -31,6 +36,7 @@ use tauri_plugin_dialog::DialogExt;
 pub struct AppState {
     catalog: Mutex<Catalog>,
     allowed: Mutex<HashMap<i64, PathBuf>>,
+    granted_identities: Mutex<HashMap<i64, String>>,
     data: PathBuf,
     generation: AtomicU64,
     decode: Arc<tokio::sync::Semaphore>,
@@ -75,6 +81,8 @@ enum ScanEvent {
 #[serde(rename_all = "camelCase")]
 struct ApplicationInfo {
     version: &'static str,
+    build_id: &'static str,
+    channel: &'static str,
     data_directory: String,
     isolated: bool,
 }
@@ -82,9 +90,38 @@ struct ApplicationInfo {
 fn application_info(state: tauri::State<'_, Arc<AppState>>) -> ApplicationInfo {
     ApplicationInfo {
         version: env!("CARGO_PKG_VERSION"),
+        build_id: option_env!("MOMENT_GROVE_BUILD_ID").unwrap_or("development"),
+        channel: option_env!("MOMENT_GROVE_CHANNEL").unwrap_or("development"),
         data_directory: state.data.to_string_lossy().into_owned(),
         isolated: std::env::var_os("MOMENT_GROVE_DATA_DIR").is_some(),
     }
+}
+#[tauri::command]
+async fn load_workspace(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<workspace::Saved>> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace::load(&state))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn save_workspace(
+    folder_id: Option<i64>,
+    view: workspace::View,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<()> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace::save(&state, folder_id, view))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn resume_workspace(state: tauri::State<'_, Arc<AppState>>) -> Result<Option<Folder>> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace::resume(&state))
+        .await
+        .map_err(|e| e.to_string())?
 }
 fn grant(state: &AppState, path: PathBuf) -> Result<Folder> {
     let path = path.canonicalize().map_err(|_| "目录不可用")?;
@@ -97,6 +134,8 @@ fn grant(state: &AppState, path: PathBuf) -> Result<Folder> {
         .map_err(|_| "目录忙碌")?
         .folder(&path)?;
     let demo = path == state.data.join("demo");
+    let identity =
+        imaging::identity_from_metadata(&fs::metadata(&path).map_err(|_| "目录不可用")?)?;
     let name = path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -106,6 +145,11 @@ fn grant(state: &AppState, path: PathBuf) -> Result<Folder> {
         .lock()
         .map_err(|_| "目录忙碌")?
         .insert(id, path);
+    state
+        .granted_identities
+        .lock()
+        .map_err(|_| "目录忙碌")?
+        .insert(id, identity);
     Ok(Folder { id, name, demo })
 }
 #[tauri::command]
@@ -650,6 +694,19 @@ fn scan_directory(
     let mut count = 0;
     let mut batch = Vec::new();
     let mut warnings = Vec::new();
+    // Root failures are not an empty success; descendant failures remain warnings.
+    let root_error = |e: std::io::Error| match e.kind() {
+        std::io::ErrorKind::NotFound => "文件夹已移动或离线，请重新选择文件夹".to_string(),
+        std::io::ErrorKind::PermissionDenied => {
+            "没有读取此文件夹的权限，请通过打开文件夹重新授权".to_string()
+        }
+        _ => "文件夹无法读取，请重新扫描或选择文件夹".to_string(),
+    };
+    let metadata = fs::metadata(root).map_err(root_error)?;
+    if !metadata.is_dir() {
+        return Err("原文件夹位置已被其他文件占用，请重新选择文件夹".into());
+    }
+    fs::read_dir(root).map_err(root_error)?;
     let entries = walkdir::WalkDir::new(root)
         .follow_links(false)
         .into_iter()
@@ -671,7 +728,10 @@ fn scan_directory(
         }
         let entry = match entry {
             Ok(e) => e,
-            Err(_) => {
+            Err(e) => {
+                if e.depth() == 0 {
+                    return Err("文件夹无法读取，请重新扫描或选择文件夹".into());
+                }
                 if warnings.len() < 8 {
                     warnings.push("部分目录无法读取".into());
                 }
@@ -871,6 +931,7 @@ async fn restore_backup(
         let mut catalog = state.catalog.lock().map_err(|_| "目录忙碌")?;
         let mut allowed = state.allowed.lock().map_err(|_| "目录忙碌")?;
         let bindings = moves::catalog_restore_bindings(&catalog, &state.data)?;
+        workspace::forget(&state)?;
         let restored = backups::restore_with_locations(
             &mut catalog,
             &state.data.join("backups"),
@@ -878,6 +939,11 @@ async fn restore_backup(
             &bindings,
         )?;
         allowed.clear();
+        state
+            .granted_identities
+            .lock()
+            .map_err(|_| "目录忙碌")?
+            .clear();
         *state.relocation.lock().map_err(|_| "目录忙碌")? = None;
         Ok(restored)
     })
@@ -971,6 +1037,7 @@ fn main() {
                     Catalog::open(&data.join("catalog.sqlite")).map_err(std::io::Error::other)?,
                 ),
                 allowed: Mutex::new(HashMap::new()),
+                granted_identities: Mutex::new(HashMap::new()),
                 data,
                 generation: AtomicU64::new(0),
                 decode: Arc::new(tokio::sync::Semaphore::new(2)),
@@ -1001,6 +1068,12 @@ fn main() {
                 .split('&')
                 .find_map(|q| q.strip_prefix("size="))
                 .and_then(|q| q.parse::<u32>().ok());
+            let refresh = request
+                .uri()
+                .query()
+                .unwrap_or("")
+                .split('&')
+                .any(|q| q == "refresh=1");
             tauri::async_runtime::spawn(async move {
                 let outcome = async {
                     let _queue = state
@@ -1019,9 +1092,15 @@ fn main() {
                     }
                     let id = path;
                     let size = size.ok_or("预览尺寸无效")?;
-                    tauri::async_runtime::spawn_blocking(move || imaging::render(&state, &id, size))
-                        .await
-                        .map_err(|e| e.to_string())?
+                    tauri::async_runtime::spawn_blocking(move || {
+                        if refresh {
+                            imaging::render_with_refresh(&state, &id, size, true)
+                        } else {
+                            imaging::render(&state, &id, size)
+                        }
+                    })
+                    .await
+                    .map_err(|e| e.to_string())?
                 }
                 .await;
                 let (status, mime, body) = match outcome {
@@ -1041,6 +1120,9 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             application_info,
+            load_workspace,
+            save_workspace,
+            resume_workspace,
             choose_folder,
             create_demo,
             scan_folder,
@@ -1079,6 +1161,7 @@ mod safety_tests {
         AppState {
             catalog: Mutex::new(Catalog::open(&data.join("catalog.sqlite")).unwrap()),
             allowed: Mutex::new(HashMap::new()),
+            granted_identities: Mutex::new(HashMap::new()),
             data: data.into(),
             generation: AtomicU64::new(0),
             decode: Arc::new(tokio::sync::Semaphore::new(2)),
@@ -1289,8 +1372,10 @@ mod safety_tests {
     #[test]
     fn scan_cancellation_stops_catalog_writes_and_does_not_emit_done() {
         let temp = tempfile::tempdir().unwrap();
-        let s = Arc::new(state(temp.path()));
-        let media = temp.path().join("generated");
+        let s = Arc::new(state(&temp.path().canonicalize().unwrap()));
+        // The command receives a canonical picker grant, including on Macs
+        // whose default temporary directory begins with the /var alias.
+        let media = temp.path().canonicalize().unwrap().join("generated");
         fs::create_dir(&media).unwrap();
         // Header errors are isolated by the scanner, so tiny synthetic files suffice here.
         for i in 0..100 {

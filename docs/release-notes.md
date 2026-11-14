@@ -1,19 +1,27 @@
-# 0.1.0 — public prerelease
+# 0.2.0 — 技术测试预发布
 
-First public source and macOS Apple Silicon archives. Ad-hoc signed; not notarized. No automatic updates.
+渠道：技术试用者；Apple Silicon macOS；ad-hoc签名、未公证、手动更新。用户已明确选择本轮版本和渠道。现有v0.1.0标签与归档保留，不静默替换同版本二进制。
 
-Includes folder browsing, persistent seven-state ratings and undo, 2–8-photo comparison, XMP sync/conflict review, catalog snapshots, original-byte copy exports, date/city watermark derivatives, and reviewed same-volume moves/isolation/withdrawal.
+## 主要改进
 
-Preview compatibility improvements normalize SDR colour to sRGB, composite transparency over white, apply all eight EXIF orientations once, distinguish the corrected preview cache, reject detected unsupported HDR/high-depth/multi-frame cases, and provide a retry action.
+- 退出后恢复同一目录、精确照片ID、搜索/筛选/排序、网格密度和位置、自动下一张及主题；保存失败与目录失效有独立提示。
+- 2–8图比较可用 [ / ] 或“上一候选 / 下一候选”只替换活动照片，其他窗格保留；冻结候选顺序，支持对应组的评分撤销。
+- 根目录离线/权限错误、损坏预览缓存与重试状态改进；可直接重新扫描。
+- 修复非方形打印DPI造成的照片拉伸及水印输出拒绝；补充有来源的手机/相机样本和明确的HDR限制。
+- 打包校验npm/Cargo/Tauri版本一致，DMG卷名和归档名随实际版本生成；提供归档SHA-256与升级说明。
 
-Validation uses generated media on a second Apple Silicon Mac: 90 backend checks, a generated eight-photo 12MP cold/warm preview baseline, and 24 browser checks with mocked native IPC where indicated. Previous local-trial native acceptance covered archive installation, ratings/sync, exports, isolation/restart/withdrawal, manual snapshots and compatible-candidate rollback. These are distinct evidence sets; browser mocks do not prove native picker or WebView behaviour. Latest package acceptance is recorded in the release description.
+固定双图七候选任务由41次操作降至17次（约59%），评分结果一致；这是该任务的操作数，不是普遍人工挑选速度承诺。
 
-Known boundaries: generated HEIC/P3 samples only, no guarantee for arbitrary camera HDR; no complete Live Photo/RAW resource-group operations, cross-volume moves, Windows/Linux packages, Intel package, public historical-version migration guarantee, or validated browser-download Gatekeeper flow. Real disk failure/power-loss testing and long-running full-App large-library measurements remain future work.
+## 验证范围
 
-The bundled SQLite dependency was updated to rusqlite 0.41.1 / libsqlite3-sys 0.39.1 before publication, addressing [RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html). The application catalog remains schema 2. Advisory checks of the fixed macOS Rust graph and production npm dependencies returned no flagged packages on 2026-11-14.
+本轮自动检查：99项真实后端回归通过（12个负载/故障等入口默认忽略）、三份归属明确的设备样本专项通过、6项前端逻辑及38项浏览器交互通过，另有2项发布版本一致性检查。构建与Clippy通过，生产npm依赖公告检查没有报告项；这些均不构成无漏洞或所有设备兼容保证。
 
-## Exact-package native check boundary
+实际0.2.0安装包下载、安装、升级、回退与原生结果，以[同版本发行记录](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.2.0)和公开docs/build-manifest.json为准。前两个已完成阶段的原生结果属于其记录的本地候选，不直接冒充此次安装包验收。
 
-The final App was independently extracted from ZIP and mounted read-only from DMG on the test Mac; bundle resources, signature and bytes matched. It started with isolated application data. Screen Sharing control then failed before the additional mixed-format/retry desktop walkthrough could be completed. The test App was stopped with a scoped SIGTERM; this is not a normal menu-quit acceptance. No additional native walkthrough PASS is claimed for this prerelease. The new decoder/colour path is covered by real system-decoder backend tests, while retry UI checks use browser IPC mocks.
+## 安装与已知边界
 
-The final archive repack adds the linked format guide and normalizes notice whitespace; its entire App bundle is byte-identical to the archive-installed App. No browser-download Gatekeeper acceptance, notarization or formal stable-release acceptance is claimed. Start with disposable photo copies.
+见[安装、更新与回退](installation-upgrade.md)及[格式说明](format-support.md)。App界面为中文；本轮不申请付费会员、不修改系统权限。无HDR色调映射、完整Live Photo/RAW资源组、跨卷移动、Intel/Windows/Linux包、云同步或自动更新。系统可能阻止首次打开，不能将ad-hoc包说成已公证或免系统确认。生成/许可测试素材不代表真实个人主库安全认证或长期大图库性能。
+
+## 本版安装包原生升级检查
+
+在macOS27.2.1/arm64，以公开下载的0.1.0为起点，在同一隔离安装与资料目录替换0.2.0。24张生成照片身份、旧评分/历史/待同步均保留；新增第7张3星，2张精选副本与评分XMP核验通过。正常退出后回退保留的0.1.0，可读取全部5份评分，快照及24张原图未变。没有使用个人图库；浏览器隔离属性与Gatekeeper首次打开路径仍未验收。

@@ -9,6 +9,8 @@ use std::{
 
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "macos")]
+pub(crate) use macos::{draw_oriented, unequal_density};
 #[cfg(not(target_os = "macos"))]
 use std::io::BufReader;
 
@@ -71,6 +73,14 @@ pub fn allowed_path(state: &AppState, id: &str) -> Result<PathBuf> {
 }
 
 pub fn render(state: &AppState, id: &str, size: u32) -> Result<Vec<u8>> {
+    render_with_refresh(state, id, size, false)
+}
+pub fn render_with_refresh(
+    state: &AppState,
+    id: &str,
+    size: u32,
+    refresh: bool,
+) -> Result<Vec<u8>> {
     if ![480, 1600, 8192].contains(&size) {
         return Err("预览尺寸无效".into());
     }
@@ -82,8 +92,9 @@ pub fn render(state: &AppState, id: &str, size: u32) -> Result<Vec<u8>> {
     let cache = state
         .data
         .join("cache")
-        .join(format!("sdr-v2-{id}-{before}-{size}.jpg"));
-    if let Ok(bytes) = fs::read(&cache) {
+        .join(format!("sdr-v3-{id}-{before}-{size}.jpg"));
+    // Explicit retry repairs a damaged cache without weakening grant/identity checks.
+    if !refresh && let Ok(bytes) = fs::read(&cache) {
         return Ok(bytes);
     }
     #[cfg(target_os = "macos")]

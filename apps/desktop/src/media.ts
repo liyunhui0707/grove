@@ -39,8 +39,8 @@ function scheduled(signal: AbortSignal, run: () => Promise<void>) {
   });
 }
 export function useMedia(asset: Asset, size: 480 | 1600 | 8192) {
-  const source = mediaSource(asset, size);
   const [attempt, setAttempt] = useState(0);
+  const source = mediaSource(asset, size, attempt);
   const request = `${source}\n${attempt}`;
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
   const [result, setResult] = useState<{ source: string; url: string; error: string }>({
