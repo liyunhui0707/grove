@@ -29,7 +29,7 @@
     "upgrade": "Publicly downloaded 0.1.0 \u2192 0.2.0, same isolated installation/data paths; 24 generated occurrences retained, old 4 ratings/history/pending preserved, new photo 07 rated 3, two original-byte copies plus ratings verified",
     "rollback": "Retained public 0.1.0 App reads all 5 ratings including new one; catalog, snapshot and originals unchanged",
     "normalGuiQuit": true,
-    "downloadedCandidateLaunch": "pending final uploaded-asset readback",
+    "downloadedCandidateLaunch": "All 3 uploaded assets fully re-downloaded and hashes/sizes verified; extracted App installed at same path, auto-resumed photo 07 and retained dark/autoAdvance=false; normal quit; IDs/ratings/pending/history/originals/snapshot unchanged",
     "browserQuarantineGatekeeper": "not accepted; ad-hoc signature, no Developer ID/notarization",
     "update": "manual replacement only",
     "personalLibraryAcceptance": false
