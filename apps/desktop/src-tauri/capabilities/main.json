@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Only the local main window; media access is granted by the native folder picker.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

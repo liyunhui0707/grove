@@ -1,0 +1,680 @@
+use super::*;
+use crate::{catalog::Catalog, imaging, xmp};
+use std::{
+    collections::HashMap,
+    fs,
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+fn fixture(base: &Path) -> (Catalog, HashMap<i64, std::path::PathBuf>, i64, Vec<Target>) {
+    let root = base.join("sources");
+    fs::create_dir(&root).unwrap();
+    let mut c = Catalog::open(&base.join("catalog.sqlite")).unwrap();
+    let folder = c.folder(&root).unwrap();
+    let mut targets = Vec::new();
+    for (i, rating) in [None, Some(0), Some(1), Some(2), Some(3), Some(4), Some(5)]
+        .into_iter()
+        .enumerate()
+    {
+        let p = root.join(format!("generated-{i}.jpg"));
+        fs::write(&p, format!("generated original {i}")).unwrap();
+        let id = c
+            .upsert(folder, &p, &imaging::identity(&p).unwrap(), None)
+            .unwrap()
+            .0;
+        let change = c.rate(std::slice::from_ref(&id), rating).unwrap();
+        let revision = change.changes.first().map(|a| a.revision).unwrap_or(0);
+        targets.push(Target { id, revision });
+    }
+    fs::create_dir(base.join("output")).unwrap();
+    fs::create_dir(base.join("data")).unwrap();
+    (c, HashMap::from([(folder, root)]), folder, targets)
+}
+fn execute(plan: Plan, data: &Path, cancel: &AtomicBool) -> Report {
+    run(plan, data, cancel, |_| {}, || Ok(())).unwrap()
+}
+
+#[test]
+fn seven_states_export_without_touching_originals_or_pending_queue() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let xml = xmp::merge(None, Some(2)).unwrap().replace(
+        "<rdf:Description ",
+        "<rdf:Description xmlns:custom=\"urn:test\" custom:Caption=\"keep me\" ",
+    );
+    fs::write(roots[&f].join("generated-6.jpg.xmp"), &xml).unwrap();
+    let before: Vec<_> = (0..7)
+        .map(|i| fs::read(roots[&f].join(format!("generated-{i}.jpg"))).unwrap())
+        .collect();
+    let plan = prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).unwrap();
+    let report = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(report.status, "completed");
+    assert_eq!(report.verified, 7);
+    for (i, row) in report.items.iter().enumerate() {
+        assert_eq!(
+            fs::read(Path::new(&report.destination).join(&row.output)).unwrap(),
+            before[i]
+        );
+        let out =
+            fs::read_to_string(Path::new(&report.destination).join(format!("{}.xmp", row.output)))
+                .unwrap();
+        assert_eq!(xmp::read(&out).unwrap(), row.rating);
+        assert_eq!(
+            fs::read(roots[&f].join(format!("generated-{i}.jpg"))).unwrap(),
+            before[i]
+        );
+        if i == 6 {
+            assert!(out.contains("keep me"));
+        }
+    }
+    assert_eq!(
+        fs::read_to_string(roots[&f].join("generated-6.jpg.xmp")).unwrap(),
+        xml
+    );
+    let pending: i64 =
+        c.db.query_row("SELECT count(*) FROM pending_xmp", [], |r| r.get(0))
+            .unwrap();
+    assert_eq!(pending, 7);
+    let manifest =
+        fs::read_to_string(Path::new(&report.destination).join("moment-grove-export.json"))
+            .unwrap();
+    assert!(!manifest.contains(b.to_str().unwrap()));
+    assert!(manifest.contains("sha256"));
+}
+
+#[test]
+fn rejects_stale_selection_source_changes_and_nested_destination() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (mut c, roots, f, targets) = fixture(&b);
+    assert!(prepare(&c, &roots, f, &targets, &roots[&f], &b.join("data")).is_err());
+    assert!(
+        prepare(
+            &c,
+            &HashMap::new(),
+            f,
+            &targets,
+            &b.join("output"),
+            &b.join("data")
+        )
+        .is_err()
+    );
+    c.rate(&[targets[0].id.clone()], Some(5)).unwrap();
+    assert!(prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).is_err());
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[1..2],
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    fs::write(roots[&f].join("generated-1.jpg"), b"externally changed").unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.verified, 0);
+    assert_eq!(result.status, "partial");
+}
+
+#[test]
+fn cancellation_resumes_and_external_output_is_never_overwritten() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let plan = prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).unwrap();
+    let cancel = AtomicBool::new(false);
+    let first = run(
+        plan,
+        &b.join("data"),
+        &cancel,
+        |r| {
+            if r.verified == 1 {
+                cancel.store(true, Ordering::SeqCst)
+            }
+        },
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!(first.status, "cancelled");
+    assert_eq!(first.verified, 1);
+    let name = &first.items[0].output;
+    let dst = Path::new(&first.destination).join(name);
+    fs::write(&dst, b"external new data").unwrap();
+    let plan = resume(&c, &roots, f, &first.id, &b.join("output"), &b.join("data")).unwrap();
+    let second = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(second.status, "partial");
+    assert_eq!(second.verified, 6);
+    assert_eq!(fs::read(dst).unwrap(), b"external new data");
+}
+
+#[test]
+fn paired_resources_links_and_duplicate_selection_are_rejected() {
+    use std::os::unix::fs::symlink;
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    fs::write(
+        roots[&f].join("generated-0.MOV"),
+        b"generated paired resource",
+    )
+    .unwrap();
+    assert!(prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).is_err());
+    assert!(
+        prepare(
+            &c,
+            &roots,
+            f,
+            &[targets[1].clone(), targets[1].clone()],
+            &b.join("output"),
+            &b.join("data")
+        )
+        .is_err()
+    );
+    let link = roots[&f].join("linked");
+    symlink(b.join("output"), &link).unwrap();
+    let id =
+        c.db.query_row(
+            "SELECT id FROM assets WHERE path LIKE '%generated-1.jpg'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .unwrap();
+    c.db.execute(
+        "UPDATE assets SET path=?1 WHERE id=?2",
+        rusqlite::params![link.join("any.jpg").to_str(), id],
+    )
+    .unwrap();
+    assert!(
+        prepare(
+            &c,
+            &roots,
+            f,
+            &targets[1..2],
+            &b.join("output"),
+            &b.join("data")
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn crash_after_photo_publication_resumes_without_replacing_verified_bytes() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[5..],
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let id = review(&plan).id;
+    // Persist the prepared job and exit in an actual child after the first photo is published.
+    stage_for_crash_test(&plan, &b.join("data")).unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "exports::tests::crash_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("MG_EXPORT_CRASH_ROOT", &b)
+        .env("MG_EXPORT_CRASH_ID", &id)
+        .status()
+        .unwrap();
+    assert_eq!(status.code(), Some(91));
+    let plan = resume(&c, &roots, f, &id, &b.join("output"), &b.join("data")).unwrap();
+    let final_report = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(final_report.status, "completed");
+    assert_eq!(final_report.verified, 2);
+}
+
+#[test]
+fn duplicate_basenames_are_distinct_copies_and_do_not_collide() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, _) = fixture(&b);
+    let mut targets = Vec::new();
+    for folder in ["a", "b"] {
+        let dir = roots[&f].join(folder);
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("same.jpg");
+        fs::write(&path, b"identical generated bytes").unwrap();
+        let id = c
+            .upsert(f, &path, &imaging::identity(&path).unwrap(), Some(4))
+            .unwrap()
+            .0;
+        targets.push(Target { id, revision: 0 });
+    }
+    let plan = prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.verified, 2);
+    assert_ne!(result.items[0].output, result.items[1].output);
+    assert_eq!(result.items[0].name, "a/same.jpg");
+    assert_eq!(result.items[1].name, "b/same.jpg");
+}
+
+#[test]
+fn changed_sidecar_and_destination_symlink_are_preserved() {
+    use std::os::unix::fs::symlink;
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[0..1],
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let xml = xmp::merge(None, Some(3)).unwrap();
+    fs::write(roots[&f].join("generated-0.jpg.xmp"), &xml).unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.status, "partial");
+    assert_eq!(result.verified, 0);
+    assert_eq!(
+        fs::read_to_string(roots[&f].join("generated-0.jpg.xmp")).unwrap(),
+        xml
+    );
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[1..2],
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let preview = review(&plan);
+    let outside = b.join("external.txt");
+    fs::write(&outside, b"external original").unwrap();
+    let result = run(
+        plan,
+        &b.join("data"),
+        &AtomicBool::new(false),
+        |_| {},
+        || {
+            symlink(
+                &outside,
+                Path::new(&preview.destination).join(format!("{}.xmp", preview.items[0].output)),
+            )
+            .unwrap();
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(result.status, "partial");
+    assert_eq!(fs::read(outside).unwrap(), b"external original");
+}
+
+#[test]
+#[ignore = "Invoked only by the parent crash-recovery test with generated temporary data"]
+fn crash_child() {
+    let b =
+        std::path::PathBuf::from(std::env::var_os("MG_EXPORT_CRASH_ROOT").expect("parent only"));
+    let id = std::env::var("MG_EXPORT_CRASH_ID").unwrap();
+    let c = Catalog::open(&b.join("catalog.sqlite")).unwrap();
+    let f = c.folder(&b.join("sources")).unwrap();
+    let roots = HashMap::from([(f, b.join("sources"))]);
+    let plan = resume(&c, &roots, f, &id, &b.join("output"), &b.join("data")).unwrap();
+    run(
+        plan,
+        &b.join("data"),
+        &AtomicBool::new(false),
+        |_| {},
+        || std::process::exit(91),
+    )
+    .unwrap();
+}
+
+#[test]
+fn large_metadata_plan_reopens_and_resumes_with_compact_checkpoints() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let packet = xmp::merge(None, Some(4)).unwrap().replace(
+        "<rdf:Description ",
+        &format!(
+            "<rdf:Description xmlns:test=\"urn:generated\" test:Caption=\"{}\" ",
+            "a".repeat(700_000)
+        ),
+    );
+    for n in 0..7 {
+        fs::write(roots[&f].join(format!("generated-{n}.jpg.xmp")), &packet).unwrap();
+    }
+    let plan = prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).unwrap();
+    let first = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(first.status, "completed");
+    assert_eq!(history(&b.join("data"), f).unwrap()[0].verified, 7);
+    let plan = resume(&c, &roots, f, &first.id, &b.join("output"), &b.join("data")).unwrap();
+    assert_eq!(
+        execute(plan, &b.join("data"), &AtomicBool::new(false)).status,
+        "completed"
+    );
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn watermark_export_has_current_ratings_but_removes_source_metadata() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    for n in [5, 6] {
+        fs::write(
+            roots[&f].join(format!("generated-{n}.jpg")),
+            crate::watermark::tests::fixture(
+                640,
+                480,
+                if n == 5 { 6 } else { 1 },
+                Some("2026:10:25 23:59:59"),
+            ),
+        )
+        .unwrap();
+    }
+    let original_xml=xmp::merge(None,Some(2)).unwrap().replace("<rdf:Description ","<rdf:Description xmlns:custom=\"urn:test\" custom:GPSLatitude=\"generated location\" custom:Caption=\"private source caption\" ");
+    fs::write(roots[&f].join("generated-6.jpg.xmp"), &original_xml).unwrap();
+    let before = fs::read(roots[&f].join("generated-5.jpg")).unwrap();
+    let options = crate::watermark::Options {
+        city: "温州".into(),
+        ..Default::default()
+    };
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[5..],
+        &b.join("output"),
+        &b.join("data"),
+        &options,
+    )
+    .unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.status, "completed");
+    assert_eq!(result.kind, "watermark");
+    assert_eq!(result.verified, 2);
+    for row in &result.items {
+        let photo = fs::read(Path::new(&result.destination).join(&row.output)).unwrap();
+        let xml =
+            fs::read_to_string(Path::new(&result.destination).join(format!("{}.xmp", row.output)))
+                .unwrap();
+        assert_eq!(xmp::read(&xml).unwrap(), row.rating);
+        assert!(!xml.contains("GPS") && !xml.contains("private source caption"));
+        let out = exif::Reader::new().read_from_container(&mut std::io::Cursor::new(photo));
+        assert!(out.ok().is_none_or(|e| {
+            e.get_field(exif::Tag::GPSLatitude, exif::In::PRIMARY)
+                .is_none()
+        }));
+    }
+    assert_eq!(fs::read(roots[&f].join("generated-5.jpg")).unwrap(), before);
+    assert_eq!(
+        fs::read_to_string(roots[&f].join("generated-6.jpg.xmp")).unwrap(),
+        original_xml
+    );
+    assert_eq!(
+        c.db.query_row("SELECT count(*) FROM pending_xmp", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        7
+    );
+    let again = resume(
+        &c,
+        &roots,
+        f,
+        &result.id,
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let repeated = execute(again, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(
+        repeated.status,
+        "completed",
+        "{}",
+        serde_json::to_string(&repeated).unwrap()
+    );
+    let changed_output = Path::new(&result.destination).join(&result.items[0].output);
+    fs::write(&changed_output, b"external edit to derivative").unwrap();
+    let again = resume(
+        &c,
+        &roots,
+        f,
+        &result.id,
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let rejected = execute(again, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(rejected.status, "partial");
+    assert_eq!(
+        fs::read(changed_output).unwrap(),
+        b"external edit to derivative"
+    );
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn watermark_crash_after_publication_reopens_the_saved_derivative_identity() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    fs::write(
+        roots[&f].join("generated-5.jpg"),
+        crate::watermark::tests::fixture(640, 480, 1, Some("2026:10:25 23:59:59")),
+    )
+    .unwrap();
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[5..6],
+        &b.join("output"),
+        &b.join("data"),
+        &crate::watermark::Options::default(),
+    )
+    .unwrap();
+    let id = review(&plan).id;
+    stage_for_crash_test(&plan, &b.join("data")).unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "exports::tests::crash_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("MG_EXPORT_CRASH_ROOT", &b)
+        .env("MG_EXPORT_CRASH_ID", &id)
+        .status()
+        .unwrap();
+    assert_eq!(status.code(), Some(91));
+    let plan = resume(&c, &roots, f, &id, &b.join("output"), &b.join("data")).unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.status, "completed");
+    assert_eq!(result.verified, 1);
+}
+
+#[test]
+fn pre_watermark_copy_journals_still_resume_without_migration() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[0..1],
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    let journal = b.join("data/exports").join(&result.id);
+    let p = journal.join("plan.json");
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
+    value.as_object_mut().unwrap().remove("watermark");
+    for item in value["items"].as_array_mut().unwrap() {
+        item.as_object_mut().unwrap().remove("info");
+    }
+    fs::write(p, serde_json::to_vec(&value).unwrap()).unwrap();
+    for e in fs::read_dir(&journal).unwrap() {
+        let p = e.unwrap().path();
+        if p.file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("state-")
+        {
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
+            value.as_object_mut().unwrap().remove("derivatives");
+            fs::write(p, serde_json::to_vec(&value).unwrap()).unwrap();
+        }
+    }
+    let plan = resume(
+        &c,
+        &roots,
+        f,
+        &result.id,
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    assert_eq!(
+        execute(plan, &b.join("data"), &AtomicBool::new(false)).status,
+        "completed"
+    );
+}
+
+#[test]
+fn copy_and_watermark_review_cancel_without_outputs_and_report_real_progress() {
+    use crate::preparation::Review;
+    for watermark in [false, true] {
+        for cutoff in [0, 1, 99] {
+            let t = tempfile::tempdir().unwrap();
+            let b = t.path().canonicalize().unwrap();
+            let (c, roots, f, targets) = fixture(&b);
+            for n in 0..7 {
+                image::RgbImage::new(48, 32)
+                    .save(roots[&f].join(format!("generated-{n}.jpg")))
+                    .unwrap();
+            }
+            let before: Vec<_> = (0..7)
+                .map(|n| fs::read(roots[&f].join(format!("generated-{n}.jpg"))).unwrap())
+                .collect();
+            let pending: i64 =
+                c.db.query_row("SELECT count(*) FROM pending_xmp", [], |r| r.get(0))
+                    .unwrap();
+            let cancel = AtomicBool::new(cutoff == 0);
+            let mut events = Vec::new();
+            let options = crate::watermark::Options {
+                fallback_date: Some("2026-11-10".into()),
+                ..Default::default()
+            };
+            let result = prepare_with_progress(
+                &c,
+                &roots,
+                f,
+                &targets,
+                &b.join("output"),
+                &b.join("data"),
+                watermark.then_some(&options),
+                &mut Review::new(&cancel, |p| {
+                    if p.checked == cutoff {
+                        cancel.store(true, Ordering::SeqCst);
+                    }
+                    events.push(p);
+                }),
+            );
+            if cutoff < 99 {
+                assert!(
+                    result.is_err(),
+                    "Cancelled review must not return an executable plan"
+                );
+            } else {
+                assert_eq!(review(&result.unwrap()).items.len(), 7);
+                assert_eq!(events.last().unwrap().checked, 7);
+                assert!(events.iter().all(|p| p.total == 7));
+            }
+            assert_eq!(fs::read_dir(b.join("output")).unwrap().count(), 0);
+            assert_eq!(fs::read_dir(b.join("data")).unwrap().count(), 0);
+            assert_eq!(
+                c.db.query_row("SELECT count(*) FROM pending_xmp", [], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                pending
+            );
+            for (n, bytes) in before.iter().enumerate() {
+                assert_eq!(
+                    &fs::read(roots[&f].join(format!("generated-{n}.jpg"))).unwrap(),
+                    bytes
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn copy_resume_review_can_be_cancelled_without_changing_saved_results() {
+    use crate::preparation::Review;
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let p = prepare(&c, &roots, f, &targets, &b.join("output"), &b.join("data")).unwrap();
+    let stop = AtomicBool::new(false);
+    let r = run(
+        p,
+        &b.join("data"),
+        &stop,
+        |r| {
+            if r.verified == 1 {
+                stop.store(true, Ordering::SeqCst);
+            }
+        },
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!(r.status, "cancelled");
+    let before = serde_json::to_string(&history(&b.join("data"), f).unwrap()).unwrap();
+    for pre in [true, false] {
+        let cancel = AtomicBool::new(pre);
+        assert!(
+            resume_with_progress(
+                &c,
+                &roots,
+                f,
+                &r.id,
+                &b.join("output"),
+                &b.join("data"),
+                &mut Review::new(&cancel, |p| {
+                    if p.checked == 1 {
+                        cancel.store(true, Ordering::SeqCst);
+                    }
+                })
+            )
+            .is_err()
+        );
+        assert_eq!(
+            serde_json::to_string(&history(&b.join("data"), f).unwrap()).unwrap(),
+            before
+        );
+    }
+    let p = resume_with_progress(
+        &c,
+        &roots,
+        f,
+        &r.id,
+        &b.join("output"),
+        &b.join("data"),
+        &mut Review::new(&AtomicBool::new(false), |_| {}),
+    )
+    .unwrap();
+    assert_eq!(
+        execute(p, &b.join("data"), &AtomicBool::new(false)).verified,
+        7
+    );
+}
