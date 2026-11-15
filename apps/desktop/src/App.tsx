@@ -201,6 +201,8 @@ function Gallery({
   active,
   size,
   initialOffset,
+  revealId,
+  onRevealed,
   onOffset,
   onSelect,
   onOpen,
@@ -210,12 +212,16 @@ function Gallery({
   active: string;
   size: number;
   initialOffset: number;
+  revealId: string | null;
+  onRevealed: () => void;
   onOffset: (n: number) => void;
   onSelect: (id: string, extend: boolean, range: boolean) => void;
   onOpen: (id: string) => void;
 }) {
   const parent = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(1000);
+  const [measuredWidth, setWidth] = useState(0);
+  const width = measuredWidth || 1000;
+  const pendingReveal = useRef(revealId);
   useEffect(() => {
     const el = parent.current;
     if (!el) return;
@@ -232,6 +238,20 @@ function Gallery({
     overscan: 2,
     initialOffset,
   });
+  useLayoutEffect(() => {
+    // Returning from review is a one-shot request. Wait for the real column
+    // geometry, then let ordinary scrolling/selection proceed undisturbed.
+    const id = pendingReveal.current;
+    if (!id || !measuredWidth) return;
+    const index = assets.findIndex((asset) => asset.id === id);
+    if (index >= 0)
+      virtual.scrollToIndex(Math.floor(index / columns), {
+        // An oversized row aligned to its bottom can clip the photo's top.
+        align: rowHeight > (parent.current?.clientHeight ?? 0) ? 'start' : 'auto',
+      });
+    pendingReveal.current = null;
+    onRevealed();
+  }, [assets, columns, measuredWidth, onRevealed, rowHeight, virtual]);
   return (
     <div
       className="gallery-viewport"
@@ -517,6 +537,7 @@ export function App() {
   }, [help]);
   const scanGeneration = useRef(0);
   const scrollOffset = useRef(0);
+  const gridReturnTarget = useRef<string | null>(null);
   const saveLock = useRef(false);
   const visible = useMemo(
     () => filterAssets(assets, filter, search, sort),
@@ -798,6 +819,12 @@ export function App() {
     setLinkedViewport(fit);
     setViewports({});
   };
+  const returnToGrid = () => {
+    // Do not broaden the live filter to find a photo that just left it.
+    gridReturnTarget.current = visible.some((asset) => asset.id === active) ? active : null;
+    setMode('grid');
+    setDetail(false);
+  };
   const move = (delta: number) => {
     const queue =
       mode === 'grid' ? visible.map((a) => a.id) : mode === 'review' ? reviewQueue : compareIds;
@@ -932,7 +959,7 @@ export function App() {
       if (e.key === 'Escape') {
         e.preventDefault();
         if (detail) setDetail(false);
-        else if (mode !== 'grid') setMode('grid');
+        else if (mode !== 'grid') returnToGrid();
         else setSelected([]);
         return;
       }
@@ -1448,6 +1475,10 @@ export function App() {
                   active={active}
                   size={size}
                   initialOffset={scrollOffset.current}
+                  revealId={gridReturnTarget.current}
+                  onRevealed={() => {
+                    gridReturnTarget.current = null;
+                  }}
                   onOffset={(n) => {
                     scrollOffset.current = n;
                     setGridOffset(n);
@@ -1541,13 +1572,7 @@ export function App() {
         ) : (
           <section className="review-workspace">
             <div className="review-toolbar">
-              <button
-                className="button subtle"
-                onClick={() => {
-                  setMode('grid');
-                  setDetail(false);
-                }}
-              >
+              <button className="button subtle" onClick={returnToGrid}>
                 <ArrowLeft size={16} />
                 返回照片
               </button>
