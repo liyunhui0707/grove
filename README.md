@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.5.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.5.1 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.1 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.1). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -92,3 +92,10 @@ Packaging writes to ignored `.local/deliveries/`, uses an offline Cargo build af
 Report reproducible problems in [Issues](https://github.com/liyunhui0707/moment-grove/issues). Include the app version, macOS version and steps. Remove private paths, photo metadata and personal images before sharing logs or screenshots. See [security reporting](SECURITY.md) for sensitive reports.
 
 Project code is [Apache-2.0](LICENSE). Dependencies retain their own licenses; full texts and source links are in [third-party notices](THIRD-PARTY-NOTICES.txt). macOS system frameworks and fonts are not bundled. No libheif, FFmpeg, cloud service or AI model is shipped.
+
+
+## Startup and rating recovery in 0.5.1
+
+The startup screen can report a module, first-render or waiting code and offers manual retry only before the first UI commit. It never automatically reloads an active review. The app activates its main window on launch. A bounded local `startup.json` retains this and the previous startup's fixed stages, build/version and timings; it contains no photo data, paths or exception text and is not uploaded. An unreadable or unsupported record is preserved and does not prevent use.
+
+After a failed or uncertain rating/undo response, writes pause until a complete reread of the same folder includes all affected photos. Mutations are never automatically replayed; successful reconciliation discards frontend undo tokens. See the [release notes](docs/release-notes.md) for scope and remaining limitations. An earlier blank window's root cause remains unconfirmed; this release does not claim to solve every WebView or runtime-rendering failure.

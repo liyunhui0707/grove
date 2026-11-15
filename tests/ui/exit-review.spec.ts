@@ -9,6 +9,11 @@ async function scene(page: Page) {
       holdMutation: false,
       releaseMutation: () => {},
       failMutation: false,
+      loseMutationReply: false,
+      failScan: false,
+      cancelScan: false,
+      failScanAfterDone: false,
+      missingPhoto: false,
       holdWorkspace: false,
       releaseWorkspace: () => {},
       failWorkspace: false,
@@ -65,8 +70,18 @@ async function scene(page: Page) {
             return { id: 1, name: 'Generated', demo: false };
           if (cmd === 'cancel_scan') return;
           if (cmd === 'scan_folder') {
-            args.onEvent.onmessage({ kind: 'batch', items: assets });
-            args.onEvent.onmessage({ kind: 'done', count: assets.length, warnings: [] });
+            if (controls.failScan) throw Error('scan unavailable');
+            // IPC gives the UI values, not references to the backend catalog.
+            const scanned = assets
+              .filter((a) => !controls.missingPhoto || a.id !== 'photo-0')
+              .map((a) => ({ ...a }));
+            args.onEvent.onmessage({ kind: 'batch', items: scanned });
+            args.onEvent.onmessage(
+              controls.cancelScan
+                ? { kind: 'cancelled' }
+                : { kind: 'done', count: scanned.length, warnings: [] },
+            );
+            if (controls.failScanAfterDone) throw Error('scan reply lost');
             return;
           }
           if (cmd === 'set_rating' || cmd === 'undo_rating') {
@@ -89,6 +104,7 @@ async function scene(page: Page) {
             );
             if (cmd === 'set_rating')
               before = changes.map((c: any) => ({ id: c.id, rating: c.before }));
+            if (controls.loseMutationReply) throw Error('committed reply lost');
             return { token: 'change', changes };
           }
           if (cmd === 'application_info')
@@ -114,6 +130,33 @@ async function scene(page: Page) {
   await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
 }
 const resolutions = (page: Page) => page.evaluate(() => (window as any).__reviewExit.resolutions);
+
+for (const theme of ['light', 'dark']) {
+  test(`rating recovery remains accessible in a small ${theme} window`, async ({ page }) => {
+    await page.setViewportSize({ width: 960, height: 640 });
+    await page.addInitScript((value) => localStorage.setItem('moment-grove-theme', value), theme);
+    await scene(page);
+    await page.evaluate(() => {
+      (window as any).__reviewExit.failMutation = true;
+    });
+    await page.locator('.pane-name').click();
+    await page.keyboard.press('4');
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('重新扫描会回到照片列表并清空本次撤销记录');
+    const recover = alert.getByRole('button', { name: '重新扫描核对评分', exact: true });
+    await expect(recover).toBeInViewport({ ratio: 1 });
+    await expect(recover).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: `.local/rating-recovery-stage/error-${theme}-small.png` });
+    await page.evaluate(() => {
+      (window as any).__reviewExit.failMutation = false;
+    });
+    await recover.click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+}
 
 test('quit during undo waits and restores the original photo and rating on relaunch', async ({
   page,
@@ -184,6 +227,9 @@ test('uncertain rating reply blocks exit without automatically replaying the mut
   await page.evaluate(() => {
     (window as any).__reviewExit.failMutation = false;
   });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: '查看 photo-0.jpg', exact: true }).dblclick();
   await page.locator('.pane-name').click();
   await page.keyboard.press('5');
   await expect(page.locator('.photo-pane')).toContainText('photo-1.jpg');
@@ -194,6 +240,108 @@ test('uncertain rating reply blocks exit without automatically replaying the mut
       { token: 6, proceed: false },
       { token: 7, proceed: true },
     ]);
+});
+
+test('a committed rating with a lost reply requires a complete read before writes or quit', async ({
+  page,
+}) => {
+  await scene(page);
+  await page.evaluate(() => {
+    (window as any).__reviewExit.loseMutationReply = true;
+  });
+  await page.locator('.pane-name').click();
+  await page.keyboard.press('4');
+  await expect(page.getByRole('alert')).toContainText('committed reply lost');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('rating-0')!))).toBe(4);
+  await expect(page.getByRole('button', { name: '5 星', exact: true })).toBeDisabled();
+  for (const name of ['导出照片副本', '评分同步', '安全整理', '资料库备份', '打开文件夹'])
+    await expect(page.getByRole('button', { name, exact: true })).toBeDisabled();
+  await page.locator('.pane-name').click();
+  await page.keyboard.press('5');
+  await page.keyboard.press('Meta+z');
+  expect(await page.evaluate(() => (window as any).__reviewExit.mutationCalls)).toBe(1);
+  await page.evaluate(() => (window as any).__reviewExit.requestExit(20));
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('不会自动重复');
+  await page.getByRole('dialog').getByRole('button', { name: '返回应用' }).click();
+
+  await page.evaluate(() => {
+    (window as any).__reviewExit.failScan = true;
+  });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('scan unavailable');
+  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await page.evaluate(() => {
+    const c = (window as any).__reviewExit;
+    c.failScan = false;
+    c.failScanAfterDone = true;
+  });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('scan reply lost');
+  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await page.evaluate(() => {
+    const c = (window as any).__reviewExit;
+    c.failScanAfterDone = false;
+    c.cancelScan = true;
+  });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.locator('.statusbar')).toContainText('扫描已停止');
+  await expect(page.getByRole('alert')).toContainText('committed reply lost');
+  await page.evaluate(() => {
+    const c = (window as any).__reviewExit;
+    c.cancelScan = false;
+    c.missingPhoto = true;
+  });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('此次操作的部分照片未能载入');
+  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await page.evaluate(() => {
+    (window as any).__reviewExit.missingPhoto = false;
+  });
+  await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(
+    page
+      .locator('.photo-card')
+      .filter({ has: page.getByRole('button', { name: '查看 photo-0.jpg', exact: true }) }),
+  ).toContainText('4');
+  expect(await page.evaluate(() => (window as any).__reviewExit.mutationCalls)).toBe(1);
+  await page.evaluate(() => (window as any).__reviewExit.requestExit(21));
+  await expect
+    .poll(() => resolutions(page))
+    .toEqual([
+      { token: 20, proceed: false },
+      { token: 21, proceed: true },
+    ]);
+});
+
+test('a committed undo with a lost reply reconciles without repeating undo or keeping old tokens', async ({
+  page,
+}) => {
+  await scene(page);
+  await page.locator('.pane-name').click();
+  await page.keyboard.press('5');
+  await expect(page.locator('.photo-pane')).toContainText('photo-1.jpg');
+  await page.evaluate(() => {
+    (window as any).__reviewExit.loseMutationReply = true;
+  });
+  await page.getByRole('button', { name: '撤销评分', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('committed reply lost');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('rating-0')!))).toBeNull();
+  await expect(page.getByRole('button', { name: '撤销评分', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '重新扫描当前文件夹', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '撤销评分', exact: true })).toBeDisabled();
+  expect(await page.evaluate(() => (window as any).__reviewExit.mutationCalls)).toBe(2);
+  await page.evaluate(() => {
+    (window as any).__reviewExit.loseMutationReply = false;
+  });
+  await page.getByRole('button', { name: '查看 photo-0.jpg', exact: true }).dblclick();
+  await expect(page.getByRole('button', { name: '5 星', exact: true })).not.toHaveClass(/rated/);
+  await page.locator('.pane-name').click();
+  await page.keyboard.press('2');
+  await expect(page.locator('.photo-pane')).toContainText('photo-1.jpg');
+  expect(await page.evaluate(() => (window as any).__reviewExit.mutationCalls)).toBe(3);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('rating-0')!))).toBe(2);
 });
 
 test('a failed rating still drains an in-flight checkpoint before offering an exit choice', async ({

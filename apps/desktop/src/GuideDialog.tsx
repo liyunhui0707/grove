@@ -99,6 +99,19 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
               <code className="guide-path guide-data-path">{info.dataDirectory}</code>
               <h3>当前应用位置</h3>
               <code className="guide-path">{info.executable || '应用位置不可用'}</code>
+              {info.startup && (
+                <>
+                  <h3>本次启动</h3>
+                  <p>
+                    {info.startup.ready ? '界面已就绪。' : '尚未收到界面就绪信号。'}
+                    {info.startup.recorded
+                      ? '本机启动记录已保存。'
+                      : '本机启动记录不可写；不影响继续使用。'}
+                    startup.json
+                    仅保留本次和上次启动的阶段代码、版本与耗时，不记录照片、路径或异常原文，不上传。
+                  </p>
+                </>
+              )}
               <p>
                 同一资料目录重复打开会唤回已有窗口，实际版本以窗口标识为准。更新前先用 ⌘Q
                 退出旧版；独立测试与日常资料库互不合并。

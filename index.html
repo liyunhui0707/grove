@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Moment Grove</title>
+    <link rel="stylesheet" href="/startup.css" />
   </head>
-  <body><div id="root"></div><script type="module" src="/apps/desktop/src/main.tsx"></script></body>
+  <body>
+    <section id="startup" aria-label="Moment Grove 启动状态">
+      <div class="startup-card">
+        <p class="startup-brand">Moment Grove</p>
+        <h1 id="startup-title">给回忆，一点留白。</h1>
+        <p id="startup-message" role="status">正在打开本地工作区…</p>
+        <p id="startup-help" hidden>
+          可重新载入界面，或退出后重开。请保留资料目录；无需清空评分或照片。
+        </p>
+        <button id="startup-retry" type="button" hidden>重新载入界面</button>
+        <small id="startup-code"></small>
+        <noscript>界面脚本未运行，请退出后重新打开应用，并保留此提示反馈。</noscript>
+      </div>
+    </section>
+    <div id="root"></div>
+    <script src="/startup.js"></script>
+    <script data-startup-entry type="module" src="/apps/desktop/src/main.tsx"></script>
+  </body>
 </html>

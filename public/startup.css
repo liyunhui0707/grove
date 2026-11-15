@@ -1,0 +1,76 @@
+#startup[hidden],
+#startup [hidden] {
+  display: none !important;
+}
+#startup {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 32px;
+  box-sizing: border-box;
+  background: #f5f4ef;
+  color: #344536;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+.startup-card {
+  width: min(100%, 440px);
+  padding: 32px;
+  box-sizing: border-box;
+}
+.startup-brand {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0 0 36px;
+}
+#startup h1 {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+#startup p {
+  line-height: 1.8;
+}
+#startup-message {
+  font-size: 15px;
+}
+#startup-help {
+  font-size: 13px;
+  color: #677566;
+}
+#startup button {
+  border: 1px solid #45634a;
+  border-radius: 9px;
+  padding: 12px 20px;
+  background: #45634a;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  margin-top: 12px;
+}
+#startup button:focus-visible {
+  outline: 3px solid #bb9456;
+  outline-offset: 4px;
+}
+#startup-code {
+  display: block;
+  margin-top: 24px;
+  color: #677566;
+  font-size: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  #startup {
+    background: #171d17;
+    color: #e1e7dd;
+  }
+  #startup-help,
+  #startup-code {
+    color: #a5b19e;
+  }
+}

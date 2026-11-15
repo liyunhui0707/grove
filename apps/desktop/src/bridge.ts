@@ -145,6 +145,7 @@ export const bridge = {
       dataDirectory: string;
       isolated: boolean;
       executable: string;
+      startup?: { ready: boolean; stage: string; recorded: boolean } | null;
     }>('application_info'),
   moveHistory: () => invoke<MoveReport[]>('move_history'),
   chooseMove: (

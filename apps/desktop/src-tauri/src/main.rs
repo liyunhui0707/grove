@@ -18,6 +18,7 @@ mod relocation;
 mod sidecar;
 #[cfg(test)]
 mod stability;
+mod startup;
 #[cfg(test)]
 mod sustainable;
 #[cfg(all(test, target_os = "macos"))]
@@ -203,6 +204,7 @@ struct ApplicationInfo {
     data_directory: String,
     isolated: bool,
     executable: String,
+    startup: Option<startup::Summary>,
 }
 fn channel() -> &'static str {
     option_env!("MOMENT_GROVE_CHANNEL").unwrap_or("development")
@@ -211,7 +213,10 @@ fn isolated() -> bool {
     channel() != "public-prerelease" || std::env::var_os("MOMENT_GROVE_DATA_DIR").is_some()
 }
 #[tauri::command]
-fn application_info(state: tauri::State<'_, Arc<AppState>>) -> ApplicationInfo {
+fn application_info(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> ApplicationInfo {
     ApplicationInfo {
         version: env!("CARGO_PKG_VERSION"),
         build_id: option_env!("MOMENT_GROVE_BUILD_ID").unwrap_or("development"),
@@ -222,7 +227,25 @@ fn application_info(state: tauri::State<'_, Arc<AppState>>) -> ApplicationInfo {
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned(),
+        startup: app
+            .try_state::<Arc<startup::Session>>()
+            .map(|s| s.summary()),
     }
+}
+#[tauri::command]
+async fn record_startup_stage(
+    window: tauri::WebviewWindow,
+    stage: startup::FrontendStage,
+    session: tauri::State<'_, Arc<startup::Session>>,
+) -> Result<()> {
+    if window.label() != "main" {
+        return Err("启动状态仅适用于主窗口".into());
+    }
+    let session = session.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || session.record(stage.into()))
+        .await
+        .map_err(|_| "无法记录启动状态".to_string())?;
+    Ok(())
 }
 #[tauri::command]
 async fn load_watermark_style(
@@ -1233,6 +1256,12 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
             std::process::exit(0);
         }
     };
+    let startup = Arc::new(startup::Session::new(
+        &data,
+        env!("CARGO_PKG_VERSION"),
+        option_env!("MOMENT_GROVE_BUILD_ID").unwrap_or("development"),
+    ));
+    app.manage(startup.clone());
     fs::create_dir_all(data.join("cache"))?;
     imaging::prune_cache(&data.join("cache"), 256 * 1024 * 1024)?;
     let state = Arc::new(AppState {
@@ -1255,6 +1284,7 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         move_cancel: AtomicBool::new(false),
     });
     app.manage(state);
+    startup.record(startup::Stage::BackendReady);
     if let Some(window) = app.get_webview_window("main") {
         window.set_title(&format!(
             "Moment Grove {} · {}",
@@ -1266,8 +1296,23 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
             }
         ))?;
         window.show()?;
+        // Opening the app is an explicit request to use its main window.
+        // A loaded WebView can remain unpainted until macOS activates it.
+        window.set_focus()?;
     }
     let handle = app.handle().clone();
+    let startup_handle = handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(45));
+        if startup.warn_if_unready() {
+            let _=startup_handle.clone().run_on_main_thread(move || {
+                if !startup.summary().ready {
+                    startup_handle.dialog().message("尚未收到界面就绪信号（MG-START-UI）。若窗口仍为空白，可退出后重开；请保留资料目录，不要清空数据库或照片。此提示不会自动重载或退出应用。")
+                        .title("Moment Grove 启动提示").show(|_| {});
+                }
+            });
+        }
+    });
     std::thread::spawn(move || {
         // Bounded local mailbox; no network listener or media paths.
         // Owner (and its OS lock) live until this process exits.
@@ -1289,6 +1334,12 @@ fn main() {
     builder
         .manage(Mutex::new(StyleExitState::default()))
         .plugin(tauri_plugin_dialog::init())
+        .on_page_load(|webview, payload| {
+            if webview.label()=="main" && matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+                && let Some(session)=webview.app_handle().try_state::<Arc<startup::Session>>() {
+                session.record(startup::Stage::WebviewLoaded);
+            }
+        })
         .on_menu_event(|app, event| {
             if event.id().as_ref() == "save-style-and-quit" && !guard_style_exit(app) {
                 app.exit(0);
@@ -1304,6 +1355,7 @@ fn main() {
         })
         .setup(|app| {
             if let Err(error) = setup_app(app) {
+                if let Some(session)=app.try_state::<Arc<startup::Session>>() { session.record(startup::Stage::BackendFailed); }
                 let handle = app.handle().clone();
                 app.dialog().message(format!("无法打开 Moment Grove：{error}\n请保留资料目录，不要删除锁或数据库日志；退出旧版后重试。"))
                     .title("Moment Grove 启动失败")
@@ -1377,6 +1429,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             application_info,
+            record_startup_stage,
             register_style_exit_guard,
             resolve_style_exit,
             load_watermark_style,

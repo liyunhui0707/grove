@@ -80,6 +80,7 @@ type Viewport = { scale: number; x: number; y: number };
 const fit: Viewport = { scale: 1, x: 0, y: 0 };
 type History = {
   token: string;
+  targets: string[];
   active: string;
   queue: string[];
   compare: string[];
@@ -440,6 +441,9 @@ export function App() {
   const workspaceRevision = useRef(0);
   const reviewWrite = useRef<{ done: Promise<void>; finish: () => void } | null>(null);
   const reviewWriteError = useRef('');
+  const reviewErrorFolder = useRef<number | null>(null);
+  const reviewErrorIds = useRef<string[]>([]);
+  const [reviewFailure, setReviewFailure] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanOutcome, setScanOutcome] = useState<'complete' | 'cancelled' | 'failed' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -532,6 +536,10 @@ export function App() {
 
   const open = async (demo: boolean, provided?: Folder, restored?: ReviewView) => {
     if (saveLock.current || (loading && !restored)) return;
+    if (reviewWriteError.current && provided?.id !== reviewErrorFolder.current) {
+      toast('请先重新扫描当前文件夹，核对这次评分或撤销的保存结果。');
+      return;
+    }
     setError('');
     setLoading(true);
     let scanStarted = false;
@@ -555,6 +563,7 @@ export function App() {
       setGridOffset(0);
       setWorkspaceStatus('');
       const scanned: Asset[] = [];
+      let scanCompleted = false;
       setScanning(true);
       setScanOutcome(null);
       scanStarted = true;
@@ -565,6 +574,7 @@ export function App() {
           setAssets((current) => [...current, ...event.items]);
         }
         if (event.kind === 'done') {
+          scanCompleted = true;
           setScanning(false);
           setWarnings(event.warnings);
           setScanSummary({
@@ -590,10 +600,31 @@ export function App() {
           }
         }
         if (event.kind === 'cancelled') {
+          scanCompleted = false;
           setScanning(false);
           setScanOutcome('cancelled');
         }
       });
+      // A rejected mutation reply may follow a committed transaction. Only a
+      // complete, successful reread of that same folder resolves the unknown
+      // result; opening the picker, a partial scan or a retry must not do so.
+      if (
+        scanCompleted &&
+        scanGeneration.current === generation &&
+        reviewWriteError.current &&
+        chosen.id === reviewErrorFolder.current
+      ) {
+        const loaded = new Set(scanned.map((asset) => asset.id));
+        if (reviewErrorIds.current.every((id) => loaded.has(id))) {
+          reviewWriteError.current = '';
+          reviewErrorFolder.current = null;
+          reviewErrorIds.current = [];
+          setReviewFailure('');
+          toast('已读取最新评分并清空本次撤销记录。未重复执行评分或撤销。');
+        } else {
+          setError('此次操作的部分照片未能载入，尚未完成核对；请恢复原文件后重新扫描。');
+        }
+      }
     } catch (e) {
       setError(String(e));
       setScanning(false);
@@ -716,7 +747,7 @@ export function App() {
     const failures: string[] = [];
     if (reviewWriteError.current)
       failures.push(
-        `评分或撤销结果尚未确认：${reviewWriteError.current}。请返回应用检查后重试操作；不会自动重复评分或撤销。`,
+        `评分或撤销结果尚未确认：${reviewWriteError.current}。请返回应用，重新扫描当前文件夹核对；不会自动重复评分或撤销。`,
       );
     try {
       await workspaceWrites.current.flush(retry);
@@ -792,13 +823,14 @@ export function App() {
     setViewports((current) => ({ ...current, [id]: fit }));
   };
   const rate = async (rating: Rating, explicitId?: string) => {
-    if (saveLock.current || scanning) return;
+    if (!folder || saveLock.current || scanning || loading || reviewWriteError.current) return;
     const ids = explicitId ? [explicitId] : mode === 'grid' ? selected : [active];
     if (!ids.length || !ids[0]) return;
     beginReviewWrite();
     setError('');
     const before: History = {
       token: '',
+      targets: [...ids],
       active: explicitId ?? active,
       queue: [...reviewQueue],
       compare: [...compareIds],
@@ -829,14 +861,18 @@ export function App() {
       );
     } catch (e) {
       reviewWriteError.current = String(e);
-      setError(String(e));
+      reviewErrorFolder.current = folderId ?? null;
+      reviewErrorIds.current = [...ids];
+      setReviewFailure(String(e));
     } finally {
       setSaving(false);
     }
   };
   const undo = async () => {
     const entry = history.at(-1);
-    if (!entry || saveLock.current || scanning || loading) return;
+    if (!folder || !entry || saveLock.current || scanning || loading || reviewWriteError.current)
+      return;
+    const folderId = folder.id;
     beginReviewWrite();
     try {
       const batch = await bridge.undo(entry.token);
@@ -855,7 +891,9 @@ export function App() {
       toast('已撤销评分，回到上一张照片');
     } catch (e) {
       reviewWriteError.current = String(e);
-      setError(String(e));
+      reviewErrorFolder.current = folderId;
+      reviewErrorIds.current = [...entry.targets];
+      setReviewFailure(String(e));
     } finally {
       setSaving(false);
     }
@@ -1048,7 +1086,7 @@ export function App() {
           文件夹
           <IconButton
             label="打开照片文件夹"
-            disabled={!native || loading || saving}
+            disabled={!native || loading || saving || Boolean(reviewFailure)}
             onClick={() => void open(false)}
           >
             <Plus size={14} />
@@ -1128,7 +1166,7 @@ export function App() {
               className="button subtle"
               aria-label="导出照片副本"
               ref={exportReturnFocus}
-              disabled={!folder || loading || scanning || saving}
+              disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
               onClick={() => setExportOpen(true)}
             >
               <Copy size={15} />
@@ -1138,7 +1176,7 @@ export function App() {
               label="安全整理"
               buttonRef={moveReturnFocus}
               onClick={() => setMoveOpen(true)}
-              disabled={loading || scanning || saving}
+              disabled={loading || scanning || saving || Boolean(reviewFailure)}
             >
               <FolderInput size={17} />
             </IconButton>
@@ -1146,7 +1184,7 @@ export function App() {
               label="日期城市水印"
               buttonRef={watermarkReturnFocus}
               onClick={() => setWatermarkOpen(true)}
-              disabled={!folder || loading || scanning || saving}
+              disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
             >
               <CalendarDays size={17} />
             </IconButton>
@@ -1154,7 +1192,7 @@ export function App() {
               label="重新关联目录"
               buttonRef={relocationReturnFocus}
               onClick={() => setRelocationOpen(true)}
-              disabled={loading || scanning || saving}
+              disabled={loading || scanning || saving || Boolean(reviewFailure)}
             >
               <Link2 size={17} />
             </IconButton>
@@ -1162,7 +1200,7 @@ export function App() {
               label="评分同步"
               buttonRef={syncReturnFocus}
               onClick={() => setSyncOpen(true)}
-              disabled={!folder || loading || scanning || saving}
+              disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
             >
               <FileCheck2 size={17} />
             </IconButton>
@@ -1170,21 +1208,21 @@ export function App() {
               label="资料库备份"
               buttonRef={backupReturnFocus}
               onClick={() => setBackupsOpen(true)}
-              disabled={loading || scanning || saving}
+              disabled={loading || scanning || saving || Boolean(reviewFailure)}
             >
               <Archive size={17} />
             </IconButton>
             <IconButton
               label="撤销评分"
               onClick={() => void undo()}
-              disabled={!history.length || saving || scanning}
+              disabled={!history.length || saving || scanning || Boolean(reviewFailure)}
             >
               <Undo2 size={17} />
             </IconButton>
             <button
               className="button subtle"
               onClick={() => void open(false)}
-              disabled={!native || loading || saving}
+              disabled={!native || loading || saving || Boolean(reviewFailure)}
             >
               <FolderOpen size={15} />
               打开文件夹
@@ -1200,12 +1238,31 @@ export function App() {
             )}
           </div>
         </header>
-        {error && (
+        {(error || reviewFailure) && (
           <div className="error-banner" role="alert">
-            <span>{error}</span>
-            <IconButton label="关闭错误提示" onClick={() => setError('')}>
-              <X size={14} />
-            </IconButton>
+            <span>
+              {reviewFailure && (
+                <>
+                  这次评分或撤销的保存结果未确认：{reviewFailure}。先重新扫描当前文件夹核对，
+                  不会重复执行评分或撤销。重新扫描会回到照片列表并清空本次撤销记录。
+                  {error && <br />}
+                </>
+              )}
+              {error}
+            </span>
+            {reviewFailure ? (
+              <button
+                className="button subtle"
+                disabled={!folder || loading || scanning || saving}
+                onClick={() => folder && void open(false, folder)}
+              >
+                {loading || scanning ? '正在核对评分…' : '重新扫描核对评分'}
+              </button>
+            ) : (
+              <IconButton label="关闭错误提示" onClick={() => setError('')}>
+                <X size={14} />
+              </IconButton>
+            )}
           </div>
         )}
         {workspaceError && (
@@ -1467,7 +1524,7 @@ export function App() {
                   <RatingButtons
                     value={selected.length === 1 ? (byId.get(selected[0])?.rating ?? null) : null}
                     onRate={(r) => void rate(r)}
-                    disabled={saving || scanning}
+                    disabled={saving || scanning || Boolean(reviewFailure)}
                   />
                 </div>
                 <button className="button primary" onClick={startCompare} disabled={!canCompare}>
@@ -1600,7 +1657,7 @@ export function App() {
                   }}
                   detail={detail}
                   onRate={(r) => void rate(r, asset.id)}
-                  disabled={saving || scanning}
+                  disabled={saving || scanning || Boolean(reviewFailure)}
                 />
               ))}
             </div>
@@ -1700,6 +1757,7 @@ export function App() {
               ...current,
               {
                 token: batch.token,
+                targets: batch.changes.map((change) => change.id),
                 active,
                 queue: [...reviewQueue],
                 compare: [...compareIds],
