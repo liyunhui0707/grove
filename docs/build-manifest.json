@@ -37,9 +37,19 @@
     "website": {
       "viewportTestsPassed": 6,
       "downloadVersion": "0.5.1",
-      "deployment": "PENDING",
-      "sourceStatus": "SAVED_VERSION_4_PENDING_DEPLOYMENT",
-      "sourceCommit": "8fd6eaaef27348dfe625b815337ec61cf6cff072"
+      "deployment": "SUCCEEDED",
+      "sourceStatus": "DEPLOYED_VERSION_4",
+      "sourceCommit": "8fd6eaaef27348dfe625b815337ec61cf6cff072",
+      "url": "https://moment-grove.outerepoch3.chatgpt.site/",
+      "anonymousHttp": 200,
+      "staticAssetsMatch": 4,
+      "visualWidthsReviewed": [
+        360,
+        768,
+        1440
+      ],
+      "phoneHardwareTested": false,
+      "liveBrowserHandoff": "unavailable; local Chrome viewport checks and anonymous HTTP/resource readback passed"
     },
     "archives": {
       "sourceFiles": 83,
@@ -105,5 +115,22 @@
     "other macOS versions and platforms not accepted",
     "initial historical blank root cause unconfirmed",
     "no automatic updater or runtime-render crash recovery"
-  ]
+  ],
+  "publication": {
+    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.1",
+    "releaseId": 446145003,
+    "tagCommit": "87a7e862213de309d569fe6396c4d4da2ed0cb23",
+    "anonymousAssetAccessVerified": true,
+    "allDraftAssetBytesVerified": true,
+    "oldReleaseAssetsUnchanged": [
+      "v0.5.0",
+      "v0.4.0",
+      "v0.3.0",
+      "v0.2.0",
+      "v0.1.0"
+    ],
+    "websiteVersion": 4,
+    "websiteDeploymentId": "appgdep_6af9cc9aeb94819196bd3913b93f5427",
+    "update": "manual replacement"
+  }
 }
