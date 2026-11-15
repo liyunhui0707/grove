@@ -57,6 +57,10 @@ The app does not upload photos, require an account, query online city services, 
 
 Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. Rollback is limited to the exact pairs and data described in the release evidence; arbitrary version rollback is not promised. Retain the old app and an independent catalog snapshot before replacing it. Uninstalling the app does not automatically erase the photo folder or application data.
 
+## Local development candidate
+
+The working branch adds one-time reveal of the active photo when returning from review or comparison to the filtered grid. It preserves filters and selection. This is an accepted **local candidate**, not a replacement for the public 0.5.1 assets. See [scope and evidence](docs/daily-review-efficiency-stage.md).
+
 ## Build from source
 
 Use an existing Rust toolchain, a Node.js version satisfying the locked Vite package's engine requirement, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
@@ -84,6 +88,8 @@ To build the macOS arm64 prerelease archives:
 ```sh
 npm run desktop:package -- --prerelease
 ```
+
+The repository root is the canonical product workspace. Read [contributor instructions](AGENTS.md), [current status](docs/current-status.md), and the [Git workflow](docs/git-workflow.md) before changing it. Use local feature branches and explicit stage commits; local commits do not authorize pushes or releases.
 
 Packaging writes to ignored `.local/deliveries/`, uses an offline Cargo build after dependencies are available, and performs no upload. The package has no automatic-update service. There are no GitHub Actions workflows that publish on push or tags.
 
