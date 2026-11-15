@@ -84,8 +84,9 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
             Apple Silicon macOS；JPEG/PNG/WebP、单帧 SDR HEIC/HEIF。预览转为
             sRGB，透明图片使用白底； macOS 14+ 可将已验证的 HDR JPEG/HEIC 解码为 SDR
             预览和水印，不保留 HDR
-            显示效果；其他高位深和多帧照片仍不支持。失败时可重试或继续查看其他照片。导出每批最多 100
-            张； 水印限静态 SDR、24MP/32MiB。Live Photo/RAW 配对及跨卷移动暂不支持。
+            显示效果；其他高位深和多帧照片仍不支持。混合目录会说明未载入的视频、RAW
+            和其他图片数量；这些文件保留原位。失败时可重试或继续查看其他照片。导出每批最多 100 张；
+            水印限静态 SDR、24MP/32MiB。Live Photo/RAW 配对及跨卷移动暂不支持。
           </p>
           <h3>本机资料目录</h3>
           {info ? (

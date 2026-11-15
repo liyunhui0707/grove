@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Moment Grove 是一款本地优先的 macOS 照片挑选应用。用键盘评分、比较、接着上次的位置继续挑选，再导出精选与日期城市水印副本。">
+  <meta name="theme-color" content="#f8f8f2">
+  <meta property="og:title" content="Moment Grove — 给回忆，一点留白。">
+  <meta property="og:description" content="轻松浏览，认真挑选。照片留在你的文件夹，值得留下的瞬间各有位置。">
+  <title>Moment Grove — 给回忆，一点留白。</title>
+  <link rel="icon" href="./assets/leaf.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a>
+<header class="site-header wrap">
+  <a class="brand" href="#" aria-label="Moment Grove 首页"><img src="./assets/leaf.svg" width="36" height="36" alt=""><span>Moment Grove</span></a>
+  <nav aria-label="主导航"><a href="#experience">体验</a><a href="#workflow">使用方式</a><a href="#download">下载</a><a href="https://github.com/liyunhui0707/moment-grove">GitHub <span aria-hidden="true">↗</span></a></nav>
+</header>
+<main id="main">
+  <section class="hero wrap">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="dot"></span> A LITTLE SPACE FOR YOUR MEMORIES</p>
+      <h1>给回忆，<br>一点<span class="serif-green">留白。</span></h1>
+      <p class="lead">一场旅行，一次相聚，或平常的一天。<br>从许多照片里，慢慢挑出值得留下的瞬间。</p>
+      <div class="hero-actions"><a class="button primary" href="#download">下载 macOS 测试版 <span aria-hidden="true">↓</span></a><a class="quiet-link" href="#experience">看看如何挑选 <span aria-hidden="true">↘</span></a></div>
+      <p class="fine">Apple Silicon · 中文界面 · 开源 · 无需账号</p>
+    </div>
+    <div class="hero-art" aria-label="使用生成插画的照片挑选演示">
+      <span class="vertical-note">YOUR MOMENTS, AT YOUR PACE</span>
+      <div class="paper-photo back"><div class="landscape dusk"></div><span>晚风，刚刚好。</span></div>
+      <div class="paper-photo front"><div class="landscape morning"><span class="sun"></span><span class="hill hill-back"></span><span class="hill"></span></div><div class="photo-label"><span>留住这一刻</span><span class="gold" aria-label="五星">★★★★★</span></div></div>
+      <span class="kept-note">一点耐心，<br>让喜欢的更清晰。</span>
+    </div>
+  </section>
+  <div class="principles wrap"><span><i aria-hidden="true">◌</i> 照片留在本机</span><span><i aria-hidden="true">⌘</i> 用键盘，保持节奏</span><span><i aria-hidden="true">↗</i> 分享独立副本</span></div>
+
+  <section id="experience" class="experience section wrap">
+    <div class="section-heading"><p class="eyebrow">LESS FRICTION. MORE FEELING.</p><h2>眼睛留给照片，<br>操作交给顺手。</h2><p>浏览、评分、比较，在一个安静的工作区里完成。<br>退出之后，也能接着上次的位置继续。</p></div>
+    <figure class="product-shot"><div class="window-top"><span class="traffic" aria-hidden="true">● ● ●</span><span>Moment Grove</span><span>本地照片工作区</span></div><img src="./assets/comparison.png" alt="Moment Grove 双图比较界面，使用生成素材展示活动候选替换、评分和参考照片。" width="1440" height="960" loading="lazy"><figcaption>实际浏览器界面演示 · 使用生成素材，非原生 macOS 截图。</figcaption></figure>
+    <div class="feature-lines"><article><span class="number">01</span><h3>挑选有自己的节奏</h3><p>0–5 评分，U 清除，撤销随时可用。未评分与淘汰候选清晰区分。</p></article><article><span class="number">02</span><h3>参考图，继续留着</h3><p>2–8 张比较，只替换活动候选。用 [ / ] 接着挑，其他照片保持可见。</p></article><article><span class="number">03</span><h3>喜欢的，带走一份</h3><p>按精选导出原格式副本，或生成日期与手动城市水印 JPEG。原图不被重新编码。</p></article></div>
+  </section>
+
+  <section class="try-section" aria-labelledby="try-heading"><div class="wrap try-layout"><div><p class="eyebrow">A SMALL TASTE OF THE RHYTHM</p><h2 id="try-heading">试着，为这一刻<br>留一颗星。</h2><p>在这段网页演示中点选评分。<br>桌面 App 还支持键盘快捷键与持续审片。</p><p class="fine">仅使用生成插画，不读取你的照片。</p></div><div class="try-card"><div class="landscape afternoon" aria-hidden="true"><span class="sun"></span><span class="hill hill-back"></span><span class="hill"></span></div><div class="try-bottom"><span>一个慢下来的下午</span><span id="rating-state" role="status" aria-live="polite">未评分</span></div><div class="demo-ratings" role="group" aria-label="网页评分演示"><button type="button" data-rating="0" aria-label="0 分，淘汰候选" aria-pressed="false">⊘<small>0</small></button><button type="button" data-rating="1" aria-label="1 星" aria-pressed="false">☆<small>1</small></button><button type="button" data-rating="2" aria-label="2 星" aria-pressed="false">☆<small>2</small></button><button type="button" data-rating="3" aria-label="3 星" aria-pressed="false">☆<small>3</small></button><button type="button" data-rating="4" aria-label="4 星" aria-pressed="false">☆<small>4</small></button><button type="button" data-rating="5" aria-label="5 星" aria-pressed="false">☆<small>5</small></button><button type="button" data-rating="clear" aria-label="恢复未评分">↶<small>U</small></button></div></div></div></section>
+
+  <section id="workflow" class="section wrap">
+    <div class="section-heading compact"><p class="eyebrow">FROM A FOLDER, TO YOUR FAVOURITES</p><h2>从一个文件夹开始。</h2><p>无需导入封闭图库，也不用改变你原来的存放方式。</p></div>
+    <ol class="workflow"><li><span class="step">1</span><h3>打开照片</h3><p>选择普通文件夹，渐进浏览支持的静态照片。当前不支持的视频与 RAW 不会载入照片网格。</p></li><li><span class="step">2</span><h3>认真挑选</h3><p>用评分与比较缩小范围。关闭 App 前保存的位置和必要设置，下次继续。</p></li><li><span class="step">3</span><h3>留下，或分享</h3><p>导出 4–5 星精选，或制作日期城市水印。每批最多 100 张，结果逐项核验。</p></li></ol>
+    <div class="safety-note"><img src="./assets/leaf.svg" width="34" height="34" alt=""><div><h3>每一步，都留一条回去的路。</h3><p>评分先保存在本机；XMP 同步与文件移动都需要明确操作。提供资料库快照、文件操作记录和核对撤回。快照不包含照片，请另备份媒体文件。</p></div></div>
+  </section>
+
+  <section id="download" class="download-section"><div class="wrap download-layout"><div><p class="eyebrow">A LITTLE SPACE, ON YOUR MAC</p><h2>让下一次挑选，<br>从容一些。</h2><p class="lead">Moment Grove <strong>0.3.0</strong><br><span class="fine">macOS Apple Silicon · 技术测试预发布</span></p><div class="download-actions"><a class="button primary" data-download="dmg" href="https://github.com/liyunhui0707/moment-grove/releases/download/v0.3.0/Moment-Grove-0.3.0-macOS-arm64.dmg">下载 DMG <span aria-hidden="true">↓</span></a><a class="button secondary" data-download="zip" href="https://github.com/liyunhui0707/moment-grove/releases/download/v0.3.0/Moment-Grove-0.3.0-macOS-arm64.zip">下载 ZIP</a></div><p class="download-links"><a href="https://github.com/liyunhui0707/moment-grove/releases/tag/v0.3.0">发行说明</a><span>·</span><a href="https://github.com/liyunhui0707/moment-grove/releases/download/v0.3.0/SHA256SUMS.txt">SHA-256 校验和</a><span>·</span><a href="https://github.com/liyunhui0707/moment-grove/blob/v0.3.0/docs/user-guide.md">使用指南</a></p></div><div class="download-details"><h3>开始之前，了解这些。</h3><dl><dt>签名与安装</dt><dd>ad-hoc 签名，未完成 Developer ID 签名或 Apple 公证，macOS 可能阻止首次打开。仅建议技术试用者使用；无需关闭系统安全保护。</dd><dt>照片支持</dt><dd>JPEG、PNG、WebP、静态 HEIC/HEIF。macOS 14+ 可将已验证的 HDR JPEG/HEIC 转为 SDR；不保留 HDR 显示效果。水印限 24MP / 32MiB。</dd><dt>当前边界</dt><dd>视频、完整 Live Photo/RAW 配对、跨卷移动和自动更新尚不支持。仅在本机 Apple Silicon macOS 验收，其他系统版本仍需验证。</dd><dt>更新方式</dt><dd>先备份资料库并退出 App，保留旧应用，然后手动替换。建议先使用独立照片副本。</dd></dl></div></div></section>
+
+  <section class="faq section wrap"><div><p class="eyebrow">A FEW THINGS TO KNOW</p><h2>安心开始之前。</h2></div><div class="questions"><details><summary>照片会上传到哪里吗？</summary><p>App 在本机处理照片与评分，无需账号或云服务。手动城市不会触发在线定位。官网也不读取本地照片，不加载第三方统计。</p></details><details><summary>评分为 0 会删除照片吗？</summary><p>不会。0 只表示淘汰候选，与未评分不同。文件整理需要你单独核对范围和确认，评分本身不触发删除或移动。</p></details><details><summary>导出副本和水印有什么区别？</summary><p>复制导出保留原文件字节及原有元数据，并附上当前评分 XMP。水印导出生成独立 sRGB JPEG 和评分 XMP，不携带源 EXIF/GPS；不改变原件。</p></details><details><summary>如何反馈问题？</summary><p>前往 <a href="https://github.com/liyunhui0707/moment-grove/issues">GitHub Issues</a>，说明版本、macOS 版本和复现步骤。请勿公开上传私人照片、位置、图库数据库或操作日志。</p></details></div></section>
+</main>
+<footer class="wrap site-footer"><a class="brand" href="#"><img src="./assets/leaf.svg" width="28" height="28" alt=""><span>Moment Grove</span></a><p>慢慢挑选，让美好的回忆留下来。</p><div><a href="https://github.com/liyunhui0707/moment-grove">开源项目</a><a href="https://github.com/liyunhui0707/moment-grove/blob/main/LICENSE">Apache-2.0</a></div></footer>
+</body></html>

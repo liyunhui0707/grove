@@ -92,7 +92,7 @@ pub fn render_with_refresh(
     let cache = state
         .data
         .join("cache")
-        .join(format!("sdr-v4-{id}-{before}-{size}.jpg"));
+        .join(format!("sdr-v5-{id}-{before}-{size}.jpg"));
     // Explicit retry repairs a damaged cache without weakening grant/identity checks.
     if !refresh && let Ok(bytes) = fs::read(&cache) {
         return Ok(bytes);

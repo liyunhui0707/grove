@@ -43,6 +43,11 @@ unsafe extern "C" {
         index: usize,
         options: CFDictionaryRef,
     ) -> *mut core_graphics::sys::CGImage;
+    fn CGImageSourceCreateImageAtIndex(
+        source: Object,
+        index: usize,
+        options: CFDictionaryRef,
+    ) -> *mut core_graphics::sys::CGImage;
     fn CGImageDestinationCreateWithData(
         data: CFMutableDataRef,
         kind: CFStringRef,
@@ -64,6 +69,14 @@ unsafe extern "C" {
 }
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
+    fn CGImageGetColorSpace(
+        image: *mut core_graphics::sys::CGImage,
+    ) -> *mut core_graphics::sys::CGColorSpace;
+    fn CGColorSpaceGetName(space: *mut core_graphics::sys::CGColorSpace) -> CFStringRef;
+    fn CGImageCreateCopyWithColorSpace(
+        image: *mut core_graphics::sys::CGImage,
+        space: *mut core_graphics::sys::CGColorSpace,
+    ) -> *mut core_graphics::sys::CGImage;
     fn CGBitmapContextCreate(
         data: *mut c_void,
         width: usize,
@@ -79,6 +92,38 @@ fn owned(raw: Object) -> Result<CFType> {
         return Err("图片损坏或系统暂不支持此格式".into());
     }
     Ok(unsafe { CFType::wrap_under_create_rule(raw) })
+}
+// Some phone HEIC decoders attach an unnamed QuickTime transfer profile to
+// thumbnail pixels although the full image has a different, named ICC profile.
+// Drawing that thumbnail directly changes brightness. Recover the actual
+// decoded source profile rather than guessing sRGB/P3.
+fn profile_thumbnail(image: CGImage, source: &CFType, props: &Dict) -> Result<CGImage> {
+    let thumbnail_space = unsafe { CGImageGetColorSpace(image.as_ptr()) };
+    if !thumbnail_space.is_null() && !unsafe { CGColorSpaceGetName(thumbnail_space) }.is_null() {
+        return Ok(image);
+    }
+    let mut options = sdr_options(source, props)?;
+    options.push((
+        key(unsafe { kCGImageSourceShouldCache }),
+        CFBoolean::false_value().as_CFType(),
+    ));
+    let options = Dict::from_CFType_pairs(&options);
+    let raw = unsafe {
+        CGImageSourceCreateImageAtIndex(source.as_CFTypeRef(), 0, options.as_concrete_TypeRef())
+    };
+    if raw.is_null() {
+        return Err("无法核对照片色彩空间，未显示未经验证的预览".into());
+    }
+    let full = unsafe { CGImage::from_ptr(raw) };
+    let space = unsafe { CGImageGetColorSpace(full.as_ptr()) };
+    if space.is_null() || full.bits_per_component() > 8 {
+        return Err("照片未提供可验证的 SDR 色彩空间，请保留原件".into());
+    }
+    let raw = unsafe { CGImageCreateCopyWithColorSpace(image.as_ptr(), space) };
+    if raw.is_null() {
+        return Err("无法还原缩略图色彩空间，请重试或跳过".into());
+    }
+    Ok(unsafe { CGImage::from_ptr(raw) })
 }
 fn key(raw: CFStringRef) -> CFString {
     unsafe { CFString::wrap_under_get_rule(raw) }
@@ -315,7 +360,7 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     if raw.is_null() {
         return Err("系统无法解码这张照片，可重试或跳过".into());
     }
-    let image = unsafe { CGImage::from_ptr(raw) };
+    let image = profile_thumbnail(unsafe { CGImage::from_ptr(raw) }, &source, &props)?;
     let (w, h) = if manual && orientation >= 5 {
         (image.height(), image.width())
     } else {
@@ -394,6 +439,83 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::preview;
+    #[test]
+    fn thumbnail_profile_fallback_keeps_source_pixel_brightness() {
+        use super::*;
+        unsafe extern "C" {
+            fn CGColorSpaceCreateCalibratedRGB(
+                white: *const f64,
+                black: *const f64,
+                gamma: *const f64,
+                matrix: *const f64,
+            ) -> *mut core_graphics::sys::CGColorSpace;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("generated.jpg");
+        image::RgbImage::from_pixel(8, 8, image::Rgb([128, 64, 32]))
+            .save(&path)
+            .unwrap();
+        let url = CFURL::from_path(&path, false).unwrap();
+        let source =
+            owned(unsafe { CGImageSourceCreateWithURL(url.as_concrete_TypeRef(), ptr::null()) })
+                .unwrap();
+        let props = unsafe {
+            Dict::wrap_under_create_rule(CGImageSourceCopyPropertiesAtIndex(
+                source.as_CFTypeRef(),
+                0,
+                ptr::null(),
+            ))
+        };
+        // Model an unnamed thumbnail transfer profile that differs from the
+        // full image's sRGB profile, without distributing private camera files.
+        let device = unsafe {
+            CGColorSpace::from_ptr(CGColorSpaceCreateCalibratedRGB(
+                [0.95047, 1., 1.08883].as_ptr(),
+                ptr::null(),
+                [1.8, 1.8, 1.8].as_ptr(),
+                ptr::null(),
+            ))
+        };
+        let mut raw_pixels = [128u8, 64, 32, 255].repeat(64);
+        let raw = unsafe {
+            CGBitmapContextCreate(
+                raw_pixels.as_mut_ptr().cast(),
+                8,
+                8,
+                8,
+                32,
+                device.as_ptr(),
+                kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big,
+            )
+        };
+        let original = unsafe { CGContext::from_ptr(raw) };
+        let thumb = original.create_image().unwrap();
+        let thumb = profile_thumbnail(thumb, &source, &props).unwrap();
+        let srgb = CGColorSpace::create_with_name(unsafe { kCGColorSpaceSRGB }).unwrap();
+        let raw = unsafe {
+            CGBitmapContextCreate(
+                ptr::null_mut(),
+                8,
+                8,
+                8,
+                32,
+                srgb.as_ptr(),
+                kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big,
+            )
+        };
+        let output = unsafe { CGContext::from_ptr(raw) };
+        output.draw_image(
+            CGRect::new(&CGPoint::new(0., 0.), &CGSize::new(8., 8.)),
+            &thumb,
+        );
+        let pixels = output.create_image().unwrap().data();
+        for (actual, expected) in pixels.bytes()[..3].iter().zip([128i32, 64, 32]) {
+            assert!(
+                (i32::from(*actual) - expected).abs() <= 2,
+                "a thumbnail with an inconsistent transfer profile must inherit its verified source profile"
+            );
+        }
+    }
     #[test]
     fn hdr_policy_keeps_old_systems_and_unknown_high_depth_safe() {
         use super::check_sdr_policy;

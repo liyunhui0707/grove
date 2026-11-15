@@ -36,3 +36,5 @@ SQLite 通过 bundled 功能构建，其声明随完整第三方 notices 一起�
 SDR预览使用系统ImageIO缩略图和CoreGraphics sRGB画布；系统ColorSync配置用于生成样本比对，不复制分发。透明度白底合成、八种方向与生成HEIC已在Air验证；不捆绑libheif。
 
 首版公开前升级rusqlite至0.41.1/libsqlite3-sys0.39.1，采用已修复RUSTSEC-2026-0459的SQLite；未改资料库schema2。
+
+官网使用原创CSS插画及程序生成素材的浏览器界面截图，不使用私人照片。私人授权照片仅在本机隔离目录中测试，不复制其图像、EXIF、原始文件名或路径到源码、安装包和官网。归属明确的公开样本来源见format-support.md。

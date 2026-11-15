@@ -1,144 +1,105 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261114T151417-67e6805a40",
+  "buildId": "trial-20261114T164803-acc506e727",
   "architecture": "arm64",
-  "sourceDigest": "67e6805a407a912b2836e7398b3a0a7de2a415fd9f0a031ae725eb6fcfbd0b22",
-  "binarySha256": "58d6c196bcff12834290f8ac997826a8edfd64682fb770e3ee95127dc7fb3d82",
+  "sourceDigest": "acc506e727a05265ed4bf1d1a6b1186ab9870593df82c5fad14c1997a5ff0219",
+  "binarySha256": "8edc6e92f9a5b17c06574e8e7c22c1fcb293870bce2a94f98d2a40c7862e3f0f",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.3.0-macOS-arm64.zip",
-      "bytes": 5562272,
-      "sha256": "8c28c91e04e7f6951cbdc1fdbd145a85550f680673e9f5d2ae7a93db14520b1a"
+      "name": "Moment-Grove-0.4.0-macOS-arm64.zip",
+      "bytes": 5565332,
+      "sha256": "c7b2e169ce75dcd0446ac8b07143035c976bae7ba264b658d6c1bc8f4607bebe"
     },
     {
-      "name": "Moment-Grove-0.3.0-macOS-arm64.dmg",
-      "bytes": 6384730,
-      "sha256": "8a7cea6063e16d9472d645470a7f954b7452d54fedf0d752de1deebb6611c2d8"
+      "name": "Moment-Grove-0.4.0-macOS-arm64.dmg",
+      "bytes": 6388133,
+      "sha256": "f30833a5a08d1428bfc4a1217e22b4e749f94ec3013984b7c61e3dc8769b089d"
     }
   ],
+  "status": "NATIVE_ACCEPTED_PENDING_UPLOADED_ASSET_CHECK",
   "validation": {
-    "system": "macOS 27.2.1 arm64",
-    "backendPassed": 100,
-    "backendIgnored": 15,
-    "logicPassed": 7,
-    "browserPassed": 39,
-    "mobileMatrix": {
-      "inputs": 11,
-      "checksPassed": 2,
-      "reference": "Core Image expandToHDR=false RGBA8 sRGB; max sampled MAE 2.18/255; all EXIF orientations",
-      "provenance": "one unmodified attributed CC0 camera JPEG; 10 ImageIO-generated derivatives, not original phone HEIC captures"
+    "backend": {
+      "passed": 103,
+      "failed": 0,
+      "defaultIgnored": 16
     },
-    "attributedDeviceTrialPassed": true,
-    "largeBackend": {
-      "coldScanMs": 1022.9766250000001,
-      "firstBatchMs": 33.765583,
-      "formats": {
-        "jpeg": 2700,
-        "png": 150,
-        "webp": 150
-      },
-      "idsRatingsRevisionsPreserved": true,
-      "integrity": "ok",
-      "metric": "real scanner/catalog, not UI latency",
-      "originalsUnchanged": 3000,
-      "otherDimensions": [
-        320,
-        240
-      ],
-      "photos": 3000,
-      "restartScanMs": 541.439583,
-      "run": "optimized",
-      "twelveMegapixelJpegs": 30
+    "logic": {
+      "passed": 7
     },
-    "sort": {
-      "engine": "v26.8.2",
-      "metric": "Node JS sort/filter only, not native UI latency",
-      "results": [
-        {
-          "n": 3000,
-          "sort": "name",
-          "beforeMs": 86.969,
-          "afterMs": 3.9082910000000197,
-          "sameIdsRatingsRevisions": true
-        },
-        {
-          "n": 3000,
-          "sort": "date",
-          "beforeMs": 39.659042,
-          "afterMs": 18.49354100000005,
-          "sameIdsRatingsRevisions": true
-        },
-        {
-          "n": 3000,
-          "sort": "rating",
-          "beforeMs": 60.006125,
-          "afterMs": 3.074041999999963,
-          "sameIdsRatingsRevisions": true
-        },
-        {
-          "n": 10000,
-          "sort": "name",
-          "beforeMs": 341.0888749999999,
-          "afterMs": 15.694292000000132,
-          "sameIdsRatingsRevisions": true
-        },
-        {
-          "n": 10000,
-          "sort": "date",
-          "beforeMs": 180.98887499999955,
-          "afterMs": 72.86333300000024,
-          "sameIdsRatingsRevisions": true
-        },
-        {
-          "n": 10000,
-          "sort": "rating",
-          "beforeMs": 261.6829170000001,
-          "afterMs": 12.728124999999636,
-          "sameIdsRatingsRevisions": true
-        }
-      ]
+    "browser": {
+      "passed": 41,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0
     },
-    "nativeUpgrade": "3000 old identities/ratings/history/pending and real snapshot retained; same schema2",
-    "nativeLongObservation": {
-      "durationSeconds": 950.203,
-      "samples": 190,
-      "peakPhysicalFootprintMiB": 645.6010284423828,
-      "warmMedianMiB": 479.3989677429199,
-      "lateMedianMiB": 381.42271423339844,
-      "medianGrowthMiB": -97.97625350952148,
-      "peakLimitMiB": 1024,
-      "growthLimitMiB": 128,
-      "method": "resource coalition incl. WebKit, picker and QuickLook helpers; not JS heap",
-      "workload": "3000 mixed generated files, progressive scan, search, rating, repeated scrolls and12MPdetail; quiet intervals; not continuous decode soak",
-      "candidate": "trial-20261114T145233-60acdf286b",
-      "scopeNote": "before SDR label-only layout correction; final candidate separately rechecked, not claimed same-binary long soak",
-      "passed": true
+    "releaseVersion": {
+      "passed": 2
     },
-    "rollbackAndUploadedDownload": "passed: three uploaded assets fully downloaded with matching SHA256 and size; 12 payload files and strict ad-hoc signature verified; installed from downloaded ZIP and resumed 04-pq.heic at4/4, dark, autoAdvance=false; normal quit; 3004 originals/logical rows, pending5/history5 and old snapshot unchanged",
-    "signing": "ad-hoc; no Developer ID/notarization",
-    "browserQuarantineGatekeeper": "not accepted",
-    "update": "manual replacement",
-    "personalLibraryAcceptance": false,
-    "finalNativeRecheck": {
-      "buildId": "trial-20261114T151417-67e6805a40",
-      "inlineSdrLabel": "visually correct beside review toolbar",
-      "resumedLargeLibrarySearchAndRating": true,
-      "hdrHeicPreviews": 2,
-      "watermarkOutputs": 2,
-      "watermarkJpegBytesMatchInitial": true,
-      "sRGB": true,
-      "xmpRatings": [
-        4,
-        5
-      ],
-      "originalsUnchanged": 3004,
-      "logicalRowsUnchanged": 3004,
-      "pendingUnchanged": 5,
-      "historyUnchanged": 5,
-      "oldSnapshotUnchanged": true,
-      "normalQuit": true
+    "authorizedCopySet": {
+      "photos": 211,
+      "previews": 422,
+      "referenceCases": 24,
+      "referenceMaxMae": 3.8704229797979797,
+      "referenceThreshold": 8,
+      "copiedOriginalBytes": 211,
+      "copyBatches": 3,
+      "watermarks": 24,
+      "cancelResume": true,
+      "catalogIntegrity": "ok",
+      "sourceCopiesUnchanged": 211,
+      "sevenStatesAndIdsPreserved": true,
+      "scope": "backend workflow; not final packaged native acceptance"
     },
-    "rollback": "public 0.2.0 read all 3004 rows, pending5/history5 and new 3-star final photo; normal quit"
+    "archives": {
+      "payloadFiles": 12,
+      "sourceFiles": 68,
+      "zipAndDmgMatch": true,
+      "strictAdHocSignature": true,
+      "dmgDetached": true
+    },
+    "dependencyAdvisories": {
+      "npmProductionFindings": 0,
+      "resolvedMacOSRustPackages": 266,
+      "rustFindings": 0,
+      "scope": "point-in-time advisory check; not a vulnerability guarantee"
+    },
+    "finalCandidateNativeGui": "PASSED_UPGRADE_RATING_COPY_WATERMARK_NORMAL_QUIT_RESTART",
+    "installationUpgradeRollback": "PASSED_0_3_0_TO_0_4_0_AND_BACK_SCHEMA_2",
+    "uploadedAssetReadback": "NOT_RUN",
+    "browserQuarantineFirstOpening": "NOT_ACCEPTED",
+    "websiteMobileVisual": "NOT_RUN",
+    "native": {
+      "oldCatalogAssets": 211,
+      "identitiesPreserved": 211,
+      "oldSnapshotPreserved": true,
+      "newRating": 5,
+      "pending": 3,
+      "history": 3,
+      "copyVerified": 2,
+      "watermarkVerified": 2,
+      "normalNewQuit": true,
+      "restartUi": "PASSED_EXACT_HEIC_7_OF_8",
+      "rollback": "PASSED_NEW_RATING_AND_POSITION_PRESERVED",
+      "downloadedInstall": "NOT_RUN",
+      "recoveryScene": {
+        "assets": 8,
+        "generatedVideoPlaceholder": 1,
+        "idsAndSourceHashesPreserved": 8,
+        "oldSnapshotUnchanged": true,
+        "pending": 3,
+        "history": 3,
+        "normalQuitSessions": 4,
+        "reason": "Previous temporary scene was unavailable; remaining delivery checks repeated in a new isolated copy-set. Earlier 211-photo workflow evidence retained separately."
+      }
+    },
+    "website": {
+      "url": "https://moment-grove.outerepoch3.chatgpt.site",
+      "downloadVersion": "0.3.0 pending this release",
+      "anonymousHttp": 200,
+      "staticAssetsMatch": 4,
+      "mobileVisual": "NOT_RUN",
+      "browserInteractionVisual": "PARTIAL"
+    }
   }
 }

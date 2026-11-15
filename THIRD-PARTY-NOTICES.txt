@@ -1,6 +1,6 @@
-THIRD-PARTY NOTICES — Moment Grove 0.3.0
+THIRD-PARTY NOTICES — Moment Grove 0.4.0
 
-Third-party components retain their own licenses. System frameworks, codecs, profiles and fonts are provided by macOS and are not bundled. Test media is generated; no personal media is included.
+Third-party components retain their own licenses. System frameworks, codecs, profiles and fonts are provided by macOS and are not bundled. Distributed demo artwork is generated; no personal QA media is included.
 
 This inventory covers the resolved macOS arm64 Rust graph and installed npm packages, including build/test tools. Lockfiles may also name optional packages for other platforms that are not distributed here. MPL-2.0 components are unmodified. Their exact source archives are linked below.
 

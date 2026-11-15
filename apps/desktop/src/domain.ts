@@ -30,9 +30,10 @@ export interface Batch {
 }
 export type Filter = 'all' | 'unreviewed' | 'picks' | 'reject' | '0' | '1' | '2' | '3' | '4' | '5';
 export type Sort = 'name' | 'date' | 'rating';
+export type SkippedMedia = { videos: number; raw: number; images: number };
 export type ScanEvent =
   | { kind: 'batch'; items: Asset[] }
-  | { kind: 'done'; count: number; warnings: string[] }
+  | { kind: 'done'; count: number; warnings: string[]; skipped?: SkippedMedia }
   | { kind: 'cancelled' };
 export const ratingLabel = (r: Rating) =>
   r === null ? '未评分' : r === 0 ? '淘汰候选' : `${r} 星`;

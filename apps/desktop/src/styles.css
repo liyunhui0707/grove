@@ -1877,6 +1877,22 @@ kbd {
   color: var(--muted);
   background: var(--bg);
 }
+.scan-scope {
+  flex: none;
+  padding: 10px 25px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.scan-scope p {
+  margin: 0 0 3px;
+  color: var(--text);
+}
+.scan-scope small {
+  font-size: 11px;
+}
 .error-banner,
 .warning-banner {
   padding: 10px 25px;

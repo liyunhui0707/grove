@@ -53,6 +53,7 @@ import {
   type Folder,
   type Rating,
   type Sort,
+  type SkippedMedia,
 } from './domain';
 import { useMedia } from './media';
 import { BackupDialog } from './BackupDialog';
@@ -431,6 +432,9 @@ export function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [scanSummary, setScanSummary] = useState<{ count: number; skipped: SkippedMedia } | null>(
+    null,
+  );
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('name');
   const [search, setSearch] = useState('');
@@ -531,6 +535,7 @@ export function App() {
       setFilter('all');
       setSearch('');
       setWarnings([]);
+      setScanSummary(null);
       scrollOffset.current = 0;
       setGridOffset(0);
       setWorkspaceStatus('');
@@ -547,6 +552,10 @@ export function App() {
         if (event.kind === 'done') {
           setScanning(false);
           setWarnings(event.warnings);
+          setScanSummary({
+            count: event.count,
+            skipped: event.skipped ?? { videos: 0, raw: 0, images: 0 },
+          });
           setScanOutcome('complete');
           if (restored) {
             const resume = restoreReview(scanned, restored);
@@ -1146,6 +1155,22 @@ export function App() {
         {workspaceError && (
           <div className="error-banner" role="alert">
             {workspaceError}
+          </div>
+        )}
+        {scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
+          <div className="scan-scope" role="note" aria-label="扫描范围">
+            <p>
+              已载入 {scanSummary.count} 张照片；
+              {[
+                scanSummary.skipped.videos ? `视频 ${scanSummary.skipped.videos} 个` : '',
+                scanSummary.skipped.raw ? `RAW ${scanSummary.skipped.raw} 个` : '',
+                scanSummary.skipped.images ? `不支持的图片 ${scanSummary.skipped.images} 张` : '',
+              ]
+                .filter(Boolean)
+                .join('、')}{' '}
+              未载入。
+            </p>
+            <small>当前只审阅支持的静态照片，跳过的文件保留原位。</small>
           </div>
         )}
         {warnings.length > 0 && (

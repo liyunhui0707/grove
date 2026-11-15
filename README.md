@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.3.0 targets technical trial users on Apple Silicon Macs.** The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.4.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -14,7 +14,8 @@
 - Resume the last folder, exact photo and essential review settings after a normal quit.
 - Keep comparison references visible while replacing only the active candidate with `[` / `]`.
 - On macOS 14+, view tested Apple gain-map JPEG/HEIC and 10-bit PQ HEIC as SDR and export independent sRGB watermark JPEGs. HDR appearance is not retained.
-- Read HEIC pixel dimensions and EXIF capture dates correctly in the list.
+- See explicit counts for skipped video, RAW and unsupported images in mixed folders.
+- Read orientation-correct JPEG/HEIC dimensions and EXIF capture dates; rebuild previews with a corrected source profile for affected phone HEIC thumbnails.
 - Reuse the natural-name sorter for large photo batches; distinct occurrences and rating targets remain separate.
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
@@ -24,7 +25,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.3.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.3.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.4.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.4.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -36,7 +37,7 @@ Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP a
 
 **Signing:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block the first opening. Follow [Apple's instructions for opening software from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) only if you trust the source. No security-disabling commands are required. A browser-download Gatekeeper flow has not been accepted as part of this prerelease.
 
-**Native upgrade check:** the exact released 0.2.0 App established a 3,000-photo catalog, ratings and a real snapshot. Replacing it with 0.3.0 at the same isolated install/data paths retained all old identities, ratings, history and pending writes. Gain-map HEIC and 10-bit PQ HEIC rendered in the App; two full-size SDR watermark outputs and rating XMP verified. Continuing checks and precise limits are recorded in the release manifest. Browser-quarantine/Gatekeeper first opening is not accepted.
+**Native upgrade check:** the exact released 0.3.0 App established ratings and a real snapshot in an isolated copy-set. Replacing it with 0.4.0 at the same install/data paths retained identities, ratings and pending writes. The final candidate completed native original-byte copies and full-size watermark exports (two each), then quit normally. A separate eight-photo delivery scene verified normal restart at the exact HEIC photo and old-version rollback with the new rating preserved. Full uploaded-asset readback and downloaded-App acceptance are recorded separately in the [build manifest](docs/build-manifest.json). Browser-quarantine/Gatekeeper first opening remains unaccepted.
 
 **System scope:** arm64 / Apple Silicon; tested on macOS 27.2.1. The bundle declares macOS 12 as its minimum, but other OS versions, Intel Macs, Windows and Linux have not been validated for this release.
 

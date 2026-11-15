@@ -1,4 +1,4 @@
-# Photo support in 0.3.0
+# Photo support in 0.4.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
@@ -35,3 +35,7 @@ ImageIO's [thumbnail transform](https://developer.apple.com/documentation/imagei
 The unmodified CC0 iPhone 13 JPEG above and ten derivatives generated with ImageIO are tested outside source control: normal SDR HEIC, Apple gain-map HEIC, 10-bit PQ HEIC, and seven gain-map JPEG orientation variants (2–8). The HEIC files are generated derivatives, not original phone HEIC captures. Core Image with `expandToHDR=false`, orientation applied and RGBA8/sRGB output provides an independent reference. Per-image pixel differences, dimensions and source hashes are recorded in the release evidence; this is not a visual-fidelity guarantee for every camera.
 
 ImageIO's [explicit SDR decode request](https://developer.apple.com/documentation/imageio/kcgimagesourcedecodetosdr) is available from macOS 14. Constants are looked up at runtime to preserve ordinary SDR use on earlier declared systems; an unavailable HDR decoder produces an error. Only macOS 27.2.1/arm64 was actually tested. Unknown high-depth PNG, multi-frame content, true HDR rendering, complete Live Photo resources and RAW processing remain unsupported. HEIC listing dimensions and EXIF dates now come from ImageIO metadata without decoding the full image.
+
+## 0.4.0 everyday-photo trial
+
+Mixed-folder completion reports counts for skipped video, RAW and unsupported image formats; it does not decode or import those resources. Search and rating filters do not change these whole-folder counts. JPEG listing dimensions follow EXIF orientation. For unnamed thumbnail transfer profiles, the macOS preview uses the full SDR image’s actual profile before drawing into sRGB, keeping the original unchanged. Prior cached previews are rebuilt under a new generation. Personal trial fixtures are never included in this repository, downloads or the website.

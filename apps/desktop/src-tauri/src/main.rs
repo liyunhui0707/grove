@@ -18,6 +18,8 @@ mod sidecar;
 mod stability;
 #[cfg(test)]
 mod sustainable;
+#[cfg(all(test, target_os = "macos"))]
+mod trial_workflow;
 mod watermark;
 mod workspace;
 mod xmp;
@@ -75,10 +77,22 @@ struct Folder {
     demo: bool,
 }
 #[derive(Clone, Serialize)]
+struct SkippedMedia {
+    videos: usize,
+    raw: usize,
+    images: usize,
+}
+#[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum ScanEvent {
-    Batch { items: Vec<Asset> },
-    Done { count: usize, warnings: Vec<String> },
+    Batch {
+        items: Vec<Asset>,
+    },
+    Done {
+        count: usize,
+        warnings: Vec<String>,
+        skipped: SkippedMedia,
+    },
     Cancelled,
 }
 #[derive(Serialize)]
@@ -698,6 +712,11 @@ fn scan_directory(
     let mut count = 0;
     let mut batch = Vec::new();
     let mut warnings = Vec::new();
+    let mut skipped = SkippedMedia {
+        videos: 0,
+        raw: 0,
+        images: 0,
+    };
     // Root failures are not an empty success; descendant failures remain warnings.
     let root_error = |e: std::io::Error| match e.kind() {
         std::io::ErrorKind::NotFound => "文件夹已移动或离线，请重新选择文件夹".to_string(),
@@ -752,6 +771,14 @@ fn scan_directory(
             .unwrap_or("")
             .to_ascii_lowercase();
         if !["jpg", "jpeg", "png", "webp", "heic", "heif"].contains(&format.as_str()) {
+            match format.as_str() {
+                "mp4" | "mov" | "m4v" | "avi" | "mkv" | "webm" | "3gp" => skipped.videos += 1,
+                "dng" | "cr2" | "cr3" | "nef" | "arw" | "raf" | "rw2" | "orf" | "pef" | "srw" => {
+                    skipped.raw += 1
+                }
+                "gif" | "tif" | "tiff" | "avif" | "bmp" | "jxl" => skipped.images += 1,
+                _ => {}
+            }
             continue;
         }
         let result = (|| {
@@ -777,17 +804,27 @@ fn scan_directory(
                 item
             };
             let (width, height) = image::image_dimensions(path).unwrap_or((0, 0));
-            let captured = fs::File::open(path)
-                .ok()
-                .and_then(|f| {
-                    exif::Reader::new()
-                        .read_from_container(&mut std::io::BufReader::new(f))
-                        .ok()
-                })
+            let exif = fs::File::open(path).ok().and_then(|f| {
+                exif::Reader::new()
+                    .read_from_container(&mut std::io::BufReader::new(f))
+                    .ok()
+            });
+            let captured = exif.as_ref().and_then(|e| {
+                e.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+                    .map(|f| f.display_value().to_string())
+            });
+            let orientation = exif
+                .as_ref()
                 .and_then(|e| {
-                    e.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
-                        .map(|f| f.display_value().to_string())
-                });
+                    e.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+                        .and_then(|f| f.value.get_uint(0))
+                })
+                .unwrap_or(1);
+            let (width, height) = if (5..=8).contains(&orientation) {
+                (height, width)
+            } else {
+                (width, height)
+            };
             #[cfg(target_os = "macos")]
             let (width, height, captured) = if ["heic", "heif"].contains(&format.as_str()) {
                 imaging::header(path).unwrap_or((width, height, captured))
@@ -847,7 +884,11 @@ fn scan_directory(
             .map_err(|e| e.to_string())?;
     }
     on_event
-        .send(ScanEvent::Done { count, warnings })
+        .send(ScanEvent::Done {
+            count,
+            warnings,
+            skipped,
+        })
         .map_err(|e| e.to_string())?;
     Ok(())
 }
