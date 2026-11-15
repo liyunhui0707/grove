@@ -17,7 +17,7 @@
       "sha256": "f3ba2491244928b48370419e7897fbe6b717a9bcec05272ca81fae63f813981b"
     }
   ],
-  "status": "NATIVE_ACCEPTED_UPLOAD_READBACK_PENDING",
+  "status": "VALIDATED_TECHNICAL_PRERELEASE",
   "validation": {
     "backend": {
       "passed": 112,
@@ -39,7 +39,8 @@
         768,
         1440
       ],
-      "phoneHardwareTested": false
+      "phoneHardwareTested": false,
+      "sourceStatus": "SAVED_VERSION_3_DEPLOY_AFTER_PUBLIC_RELEASE"
     },
     "archives": {
       "sourceFiles": 78,
@@ -68,11 +69,13 @@
       "copyVerified": 2,
       "watermarkVerified": 1,
       "styleFont": "serif",
-      "normalQuitSessions": 3,
+      "normalQuitSessions": 4,
       "watchdogSessions": 0,
-      "localTrialIdentityAccepted": true
+      "localTrialIdentityAccepted": true,
+      "downloadedInstall": "PASSED_EXACT_UPLOADED_ZIP_RESUME_STYLE_AND_NORMAL_QUIT",
+      "localTrialNormalQuitSessions": 1
     },
-    "uploadedAssetReadback": "PENDING",
+    "uploadedAssetReadback": "PASSED_FULL_ZIP_DMG_SUMS_AND_12_PAYLOAD_FILES",
     "browserQuarantineFirstOpening": "NOT_ACCEPTED",
     "signing": "ad-hoc; no Developer ID or Apple notarization",
     "update": "manual replacement",
