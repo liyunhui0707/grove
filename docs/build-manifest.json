@@ -17,7 +17,7 @@
       "sha256": "f30833a5a08d1428bfc4a1217e22b4e749f94ec3013984b7c61e3dc8769b089d"
     }
   ],
-  "status": "DRAFT_ASSET_BYTES_VERIFIED_NATIVE_DOWNLOAD_WINDOW_BLOCKED",
+  "status": "VALIDATED_TECHNICAL_PRERELEASE",
   "validation": {
     "backend": {
       "passed": 103,
@@ -81,7 +81,7 @@
       "normalNewQuit": true,
       "restartUi": "PASSED_EXACT_HEIC_7_OF_8",
       "rollback": "PASSED_NEW_RATING_AND_POSITION_PRESERVED",
-      "downloadedInstall": "EXACT_INSTALLED_BYTES_AND_SIGNATURE_PASSED_GUI_WINDOW_UNAVAILABLE",
+      "downloadedInstall": "PASSED_EXACT_UPLOADED_ZIP_INSTALLED_NATIVE_RESUME_AND_NORMAL_CMDQ",
       "recoveryScene": {
         "assets": 8,
         "generatedVideoPlaceholder": 1,
@@ -89,7 +89,7 @@
         "oldSnapshotUnchanged": true,
         "pending": 3,
         "history": 3,
-        "normalQuitSessions": 4,
+        "normalQuitSessions": 5,
         "reason": "Previous temporary scene was unavailable; remaining delivery checks repeated in a new isolated copy-set. Earlier 211-photo workflow evidence retained separately."
       },
       "downloadCaptureAttempts": {
@@ -97,13 +97,21 @@
         "directExecutable": "cgWindowNotFound; SIGTERM; not normal quit",
         "freshInstallPath": "cgWindowNotFound; test-only SIGTERM; not normal quit",
         "consoleLocked": false,
-        "normalAcceptanceSessionCount": 4,
-        "scope": "The four old/new/restart/rollback sessions passed before these three separate capture failures. No downloaded GUI acceptance is claimed."
+        "normalAcceptanceSessionCount": 5,
+        "scope": "Three earlier interrupted capture sessions remain failures, separate from five observed normal-quit acceptance sessions.",
+        "successfulSoleInstance": {
+          "photo": "sample-0006.heic",
+          "position": "7/8",
+          "dark": true,
+          "autoAdvance": false,
+          "normalCmdQ": true,
+          "reason": "After user quit the separate daily installation, the isolated downloaded App window became accessible; no exact underlying cause is asserted."
+        }
       }
     },
     "website": {
       "url": "https://moment-grove.outerepoch3.chatgpt.site",
-      "downloadVersion": "0.3.0; 0.4.0 site version saved, not deployed",
+      "downloadVersion": "0.4.0 source prepared; deploy after this release is public",
       "anonymousHttp": 200,
       "staticAssetsMatch": 4,
       "mobileVisual": "NOT_RUN",
