@@ -40,7 +40,11 @@
         1440
       ],
       "phoneHardwareTested": false,
-      "sourceStatus": "SAVED_VERSION_3_DEPLOY_AFTER_PUBLIC_RELEASE"
+      "sourceStatus": "DEPLOYED_VERSION_3",
+      "url": "https://moment-grove.outerepoch3.chatgpt.site/",
+      "anonymousHttp": 200,
+      "staticAssetsMatch": 4,
+      "downloadVersion": "0.5.0"
     },
     "archives": {
       "sourceFiles": 78,
@@ -79,6 +83,18 @@
     "browserQuarantineFirstOpening": "NOT_ACCEPTED",
     "signing": "ad-hoc; no Developer ID or Apple notarization",
     "update": "manual replacement",
-    "scope": "generated fixtures and current-host acceptance; not all devices, libraries or OS versions"
+    "scope": "generated fixtures and current-host acceptance; not all devices, libraries or OS versions",
+    "oldReleaseAssetsUnchanged": [
+      "v0.4.0",
+      "v0.3.0",
+      "v0.2.0",
+      "v0.1.0"
+    ],
+    "publicRelease": {
+      "url": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.0",
+      "tagCommit": "e16767f60cedecf523193bc09c3610a69ea2faec",
+      "anonymousAssetAccessVerified": true,
+      "anonymousChecksumDownloadVerified": true
+    }
   }
 }
