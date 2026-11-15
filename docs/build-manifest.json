@@ -18,7 +18,7 @@
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "VALIDATED_LOCAL_CANDIDATE_UPLOAD_PENDING",
+  "status": "VALIDATED_TECHNICAL_PRERELEASE",
   "validation": {
     "backend": {
       "passed": 116,
@@ -37,7 +37,9 @@
     "website": {
       "viewportTestsPassed": 6,
       "downloadVersion": "0.5.1",
-      "deployment": "PENDING"
+      "deployment": "PENDING",
+      "sourceStatus": "SAVED_VERSION_4_PENDING_DEPLOYMENT",
+      "sourceCommit": "8fd6eaaef27348dfe625b815337ec61cf6cff072"
     },
     "archives": {
       "sourceFiles": 83,
@@ -69,9 +71,33 @@
       "finalCandidateRatingUndo": "passed",
       "historicalBlankRootCauseConfirmed": false,
       "frontendFaultInjection": "browser only; native frontend_ready is commit evidence, not pixel proof",
-      "actualUploadedPackage": "PENDING"
+      "actualUploadedPackage": "full ZIP/DMG/checksum readback verified; downloaded ZIP installed, 3/24 resumed and normal quit",
+      "rollback": "0.5.1 to 0.5.0 retained all asset identities, ratings and workspace"
     },
-    "compiler": "build + clippy -D warnings passed"
+    "compiler": "build + clippy -D warnings passed",
+    "downloadedAssets": [
+      {
+        "id": 751374225,
+        "name": "Moment-Grove-0.5.1-macOS-arm64.zip",
+        "bytes": 5662240,
+        "sha256": "138640f0ca139771bc5bfab02245d7552713875bdfc1112c0deda064e9f521a1",
+        "allBytesVerified": true
+      },
+      {
+        "id": 751374222,
+        "name": "Moment-Grove-0.5.1-macOS-arm64.dmg",
+        "bytes": 6497685,
+        "sha256": "fa87288d6aae86fc686fa9849d9139b35cb5c71efafc89a8a697064ddac14ba0",
+        "allBytesVerified": true
+      },
+      {
+        "id": 751374223,
+        "name": "SHA256SUMS.txt",
+        "bytes": 202,
+        "sha256": "1c1a03e929a6003e0084ad32c0e9f7e17fb365ad33d31effb4d4309b360c78ad",
+        "allBytesVerified": true
+      }
+    ]
   },
   "limitations": [
     "ad-hoc signed; no Developer ID or notarization",
