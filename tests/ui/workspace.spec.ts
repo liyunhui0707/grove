@@ -25,6 +25,7 @@ async function workspaceMock(page: Page) {
         convertFileSrc: () =>
           `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"><path fill="#617b68" d="M0 0h48v32H0z"/></svg>')}`,
         invoke: async (cmd: string, args: Record<string, any> = {}) => {
+          if (cmd === 'register_style_exit_guard') return;
           if (cmd === 'load_workspace') return read('workspace');
           if (cmd === 'resume_workspace') {
             if (read('offline')) throw Error('上次文件夹已离线或身份变化，请重新选择文件夹');
@@ -65,6 +66,7 @@ async function workspaceMock(page: Page) {
               channel: 'local-trial',
               dataDirectory: '/owned/runtime',
               isolated: true,
+              executable: '/owned/installed/Moment Grove.app/Contents/MacOS/moment-grove',
             };
           throw Error(`Unhandled ${cmd}`);
         },
@@ -72,6 +74,28 @@ async function workspaceMock(page: Page) {
     });
   });
 }
+
+test('visible application identity opens exact app and catalog locations in a small dark window', async ({
+  page,
+}) => {
+  await workspaceMock(page);
+  await page.goto('/');
+  const badge = page.getByRole('button', { name: '0.1.0 · 独立测试', exact: true });
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveAttribute('title', /trial-test/);
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.getByRole('button', { name: '切换暗色主题' }).click();
+  await badge.click();
+  const guide = page.getByRole('dialog', { name: '使用说明与资料' });
+  await expect(guide).toContainText('/owned/runtime');
+  await expect(guide).toContainText(
+    '/owned/installed/Moment Grove.app/Contents/MacOS/moment-grove',
+  );
+  await expect(guide).toContainText('同一资料目录重复打开会唤回已有窗口');
+  await page.getByRole('button', { name: '关闭使用说明' }).click();
+  await expect(badge).toBeFocused();
+  await expect(badge).toBeInViewport();
+});
 
 test('relaunch resumes exact photo and preferences after rating', async ({ page }) => {
   await workspaceMock(page);

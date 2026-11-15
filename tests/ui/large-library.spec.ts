@@ -26,6 +26,7 @@ test('large mixed library virtualizes, rates the searched occurrence and resumes
         convertFileSrc: () =>
           `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><path fill="#617b68" d="M0 0h320v240H0z"/></svg>')}`,
         invoke: async (cmd: string, args: Record<string, any> = {}) => {
+          if (cmd === 'register_style_exit_guard') return;
           if (cmd === 'load_workspace')
             return JSON.parse(localStorage.getItem('workspace') || 'null');
           if (cmd === 'resume_workspace' || cmd === 'choose_folder')

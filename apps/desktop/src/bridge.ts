@@ -83,6 +83,7 @@ export type WatermarkOptions = {
   marginPercent: number;
   shadow: boolean;
 };
+export type WatermarkStyle = Omit<WatermarkOptions, 'city' | 'fallbackDate'>;
 export type WatermarkPreview = {
   dataUrl: string;
   canExport: boolean;
@@ -122,6 +123,15 @@ const progressChannel = (onProgress: (p: PreparationProgress) => void) => {
   return channel;
 };
 export const bridge = {
+  registerStyleExitGuard: (onRequest: (token: number) => void) => {
+    const channel = new Channel<number>();
+    channel.onmessage = onRequest;
+    return invoke<void>('register_style_exit_guard', { onRequest: channel });
+  },
+  resolveStyleExit: (token: number, proceed: boolean) =>
+    invoke<void>('resolve_style_exit', { token, proceed }),
+  loadWatermarkStyle: () => invoke<WatermarkStyle | null>('load_watermark_style'),
+  saveWatermarkStyle: (style: WatermarkStyle) => invoke<void>('save_watermark_style', { style }),
   loadWorkspace: () =>
     native ? invoke<SavedWorkspace | null>('load_workspace') : Promise.resolve(null),
   resumeWorkspace: () => invoke<Folder | null>('resume_workspace'),
@@ -134,6 +144,7 @@ export const bridge = {
       channel: string;
       dataDirectory: string;
       isolated: boolean;
+      executable: string;
     }>('application_info'),
   moveHistory: () => invoke<MoveReport[]>('move_history'),
   chooseMove: (

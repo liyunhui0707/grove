@@ -4,8 +4,10 @@ mod backups;
 mod benchmarks;
 mod catalog;
 mod demo;
+mod exit_guard;
 mod exports;
 mod imaging;
+mod instance;
 #[cfg(test)]
 mod large_library;
 #[cfg(all(test, target_os = "macos"))]
@@ -21,6 +23,7 @@ mod sustainable;
 #[cfg(all(test, target_os = "macos"))]
 mod trial_workflow;
 mod watermark;
+mod watermark_style;
 mod workspace;
 mod xmp;
 
@@ -38,6 +41,102 @@ use std::{
 };
 use tauri::{Manager, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
+
+#[derive(Default)]
+struct StyleExitState {
+    gate: exit_guard::Gate,
+    channel: Option<Channel<u32>>,
+}
+
+#[cfg(target_os = "macos")]
+fn style_exit_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+    let menu = Menu::default(app)?;
+    // Keep the standard About/Services/Hide/Edit/Window menus. The native
+    // predefined Quit action bypasses the preventable close handshake, so
+    // replace only that final item with an explicit guarded action.
+    if let Some(MenuItemKind::Submenu(application)) = menu.items()?.first() {
+        let items = application.items()?;
+        let position = items
+            .len()
+            .checked_sub(1)
+            .ok_or_else(|| tauri::Error::Io(std::io::Error::other("应用菜单缺少退出入口")))?;
+        application.remove_at(position)?;
+        application.insert(
+            &MenuItem::with_id(
+                app,
+                "save-style-and-quit",
+                "Quit Moment Grove",
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?,
+            position,
+        )?;
+    }
+    Ok(menu)
+}
+
+#[tauri::command]
+fn register_style_exit_guard(
+    window: tauri::WebviewWindow,
+    on_request: Channel<u32>,
+    state: tauri::State<'_, Mutex<StyleExitState>>,
+) -> Result<()> {
+    if window.label() != "main" {
+        return Err("退出保护仅适用于主窗口".into());
+    }
+    let mut state = state.lock().map_err(|_| "退出保护忙碌")?;
+    state.channel = Some(on_request);
+    state.gate.arm();
+    Ok(())
+}
+
+#[tauri::command]
+fn resolve_style_exit(
+    window: tauri::WebviewWindow,
+    token: u32,
+    proceed: bool,
+    state: tauri::State<'_, Mutex<StyleExitState>>,
+) -> Result<()> {
+    if window.label() != "main" {
+        return Err("退出保护仅适用于主窗口".into());
+    }
+    state
+        .lock()
+        .map_err(|_| "退出保护忙碌")?
+        .gate
+        .resolve(token, proceed)?;
+    if proceed {
+        window.app_handle().exit(0);
+    }
+    Ok(())
+}
+
+fn guard_style_exit(app: &tauri::AppHandle) -> bool {
+    let state = app.state::<Mutex<StyleExitState>>();
+    let mut state = match state.lock() {
+        Ok(state) => state,
+        Err(_) => return true, // Never treat a failed guard as save success.
+    };
+    match state.gate.request() {
+        exit_guard::Request::Allow => false,
+        exit_guard::Request::Wait => true,
+        exit_guard::Request::Notify(token) => {
+            if state
+                .channel
+                .as_ref()
+                .is_none_or(|c| c.send(token).is_err())
+            {
+                let _ = state.gate.resolve(token, false);
+                app.dialog()
+                    .message("无法确认退出前的数据保存状态，已保留窗口。请稍后重试；强制退出可能丢失最近的评分、审片位置或样式修改。")
+                    .title("Moment Grove 保存保护")
+                    .show(|_| {});
+            }
+            true
+        }
+    }
+}
 
 pub struct AppState {
     catalog: Mutex<Catalog>,
@@ -103,16 +202,52 @@ struct ApplicationInfo {
     channel: &'static str,
     data_directory: String,
     isolated: bool,
+    executable: String,
+}
+fn channel() -> &'static str {
+    option_env!("MOMENT_GROVE_CHANNEL").unwrap_or("development")
+}
+fn isolated() -> bool {
+    channel() != "public-prerelease" || std::env::var_os("MOMENT_GROVE_DATA_DIR").is_some()
 }
 #[tauri::command]
 fn application_info(state: tauri::State<'_, Arc<AppState>>) -> ApplicationInfo {
     ApplicationInfo {
         version: env!("CARGO_PKG_VERSION"),
         build_id: option_env!("MOMENT_GROVE_BUILD_ID").unwrap_or("development"),
-        channel: option_env!("MOMENT_GROVE_CHANNEL").unwrap_or("development"),
+        channel: channel(),
         data_directory: state.data.to_string_lossy().into_owned(),
-        isolated: std::env::var_os("MOMENT_GROVE_DATA_DIR").is_some(),
+        isolated: isolated(),
+        executable: std::env::current_exe()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned(),
     }
+}
+#[tauri::command]
+async fn load_watermark_style(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<watermark_style::Style>> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = state.catalog.lock().map_err(|_| "资料库忙碌")?;
+        watermark_style::load(&state.data)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn save_watermark_style(
+    style: watermark_style::Style,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<()> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = state.catalog.lock().map_err(|_| "资料库忙碌")?;
+        watermark_style::save(&state.data, style)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[tauri::command]
 async fn load_workspace(
@@ -1073,36 +1208,107 @@ async fn repair_xmp(
     .await
     .map_err(|e| e.to_string())?
 }
+fn activate(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let data = instance::data_directory(
+        &app.path().app_data_dir()?,
+        channel(),
+        std::env::var_os("MOMENT_GROVE_DATA_DIR").map(PathBuf::from),
+    )?;
+    // Claim ownership before cache pruning, catalog opening or workspace
+    // writes. Separate QA directories intentionally remain independent.
+    let mut owner = match instance::claim(&data)? {
+        instance::Claim::Owner(owner) => owner,
+        instance::Claim::Forwarded => {
+            eprintln!(
+                "Moment Grove: 已请求唤回此资料库的现有窗口；版本以该窗口为准。更新前请先退出旧版。"
+            );
+            std::process::exit(0);
+        }
+    };
+    fs::create_dir_all(data.join("cache"))?;
+    imaging::prune_cache(&data.join("cache"), 256 * 1024 * 1024)?;
+    let state = Arc::new(AppState {
+        catalog: Mutex::new(
+            Catalog::open(&data.join("catalog.sqlite")).map_err(std::io::Error::other)?,
+        ),
+        allowed: Mutex::new(HashMap::new()),
+        granted_identities: Mutex::new(HashMap::new()),
+        data,
+        generation: AtomicU64::new(0),
+        decode: Arc::new(tokio::sync::Semaphore::new(2)),
+        queue: Arc::new(tokio::sync::Semaphore::new(24)),
+        relocation: Mutex::new(None),
+        export_plan: Mutex::new(None),
+        export_busy: AtomicBool::new(false),
+        export_cancel: AtomicBool::new(false),
+        watermark_render: Arc::new(tokio::sync::Semaphore::new(1)),
+        move_plan: Mutex::new(None),
+        move_busy: AtomicBool::new(false),
+        move_cancel: AtomicBool::new(false),
+    });
+    app.manage(state);
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_title(&format!(
+            "Moment Grove {} · {}",
+            env!("CARGO_PKG_VERSION"),
+            if isolated() {
+                "独立测试"
+            } else {
+                "日常资料库"
+            }
+        ))?;
+        window.show()?;
+    }
+    let handle = app.handle().clone();
+    std::thread::spawn(move || {
+        // Bounded local mailbox; no network listener or media paths.
+        // Owner (and its OS lock) live until this process exits.
+        loop {
+            if owner.activation_requested().unwrap_or(false) {
+                let focus = handle.clone();
+                let _ = handle.run_on_main_thread(move || activate(&focus));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(250));
+        }
+    });
+    Ok(())
+}
+
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(style_exit_menu);
+    builder
+        .manage(Mutex::new(StyleExitState::default()))
         .plugin(tauri_plugin_dialog::init())
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "save-style-and-quit" && !guard_style_exit(app) {
+                app.exit(0);
+            }
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                && guard_style_exit(window.app_handle())
+            {
+                api.prevent_close();
+            }
+        })
         .setup(|app| {
-            let data = std::env::var_os("MOMENT_GROVE_DATA_DIR")
-                .map(PathBuf::from)
-                .unwrap_or(app.path().app_data_dir()?);
-            fs::create_dir_all(data.join("cache"))?;
-            let data = data.canonicalize()?;
-            imaging::prune_cache(&data.join("cache"), 256 * 1024 * 1024)?;
-            let state = Arc::new(AppState {
-                catalog: Mutex::new(
-                    Catalog::open(&data.join("catalog.sqlite")).map_err(std::io::Error::other)?,
-                ),
-                allowed: Mutex::new(HashMap::new()),
-                granted_identities: Mutex::new(HashMap::new()),
-                data,
-                generation: AtomicU64::new(0),
-                decode: Arc::new(tokio::sync::Semaphore::new(2)),
-                queue: Arc::new(tokio::sync::Semaphore::new(24)),
-                relocation: Mutex::new(None),
-                export_plan: Mutex::new(None),
-                export_busy: AtomicBool::new(false),
-                export_cancel: AtomicBool::new(false),
-                watermark_render: Arc::new(tokio::sync::Semaphore::new(1)),
-                move_plan: Mutex::new(None),
-                move_busy: AtomicBool::new(false),
-                move_cancel: AtomicBool::new(false),
-            });
-            app.manage(state);
+            if let Err(error) = setup_app(app) {
+                let handle = app.handle().clone();
+                app.dialog().message(format!("无法打开 Moment Grove：{error}\n请保留资料目录，不要删除锁或数据库日志；退出旧版后重试。"))
+                    .title("Moment Grove 启动失败")
+                    .show(move |_| handle.exit(1));
+            }
             Ok(())
         })
         .register_asynchronous_uri_scheme_protocol("grove", |context, request, responder| {
@@ -1171,6 +1377,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             application_info,
+            register_style_exit_guard,
+            resolve_style_exit,
+            load_watermark_style,
+            save_watermark_style,
             load_workspace,
             save_workspace,
             resume_workspace,
@@ -1200,8 +1410,19 @@ fn main() {
             confirm_move,
             cancel_move
         ])
-        .run(tauri::generate_context!())
-        .expect("Moment Grove failed to start");
+        .build(tauri::generate_context!())
+        .expect("Moment Grove failed to start")
+        .run(|_app, _event| {
+            if let tauri::RunEvent::ExitRequested { code: None, api, .. } = &_event
+                && guard_style_exit(_app)
+            {
+                api.prevent_exit();
+            }
+            #[cfg(target_os = "macos")]
+            if matches!(_event, tauri::RunEvent::Reopen { .. }) {
+                activate(_app);
+            }
+        });
 }
 
 #[cfg(test)]

@@ -25,6 +25,7 @@ async function mixedFolder(page: import('@playwright/test').Page, photos: number
           convertFileSrc: () =>
             `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="#617b68"/></svg>')}`,
           invoke: async (cmd: string, args: Record<string, any> = {}) => {
+            if (cmd === 'register_style_exit_guard') return;
             if (cmd === 'load_workspace') return null;
             if (cmd === 'choose_folder')
               return { id: 1, name: 'Generated mixed folder', demo: false };

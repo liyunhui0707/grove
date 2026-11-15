@@ -25,6 +25,7 @@ test('pending native ratings block replacement, and late replies affect only the
         unregisterCallback: () => {},
         convertFileSrc: (id: string) => `http://grove-test.invalid/${id}`,
         invoke: async (command: string, args: Record<string, any> = {}) => {
+          if (command === 'register_style_exit_guard') return;
           if (command === 'load_workspace') return null;
           if (command === 'save_workspace' || command === 'cancel_scan') return;
           if (command === 'choose_folder') return { id: 1, name: 'Owned test', demo: false };

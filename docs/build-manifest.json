@@ -1,128 +1,81 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261114T164803-acc506e727",
+  "buildId": "trial-20261115T125356-b139b93334",
   "architecture": "arm64",
-  "sourceDigest": "acc506e727a05265ed4bf1d1a6b1186ab9870593df82c5fad14c1997a5ff0219",
-  "binarySha256": "8edc6e92f9a5b17c06574e8e7c22c1fcb293870bce2a94f98d2a40c7862e3f0f",
+  "sourceDigest": "b139b933348439e596146642d5b3da2384c95566e93d056e7c102875457e3998",
+  "binarySha256": "8dab6255f15708ab79acbc94fbf54971dd4e94ff4102c55252c40ab64b428353",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.4.0-macOS-arm64.zip",
-      "bytes": 5565332,
-      "sha256": "c7b2e169ce75dcd0446ac8b07143035c976bae7ba264b658d6c1bc8f4607bebe"
+      "name": "Moment-Grove-0.5.0-macOS-arm64.zip",
+      "bytes": 5613685,
+      "sha256": "a48db779b7d0ddc32ae04097c976ef367199b075ddf603704f6e7a8f3bde9062"
     },
     {
-      "name": "Moment-Grove-0.4.0-macOS-arm64.dmg",
-      "bytes": 6388133,
-      "sha256": "f30833a5a08d1428bfc4a1217e22b4e749f94ec3013984b7c61e3dc8769b089d"
+      "name": "Moment-Grove-0.5.0-macOS-arm64.dmg",
+      "bytes": 6444800,
+      "sha256": "f3ba2491244928b48370419e7897fbe6b717a9bcec05272ca81fae63f813981b"
     }
   ],
-  "status": "VALIDATED_TECHNICAL_PRERELEASE",
+  "status": "NATIVE_ACCEPTED_UPLOAD_READBACK_PENDING",
   "validation": {
     "backend": {
-      "passed": 103,
-      "failed": 0,
-      "defaultIgnored": 16
+      "passed": 112,
+      "defaultIgnored": 17
     },
     "logic": {
-      "passed": 7
+      "passed": 17
     },
     "browser": {
-      "passed": 41,
-      "unexpected": 0,
-      "skipped": 0,
-      "flaky": 0
+      "passed": 57
     },
-    "releaseVersion": {
-      "passed": 2
+    "delivery": {
+      "passed": 7
     },
-    "authorizedCopySet": {
-      "photos": 211,
-      "previews": 422,
-      "referenceCases": 24,
-      "referenceMaxMae": 3.8704229797979797,
-      "referenceThreshold": 8,
-      "copiedOriginalBytes": 211,
-      "copyBatches": 3,
-      "watermarks": 24,
-      "cancelResume": true,
-      "catalogIntegrity": "ok",
-      "sourceCopiesUnchanged": 211,
-      "sevenStatesAndIdsPreserved": true,
-      "scope": "backend workflow; not final packaged native acceptance"
+    "website": {
+      "viewportTestsPassed": 6,
+      "visualWidthsReviewed": [
+        360,
+        768,
+        1440
+      ],
+      "phoneHardwareTested": false
     },
     "archives": {
-      "payloadFiles": 12,
-      "sourceFiles": 68,
-      "zipAndDmgMatch": true,
+      "sourceFiles": 78,
+      "zipPayloadFiles": 12,
+      "dmgPayloadFiles": 12,
       "strictAdHocSignature": true,
       "dmgDetached": true
     },
-    "dependencyAdvisories": {
-      "npmProductionFindings": 0,
-      "resolvedMacOSRustPackages": 266,
-      "rustFindings": 0,
-      "scope": "point-in-time advisory check; not a vulnerability guarantee"
-    },
-    "finalCandidateNativeGui": "PASSED_UPGRADE_RATING_COPY_WATERMARK_NORMAL_QUIT_RESTART",
-    "installationUpgradeRollback": "PASSED_0_3_0_TO_0_4_0_AND_BACK_SCHEMA_2",
-    "uploadedAssetReadback": "PASSED_FULL_ZIP_DMG_SUMS_AND_12_PAYLOAD_FILES",
-    "browserQuarantineFirstOpening": "NOT_ACCEPTED",
-    "websiteMobileVisual": "NOT_RUN",
     "native": {
-      "oldCatalogAssets": 211,
-      "identitiesPreserved": 211,
+      "system": "macOS 27.2.1 arm64",
+      "upgrade": "0.4.0 to 0.5.0 at the same isolated install/data paths",
+      "rollback": "0.5.0 to 0.4.0 retained ratings, workspace and style record",
+      "generatedAssets": 24,
+      "identitiesAndSourceHashesPreserved": 24,
       "oldSnapshotPreserved": true,
-      "newRating": 5,
+      "ratings": [
+        0,
+        4,
+        5
+      ],
       "pending": 3,
       "history": 3,
+      "position": "3/24",
+      "dark": true,
+      "autoAdvance": false,
       "copyVerified": 2,
-      "watermarkVerified": 2,
-      "normalNewQuit": true,
-      "restartUi": "PASSED_EXACT_HEIC_7_OF_8",
-      "rollback": "PASSED_NEW_RATING_AND_POSITION_PRESERVED",
-      "downloadedInstall": "PASSED_EXACT_UPLOADED_ZIP_INSTALLED_NATIVE_RESUME_AND_NORMAL_CMDQ",
-      "recoveryScene": {
-        "assets": 8,
-        "generatedVideoPlaceholder": 1,
-        "idsAndSourceHashesPreserved": 8,
-        "oldSnapshotUnchanged": true,
-        "pending": 3,
-        "history": 3,
-        "normalQuitSessions": 5,
-        "reason": "Previous temporary scene was unavailable; remaining delivery checks repeated in a new isolated copy-set. Earlier 211-photo workflow evidence retained separately."
-      },
-      "downloadCaptureAttempts": {
-        "launchServices": "cgWindowNotFound; test-only SIGTERM; not normal quit",
-        "directExecutable": "cgWindowNotFound; SIGTERM; not normal quit",
-        "freshInstallPath": "cgWindowNotFound; test-only SIGTERM; not normal quit",
-        "consoleLocked": false,
-        "normalAcceptanceSessionCount": 5,
-        "scope": "Three earlier interrupted capture sessions remain failures, separate from five observed normal-quit acceptance sessions.",
-        "successfulSoleInstance": {
-          "photo": "sample-0006.heic",
-          "position": "7/8",
-          "dark": true,
-          "autoAdvance": false,
-          "normalCmdQ": true,
-          "reason": "After user quit the separate daily installation, the isolated downloaded App window became accessible; no exact underlying cause is asserted."
-        }
-      }
+      "watermarkVerified": 1,
+      "styleFont": "serif",
+      "normalQuitSessions": 3,
+      "watchdogSessions": 0,
+      "localTrialIdentityAccepted": true
     },
-    "website": {
-      "url": "https://moment-grove.outerepoch3.chatgpt.site",
-      "downloadVersion": "0.4.0 source prepared; deploy after this release is public",
-      "anonymousHttp": 200,
-      "staticAssetsMatch": 4,
-      "mobileVisual": "NOT_RUN",
-      "browserInteractionVisual": "PARTIAL"
-    },
-    "mobileMatrix": {
-      "testsPassed": 2,
-      "inputs": 11,
-      "maximumSdrReferenceMAE": 2.174567901234568,
-      "source": "one attributed public JPEG and generated HDR/orientation/HEIC derivatives; not original phone HEIC captures",
-      "scope": "regression on final 0.4.0 source; private personal set reported separately"
-    }
+    "uploadedAssetReadback": "PENDING",
+    "browserQuarantineFirstOpening": "NOT_ACCEPTED",
+    "signing": "ad-hoc; no Developer ID or Apple notarization",
+    "update": "manual replacement",
+    "scope": "generated fixtures and current-host acceptance; not all devices, libraries or OS versions"
   }
 }

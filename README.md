@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.4.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.5.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -11,7 +11,9 @@
 ## What you can do
 
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.
-- Resume the last folder, exact photo and essential review settings after a normal quit.
+- Resume the last folder, exact photo and essential review settings after a normal quit. Normal exit waits for in-flight rating/undo and the resulting final checkpoint; failures keep the window open for return or retry without automatically repeating rating operations.
+- See the app version, build and data location; opening the same catalog again brings its existing window forward.
+- Remember six watermark appearance settings. Each new batch clears city and fallback date; historical batches retain their original parameters.
 - Keep comparison references visible while replacing only the active candidate with `[` / `]`.
 - On macOS 14+, view tested Apple gain-map JPEG/HEIC and 10-bit PQ HEIC as SDR and export independent sRGB watermark JPEGs. HDR appearance is not retained.
 - See explicit counts for skipped video, RAW and unsupported images in mixed folders.
@@ -25,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.4.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.4.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -37,7 +39,7 @@ Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP a
 
 **Signing:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block the first opening. Follow [Apple's instructions for opening software from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) only if you trust the source. No security-disabling commands are required. A browser-download Gatekeeper flow has not been accepted as part of this prerelease.
 
-**Native upgrade check:** the exact released 0.3.0 App established ratings and a real snapshot in an isolated copy-set. Replacing it with 0.4.0 at the same install/data paths retained identities, ratings and pending writes. The final candidate completed native original-byte copies and full-size watermark exports (two each), then quit normally. A separate eight-photo delivery scene verified normal restart at the exact HEIC photo and old-version rollback with the new rating preserved. All three uploaded assets were fully downloaded and matched the frozen hashes. The installed downloaded App restored the exact HEIC position and settings and quit normally; details and earlier interrupted capture attempts are recorded in the [build manifest](docs/build-manifest.json). Browser-quarantine/Gatekeeper first opening remains unaccepted.
+**Native delivery evidence:** exact installed-package, upgrade/rollback and downloaded-asset results are recorded in the [build manifest](docs/build-manifest.json). Tests use generated or attributed inputs, not a promise for every photo library. Browser-quarantine/Gatekeeper first opening remains unaccepted.
 
 **System scope:** arm64 / Apple Silicon; tested on macOS 27.2.1. The bundle declares macOS 12 as its minimum, but other OS versions, Intel Macs, Windows and Linux have not been validated for this release.
 

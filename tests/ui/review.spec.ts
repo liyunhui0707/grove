@@ -253,6 +253,7 @@ async function installMoveMock(page: Page) {
         convertFileSrc: () =>
           `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"><path fill="#617b68" d="M0 0h48v32H0z"/></svg>')}`,
         invoke: async (cmd: string, args: Record<string, unknown> = {}) => {
+          if (cmd === 'register_style_exit_guard') return;
           if (cmd !== 'scan_folder') calls.push({ cmd, args: JSON.parse(JSON.stringify(args)) });
           if (cmd === 'load_workspace') return null;
           if (cmd === 'save_workspace') return;
@@ -995,6 +996,7 @@ async function installBatchMock(page: Page, kind: 'copy' | 'watermark' | 'move')
         unregisterCallback: () => {},
         convertFileSrc: () => svg,
         invoke: async (cmd: string, args: Record<string, unknown> = {}) => {
+          if (cmd === 'register_style_exit_guard') return;
           if (cmd === 'set_rating') {
             controls.ratings++;
             throw Error('Unexpected background rating');
@@ -1018,6 +1020,8 @@ async function installBatchMock(page: Page, kind: 'copy' | 'watermark' | 'move')
             ch.onmessage({ kind: 'done', count: 100, warnings: [] });
             return;
           }
+          if (cmd === 'load_watermark_style') return null;
+          if (cmd === 'save_watermark_style') return;
           if (cmd === 'move_history' || cmd === 'export_history') return recent;
           if (cmd === 'watermark_preview')
             return {
@@ -1185,7 +1189,7 @@ test('local trial guide keeps data location readable and isolates keyboard focus
   const dialog = page.getByRole('dialog', { name: '使用说明与资料' });
   await expect(dialog).toContainText('0.1.0');
   await expect(dialog).toContainText('当前使用独立测试资料目录');
-  await expect(dialog.locator('.guide-path')).toContainText('generated-trial-catalog');
+  await expect(dialog.locator('.guide-data-path')).toContainText('generated-trial-catalog');
   await page.keyboard.press('5');
   await page.keyboard.press('c');
   expect(

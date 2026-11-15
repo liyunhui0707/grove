@@ -18,17 +18,13 @@ import {
   type WatermarkPreview,
 } from './bridge';
 import type { Asset, Folder } from './domain';
+import {
+  defaultWatermarkOptions as defaults,
+  loadWatermarkStyle,
+  saveWatermarkStyle,
+  styleFrom,
+} from './watermark-style';
 
-const defaults: WatermarkOptions = {
-  city: '',
-  fallbackDate: null,
-  font: 'sans',
-  sizePercent: 2,
-  color: '#ffffff',
-  opacity: 0.88,
-  marginPercent: 2.5,
-  shadow: true,
-};
 const status = (s: string) =>
   ({
     ready: '清单已核对，等待确认',
@@ -52,6 +48,11 @@ export function WatermarkDialog({
   const [selection] = useState(() => assets.map((a) => ({ ...a })));
   const [index, setIndex] = useState(0);
   const [options, setOptions] = useState<WatermarkOptions>(defaults);
+  const [styleLoading, setStyleLoading] = useState(true);
+  const [styleStatus, setStyleStatus] = useState('正在读取水印样式…');
+  const [styleError, setStyleError] = useState('');
+  const styleRevision = useRef(0);
+  const mounted = useRef(false);
   const [preview, setPreview] = useState<WatermarkPreview | null>(null);
   const [previewError, setPreviewError] = useState('');
   const [previewBusy, setPreviewBusy] = useState(false);
@@ -67,12 +68,59 @@ export function WatermarkDialog({
   const panel = useRef<HTMLElement>(null);
   const preparation = usePreparation(bridge.cancelExport);
   const asset = selection[index];
-  const update = (value: Partial<WatermarkOptions>) => {
-    setOptions((o) => ({ ...o, ...value }));
+  const remember = (next: WatermarkOptions) => {
+    const ticket = ++styleRevision.current;
+    setStyleStatus('正在保存样式…');
+    setStyleError('');
+    void saveWatermarkStyle(styleFrom(next)).then(
+      () => {
+        if (mounted.current && ticket === styleRevision.current)
+          setStyleStatus(native ? '样式已保存' : '演示样式已记住（仅当前页面）');
+      },
+      (reason) => {
+        if (mounted.current && ticket === styleRevision.current) {
+          setStyleStatus('');
+          setStyleError(`样式未保存：${String(reason)}`);
+        }
+      },
+    );
+  };
+  const update = (value: Partial<WatermarkOptions>, forceSave = false) => {
+    const next = { ...options, ...value };
+    setOptions(next);
+    if (forceSave || JSON.stringify(styleFrom(next)) !== JSON.stringify(styleFrom(options)))
+      remember(next);
     setReport(null);
     setPrepared(false);
     setResuming(false);
   };
+  useEffect(() => {
+    mounted.current = true;
+    let stale = false;
+    void loadWatermarkStyle()
+      .then(
+        (style) => {
+          if (stale) return;
+          if (style) setOptions({ ...defaults, ...styleFrom({ ...defaults, ...style }) });
+          setStyleStatus(
+            style ? (native ? '已载入上次样式' : '已载入演示样式') : '正在使用默认样式',
+          );
+        },
+        (reason) => {
+          if (!stale) {
+            setStyleStatus('');
+            setStyleError(`样式读取失败：${String(reason)}。可调整样式后重试保存。`);
+          }
+        },
+      )
+      .finally(() => {
+        if (!stale) setStyleLoading(false);
+      });
+    return () => {
+      stale = true;
+      mounted.current = false;
+    };
+  }, []);
   useEffect(() => {
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
     let stale = false;
@@ -90,7 +138,7 @@ export function WatermarkDialog({
     };
   }, [folder.id]);
   useEffect(() => {
-    if (!native || !asset || resuming) return;
+    if (!native || !asset || resuming || styleLoading) return;
     let stale = false;
     setPreview(null);
     setPreviewError('');
@@ -113,11 +161,11 @@ export function WatermarkDialog({
       stale = true;
       window.clearTimeout(timer);
     };
-  }, [asset, options, composing, resuming]);
+  }, [asset, options, composing, resuming, styleLoading]);
   const refresh = async () =>
     setRecent((await bridge.exportHistory(folder.id)).filter((r) => r.kind === 'watermark'));
   const choose = async (resumeId: string | null = null) => {
-    if (busy) return;
+    if (busy || styleLoading) return;
     const ticket = preparation.begin();
     setBusy(true);
     setError('');
@@ -315,8 +363,31 @@ export function WatermarkDialog({
                 <p className="watermark-caption">{preview.info.source.warning}</p>
               )}
             </div>
-            <fieldset className="watermark-controls" disabled={busy || resuming}>
+            <fieldset className="watermark-controls" disabled={busy || resuming || styleLoading}>
               <legend className="sr-only">水印样式</legend>
+              <p className="watermark-hint">
+                自动记住字体及更多样式；城市、备用日期每批重新填写。继续历史清单时沿用该批参数。
+              </p>
+              <div className="watermark-style-memory">
+                <span role="status" aria-label="水印样式保存状态">
+                  {resuming ? '历史清单参数固定，未改写已记住样式' : styleStatus}
+                </span>
+                <button
+                  className="button subtle"
+                  type="button"
+                  onClick={() => update(styleFrom(defaults), true)}
+                >
+                  恢复默认样式
+                </button>
+              </div>
+              {styleError && (
+                <div className="backup-error" role="alert">
+                  {styleError}
+                  <button className="button subtle" type="button" onClick={() => remember(options)}>
+                    重试保存样式
+                  </button>
+                </div>
+              )}
               <label>
                 城市 <span>可选</span>
                 <input
@@ -505,7 +576,7 @@ export function WatermarkDialog({
                   {r.status !== 'completed' && (
                     <button
                       className="button subtle"
-                      disabled={busy}
+                      disabled={busy || styleLoading}
                       onClick={() => void choose(r.id)}
                     >
                       <RotateCcw size={14} />
@@ -541,7 +612,8 @@ export function WatermarkDialog({
                 resuming ||
                 !preview?.canExport ||
                 previewBusy ||
-                composing
+                composing ||
+                styleLoading
               }
               onClick={() => void choose()}
             >

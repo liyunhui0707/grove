@@ -5,12 +5,12 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { root } from './toolchain.mjs';
 import { releaseVersion, releaseArchiveStem } from './release-version.mjs';
+import { packagingOptions, signingPreflight, signApp, notarizeTarget } from './macos-signing.mjs';
 
 if (process.platform !== 'darwin' || process.arch !== 'arm64')
   throw Error('This packaging entry supports the macOS Apple Silicon candidate only');
-const args = process.argv.slice(2);
-if (args.some((a) => a !== '--prerelease')) throw Error('Unknown packaging option');
-const channel = args.includes('--prerelease') ? 'public-prerelease' : 'local-trial';
+const options = packagingOptions(process.argv.slice(2));
+const { channel } = options;
 // Keep maintainer and dependency-cache paths out of publicly distributed binaries.
 process.env.CARGO_ENCODED_RUSTFLAGS = [
   ...(process.env.CARGO_ENCODED_RUSTFLAGS?.split('\x1f') ?? []),
@@ -33,12 +33,30 @@ releaseVersion({
   cargoToml: fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8'),
   cargoLock: fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.lock'), 'utf8'),
 });
+const signing = signingPreflight(options, run);
+if (options.preflight) {
+  console.log(
+    JSON.stringify(
+      {
+        ...signing,
+        channel,
+        version: pkg.version,
+        credentialsValidated: false,
+        note: 'No build, signing, notarization upload or publication performed.',
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 const sourcePaths = [
   'package.json',
   'package-lock.json',
   'vite.config.ts',
   'tsconfig.json',
   'scripts/package-macos.mjs',
+  'scripts/macos-signing.mjs',
   'scripts/release-version.mjs',
   'scripts/toolchain.mjs',
   'scripts/desktop.mjs',
@@ -76,6 +94,9 @@ process.stdout.write(
     '--bundles',
     'app',
     '--no-sign',
+    ...(channel === 'local-trial'
+      ? ['--config', JSON.stringify({ identifier: 'app.momentgrove.trial' })]
+      : []),
     '--',
     '--offline',
   ]),
@@ -88,15 +109,26 @@ fs.cpSync(
   app,
   { recursive: true, errorOnExist: true },
 );
-// Ad-hoc signing binds the resource envelope; it is not Developer ID or notarization.
-run('/usr/bin/codesign', ['--force', '--sign', '-', '--timestamp=none', app]);
-run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
+signApp(app, options, run);
+let appNotarization = { status: 'NOT_REQUESTED' };
+if (options.notarize) {
+  const upload = path.join(out, 'notarization-app.zip');
+  run('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, upload]);
+  appNotarization = notarizeTarget(upload, app, options, run, (result) =>
+    fs.writeFileSync(path.join(out, 'notarization-app.json'), JSON.stringify(result, null, 2), {
+      mode: 0o600,
+    }),
+  );
+  run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
+  run('/usr/sbin/spctl', ['--assess', '--type', 'execute', app]);
+}
 const info = JSON.parse(
   run('/usr/bin/plutil', ['-convert', 'json', '-o', '-', path.join(app, 'Contents/Info.plist')]),
 );
 const binary = path.join(app, 'Contents/MacOS/moment-grove');
 if (
-  info.CFBundleIdentifier !== config.identifier ||
+  info.CFBundleIdentifier !==
+    (channel === 'local-trial' ? 'app.momentgrove.trial' : config.identifier) ||
   info.CFBundleShortVersionString !== pkg.version ||
   run('/usr/bin/lipo', ['-archs', binary]).trim() !== 'arm64'
 )
@@ -136,7 +168,10 @@ const candidate = {
   architecture: 'arm64',
   minimumSystemDeclaration: info.LSMinimumSystemVersion,
   testedSystems: [],
-  signing: 'ad-hoc; no Developer ID or notarization',
+  signing: options.notarize
+    ? 'Developer ID Application; hardened runtime; secure timestamp'
+    : 'ad-hoc; no Developer ID or notarization',
+  notarization: appNotarization,
   update: 'manual replacement',
   created: new Date().toISOString(),
   sourceDigest: sha(sourceRaw),
@@ -168,6 +203,24 @@ run('/usr/bin/hdiutil', [
   'UDZO',
   dmg,
 ]);
+let dmgNotarization = { status: 'NOT_REQUESTED' };
+if (options.notarize) {
+  run('/usr/bin/codesign', ['--force', '--sign', options.identity, '--timestamp', dmg]);
+  run('/usr/bin/codesign', ['--verify', '--strict', dmg]);
+  dmgNotarization = notarizeTarget(dmg, dmg, options, run, (result) =>
+    fs.writeFileSync(path.join(out, 'notarization-dmg.json'), JSON.stringify(result, null, 2), {
+      mode: 0o600,
+    }),
+  );
+  run('/usr/sbin/spctl', [
+    '--assess',
+    '--type',
+    'open',
+    '--context',
+    'context:primary-signature',
+    dmg,
+  ]);
+}
 const receipt = {
   ...candidate,
   status: 'BUILT_NOT_ACCEPTED',
@@ -180,6 +233,7 @@ const receipt = {
   })),
   nativeGuiAcceptance: 'NOT_RUN',
   installationAcceptance: 'NOT_RUN',
+  dmgNotarization,
 };
 fs.writeFileSync(
   path.join(out, 'SHA256SUMS.txt'),
@@ -200,11 +254,7 @@ console.log(
 );
 
 if (channel === 'local-trial') {
-  const entry = path.join(root, '.local', 'current-trial');
-  if (fs.existsSync(entry) && !fs.lstatSync(entry).isSymbolicLink())
-    throw Error('Stable candidate entry is not a symlink');
-  const pending = path.join(root, '.local', `current-trial-${crypto.randomUUID()}`);
-  fs.symlinkSync(payload, pending);
-  fs.renameSync(pending, entry);
-  console.log(JSON.stringify({ entry: path.join(entry, 'Moment Grove.app'), buildId }));
+  console.log(
+    'Candidate built; the accepted current-trial entry is unchanged until native acceptance.',
+  );
 }

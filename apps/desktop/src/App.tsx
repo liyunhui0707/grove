@@ -1,6 +1,18 @@
 import { GuideDialog } from './GuideDialog';
+import { ApplicationBadge } from './ApplicationBadge';
+import { ExitSaveGuard } from './ExitSaveGuard';
 import { restoreReview, type ReviewView } from './workspace';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
+import { createWorkspaceWriter } from './workspace-writer';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ArrowDownWideNarrow,
@@ -422,10 +434,12 @@ export function App() {
   const [workspaceStatus, setWorkspaceStatus] = useState('');
   const [workspaceError, setWorkspaceError] = useState('');
   const [gridOffset, setGridOffset] = useState(0);
-  const workspaceWrites = useRef<{
-    running: boolean;
-    next: { folderId: number | null; view: ReviewView } | null;
-  }>({ running: false, next: null });
+  const workspaceWrites = useRef(
+    createWorkspaceWriter(({ folderId, view }) => bridge.saveWorkspace(folderId, view)),
+  );
+  const workspaceRevision = useRef(0);
+  const reviewWrite = useRef<{ done: Promise<void>; finish: () => void } | null>(null);
+  const reviewWriteError = useRef('');
   const [scanning, setScanning] = useState(false);
   const [scanOutcome, setScanOutcome] = useState<'complete' | 'cancelled' | 'failed' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -453,8 +467,9 @@ export function App() {
   const [help, setHelp] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const guideReturnFocus = useRef<HTMLButtonElement>(null);
+  const guideOrigin = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!guideOpen && guideReturnFocus.current?.isConnected) guideReturnFocus.current.focus();
+    if (!guideOpen && guideOrigin.current?.isConnected) guideOrigin.current.focus();
   }, [guideOpen]);
   const [backupsOpen, setBackupsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -618,7 +633,7 @@ export function App() {
       stale = true;
     };
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (
       !native ||
       !workspaceReady ||
@@ -629,11 +644,10 @@ export function App() {
       scanOutcome !== 'complete'
     )
       return;
-    const writer = workspaceWrites.current;
-    writer.next = {
+    const checkpoint = {
       folderId: folder.id,
       view: {
-        mode: mode === 'review' ? 'review' : 'grid',
+        mode: mode === 'review' ? ('review' as const) : ('grid' as const),
         active,
         filter,
         sort,
@@ -646,24 +660,19 @@ export function App() {
     };
     setWorkspaceStatus('正在保存审片位置…');
     setWorkspaceError('');
-    if (writer.running) return;
-    writer.running = true;
-    void (async () => {
-      while (writer.next) {
-        const next = writer.next;
-        writer.next = null;
-        try {
-          await bridge.saveWorkspace(next.folderId, next.view);
-          if (!writer.next) setWorkspaceStatus('审片位置已保存');
-        } catch (e) {
-          if (!writer.next) {
-            setWorkspaceStatus('审片位置未保存');
-            setWorkspaceError(`审片位置未保存：${String(e)}。评分保存独立处理。`);
-          }
-        }
-      }
-      writer.running = false;
-    })();
+    const ticket = ++workspaceRevision.current;
+    void workspaceWrites.current
+      .save(checkpoint)
+      .then(() => {
+        if (ticket !== workspaceRevision.current) return;
+        setWorkspaceStatus('审片位置已保存');
+        setWorkspaceError('');
+      })
+      .catch((e) => {
+        if (ticket !== workspaceRevision.current) return;
+        setWorkspaceStatus('审片位置未保存');
+        setWorkspaceError(`审片位置未保存：${String(e)}。评分保存独立处理。`);
+      });
   }, [
     workspaceReady,
     loading,
@@ -681,6 +690,45 @@ export function App() {
     theme,
     gridOffset,
   ]);
+  // Release a rating/undo only after its resulting React state was committed
+  // and the layout effect above queued that exact review checkpoint.
+  useLayoutEffect(() => {
+    if (!saving && reviewWrite.current) {
+      saveLock.current = false;
+      reviewWrite.current.finish();
+      reviewWrite.current = null;
+    }
+  });
+  const beginReviewWrite = () => {
+    let finish!: () => void;
+    reviewWrite.current = {
+      done: new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+      finish: () => finish(),
+    };
+    reviewWriteError.current = '';
+    saveLock.current = true;
+    setSaving(true);
+  };
+  const flushReview = async (retry: boolean) => {
+    while (reviewWrite.current) await reviewWrite.current.done;
+    const failures: string[] = [];
+    if (reviewWriteError.current)
+      failures.push(
+        `评分或撤销结果尚未确认：${reviewWriteError.current}。请返回应用检查后重试操作；不会自动重复评分或撤销。`,
+      );
+    try {
+      await workspaceWrites.current.flush(retry);
+      if (retry && workspaceRevision.current > 0) {
+        setWorkspaceStatus('审片位置已保存');
+        setWorkspaceError('');
+      }
+    } catch (e) {
+      failures.push(`审片位置未保存：${String(e)}`);
+    }
+    if (failures.length) throw Error(failures.join('\n'));
+  };
   const select = (id: string, extend: boolean, range: boolean) => {
     if (range && active) {
       const start = visible.findIndex((a) => a.id === active);
@@ -747,8 +795,7 @@ export function App() {
     if (saveLock.current || scanning) return;
     const ids = explicitId ? [explicitId] : mode === 'grid' ? selected : [active];
     if (!ids.length || !ids[0]) return;
-    saveLock.current = true;
-    setSaving(true);
+    beginReviewWrite();
     setError('');
     const before: History = {
       token: '',
@@ -781,17 +828,16 @@ export function App() {
         `${ids.length > 1 ? `${ids.length} 张照片 · ` : ''}${ratingLabel(rating)}${native ? ' · 已保存' : ''}`,
       );
     } catch (e) {
+      reviewWriteError.current = String(e);
       setError(String(e));
     } finally {
-      saveLock.current = false;
       setSaving(false);
     }
   };
   const undo = async () => {
     const entry = history.at(-1);
     if (!entry || saveLock.current || scanning || loading) return;
-    saveLock.current = true;
-    setSaving(true);
+    beginReviewWrite();
     try {
       const batch = await bridge.undo(entry.token);
       setAssets((current) => applyChanges(current, batch.changes));
@@ -808,9 +854,9 @@ export function App() {
       setViewports({});
       toast('已撤销评分，回到上一张照片');
     } catch (e) {
+      reviewWriteError.current = String(e);
       setError(String(e));
     } finally {
-      saveLock.current = false;
       setSaving(false);
     }
   };
@@ -927,6 +973,7 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <ExitSaveGuard flushReview={flushReview} />
       <aside
         className="sidebar"
         inert={
@@ -946,6 +993,12 @@ export function App() {
           </span>
           <div>
             Moment Grove<small>留住值得的时刻</small>
+            <ApplicationBadge
+              onOpen={(button) => {
+                guideOrigin.current = button;
+                setGuideOpen(true);
+              }}
+            />
           </div>
         </div>
         <div className="sidebar-label">我的照片</div>
@@ -1031,7 +1084,10 @@ export function App() {
             <IconButton
               label="使用说明与资料"
               buttonRef={guideReturnFocus}
-              onClick={() => setGuideOpen(true)}
+              onClick={() => {
+                guideOrigin.current = guideReturnFocus.current;
+                setGuideOpen(true);
+              }}
             >
               <BookOpen size={16} />
             </IconButton>

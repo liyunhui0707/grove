@@ -74,6 +74,7 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
             “评分同步”明确写入照片旁的 XMP。“导出副本”保留原字节和元数据；“水印”生成独立
             JPEG，移除源 EXIF/GPS。安全整理会移动测试副本及已有
             XMP；先核对清单再确认，完成后可核对撤回。
+            水印样式自动记住，看到“样式已保存”后退出可继续使用；城市和备用日期每批重新填写，历史清单保留原参数。
           </p>
           <h3>更新与恢复</h3>
           <p>
@@ -95,7 +96,13 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
                 {info.isolated ? '当前使用独立测试资料目录。' : '当前使用应用默认资料目录。'}
                 可选中文字复制到 Finder“前往文件夹”。
               </p>
-              <code className="guide-path">{info.dataDirectory}</code>
+              <code className="guide-path guide-data-path">{info.dataDirectory}</code>
+              <h3>当前应用位置</h3>
+              <code className="guide-path">{info.executable || '应用位置不可用'}</code>
+              <p>
+                同一资料目录重复打开会唤回已有窗口，实际版本以窗口标识为准。更新前先用 ⌘Q
+                退出旧版；独立测试与日常资料库互不合并。
+              </p>
             </>
           ) : (
             <p>
