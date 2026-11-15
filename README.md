@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.4.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**The 0.4.0 source candidate is under final delivery validation. The latest published technical test prerelease is 0.3.0 for Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -25,7 +25,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.4.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.4.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+The 0.4.0 release is still a draft pending its last downloaded-App window check. Download the exact published macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.3.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.3.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt

@@ -17,7 +17,7 @@
       "sha256": "f30833a5a08d1428bfc4a1217e22b4e749f94ec3013984b7c61e3dc8769b089d"
     }
   ],
-  "status": "NATIVE_ACCEPTED_PENDING_UPLOADED_ASSET_CHECK",
+  "status": "DRAFT_ASSET_BYTES_VERIFIED_NATIVE_DOWNLOAD_WINDOW_BLOCKED",
   "validation": {
     "backend": {
       "passed": 103,
@@ -66,7 +66,7 @@
     },
     "finalCandidateNativeGui": "PASSED_UPGRADE_RATING_COPY_WATERMARK_NORMAL_QUIT_RESTART",
     "installationUpgradeRollback": "PASSED_0_3_0_TO_0_4_0_AND_BACK_SCHEMA_2",
-    "uploadedAssetReadback": "NOT_RUN",
+    "uploadedAssetReadback": "PASSED_FULL_ZIP_DMG_SUMS_AND_12_PAYLOAD_FILES",
     "browserQuarantineFirstOpening": "NOT_ACCEPTED",
     "websiteMobileVisual": "NOT_RUN",
     "native": {
@@ -81,7 +81,7 @@
       "normalNewQuit": true,
       "restartUi": "PASSED_EXACT_HEIC_7_OF_8",
       "rollback": "PASSED_NEW_RATING_AND_POSITION_PRESERVED",
-      "downloadedInstall": "NOT_RUN",
+      "downloadedInstall": "EXACT_INSTALLED_BYTES_AND_SIGNATURE_PASSED_GUI_WINDOW_UNAVAILABLE",
       "recoveryScene": {
         "assets": 8,
         "generatedVideoPlaceholder": 1,
@@ -91,15 +91,30 @@
         "history": 3,
         "normalQuitSessions": 4,
         "reason": "Previous temporary scene was unavailable; remaining delivery checks repeated in a new isolated copy-set. Earlier 211-photo workflow evidence retained separately."
+      },
+      "downloadCaptureAttempts": {
+        "launchServices": "cgWindowNotFound; test-only SIGTERM; not normal quit",
+        "directExecutable": "cgWindowNotFound; SIGTERM; not normal quit",
+        "freshInstallPath": "cgWindowNotFound; test-only SIGTERM; not normal quit",
+        "consoleLocked": false,
+        "normalAcceptanceSessionCount": 4,
+        "scope": "The four old/new/restart/rollback sessions passed before these three separate capture failures. No downloaded GUI acceptance is claimed."
       }
     },
     "website": {
       "url": "https://moment-grove.outerepoch3.chatgpt.site",
-      "downloadVersion": "0.3.0 pending this release",
+      "downloadVersion": "0.3.0; 0.4.0 site version saved, not deployed",
       "anonymousHttp": 200,
       "staticAssetsMatch": 4,
       "mobileVisual": "NOT_RUN",
       "browserInteractionVisual": "PARTIAL"
+    },
+    "mobileMatrix": {
+      "testsPassed": 2,
+      "inputs": 11,
+      "maximumSdrReferenceMAE": 2.174567901234568,
+      "source": "one attributed public JPEG and generated HDR/orientation/HEIC derivatives; not original phone HEIC captures",
+      "scope": "regression on final 0.4.0 source; private personal set reported separately"
     }
   }
 }
