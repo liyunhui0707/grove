@@ -242,6 +242,37 @@ test('grid resume waits for streamed scan and measured columns before restoring 
   await installLibrary(page);
   await page.addInitScript(() => {
     localStorage.setItem('delayed-scan', 'true');
+    // Hold the final spacer layout for two frames, as if the last streamed
+    // batch's size had not reached layout when the restore command runs.
+    const observer = new MutationObserver((records) => {
+      const complete = [...document.querySelectorAll('button')].some(
+        (button) => button.textContent?.replace(/\s/g, '') === '所有照片3000',
+      );
+      if (!complete) return;
+      for (const record of records) {
+        const spacer = record.target as HTMLElement;
+        if (!spacer.parentElement?.classList.contains('gallery-viewport')) continue;
+        const finalHeight = spacer.style.height;
+        if (!(parseFloat(finalHeight) > 1000)) continue;
+        observer.disconnect();
+        (window as any).__heldGridLayout = true;
+        const overflow = spacer.style.overflow;
+        spacer.style.height = `${parseFloat(finalHeight) * 0.97}px`;
+        spacer.style.overflow = 'hidden';
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            spacer.style.height = finalHeight;
+            spacer.style.overflow = overflow;
+          }),
+        );
+        break;
+      }
+    });
+    observer.observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style'],
+    });
     if (!localStorage.getItem('workspace'))
       localStorage.setItem(
         'workspace',
@@ -286,8 +317,12 @@ test('grid resume waits for streamed scan and measured columns before restoring 
     });
     throw error;
   }
+  expect(await page.evaluate(() => (window as any).__heldGridLayout)).toBe(true);
   const grid = page.getByLabel('照片网格');
   await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
+  await expect
+    .poll(() => grid.evaluate((el) => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop)))
+    .toBeLessThanOrEqual(1);
   await grid.evaluate((el) => {
     el.scrollTop = 0;
   });

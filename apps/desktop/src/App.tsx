@@ -255,11 +255,33 @@ function Gallery({
     // Density changes invalidate cached estimates. Wait for the render using
     // the new row sizes, so a long saved offset clamps against the final list.
     if (Math.abs(totalSize - Math.ceil(assets.length / columns) * rowHeight) > 1) return;
-    const frame = requestAnimationFrame(() => {
-      virtual.scrollToOffset(restorePosition.offset);
-      onOffsetRestored();
-    });
-    return () => cancelAnimationFrame(frame);
+    const element = parent.current;
+    const spacer = element?.firstElementChild;
+    if (!element || !spacer) return;
+    // The virtualizer can report the final total before its spacer has that
+    // layout size. A command then clamps to the previous scan batch's bottom.
+    // Observe the actual spacer rather than retiring that restore too early.
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (
+          !element.clientHeight ||
+          Math.abs(spacer.getBoundingClientRect().height - totalSize) > 1
+        )
+          return;
+        virtual.scrollToOffset(restorePosition.offset);
+        onOffsetRestored();
+      });
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(spacer);
+    observer.observe(element);
+    schedule();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [
     restorePosition,
     measuredWidth,
