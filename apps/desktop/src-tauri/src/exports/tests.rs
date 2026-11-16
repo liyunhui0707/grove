@@ -500,6 +500,108 @@ fn watermark_crash_after_publication_reopens_the_saved_derivative_identity() {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
+fn sharing_crash_recovery_keeps_output_options_and_published_photo() {
+    use image::GenericImageView;
+    use std::os::unix::fs::MetadataExt;
+
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let originals: Vec<_> = [6, 1]
+        .into_iter()
+        .enumerate()
+        .map(|(n, orientation)| {
+            let path = roots[&f].join(format!("generated-{}.jpg", n + 5));
+            let bytes = crate::watermark::tests::fixture(
+                3000,
+                2000,
+                orientation,
+                Some("2026:10:25 23:59:59"),
+            );
+            fs::write(&path, &bytes).unwrap();
+            (path, bytes)
+        })
+        .collect();
+    let options = crate::watermark::Options {
+        output_max_edge: Some(2048),
+        jpeg_quality: 80,
+        ..Default::default()
+    };
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[5..],
+        &b.join("output"),
+        &b.join("data"),
+        &options,
+    )
+    .unwrap();
+    let reviewed = review(&plan);
+    stage_for_crash_test(&plan, &b.join("data")).unwrap();
+    let journal: serde_json::Value = serde_json::from_slice(
+        &fs::read(b.join("data/exports").join(&reviewed.id).join("plan.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(journal["format"], 2);
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "exports::tests::crash_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("MG_EXPORT_CRASH_ROOT", &b)
+        .env("MG_EXPORT_CRASH_ID", &reviewed.id)
+        .status()
+        .unwrap();
+    assert_eq!(status.code(), Some(91));
+    let published = Path::new(&reviewed.destination).join(&reviewed.items[0].output);
+    let bytes = fs::read(&published).unwrap();
+    let inode = fs::metadata(&published).unwrap().ino();
+    assert_eq!(
+        image::load_from_memory(&bytes).unwrap().dimensions(),
+        (1365, 2048)
+    );
+
+    let plan = resume(
+        &c,
+        &roots,
+        f,
+        &reviewed.id,
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    assert_eq!(review(&plan).watermark.as_ref(), Some(&options));
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.status, "completed");
+    assert_eq!(result.verified, 2);
+    assert_eq!(fs::read(&published).unwrap(), bytes);
+    assert_eq!(fs::metadata(&published).unwrap().ino(), inode);
+    let second = Path::new(&result.destination).join(&result.items[1].output);
+    assert_eq!(
+        image::load_from_memory(&fs::read(second).unwrap())
+            .unwrap()
+            .dimensions(),
+        (2048, 1365)
+    );
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &fs::read(Path::new(&result.destination).join("moment-grove-export.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(manifest["watermark"]["outputMaxEdge"], 2048);
+    assert_eq!(manifest["watermark"]["jpegQuality"], 80);
+    for (path, bytes) in originals {
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+    for target in &targets {
+        assert_eq!(c.location(&target.id).unwrap().2, target.revision);
+    }
+}
+
+#[test]
 fn pre_watermark_copy_journals_still_resume_without_migration() {
     let t = tempfile::tempdir().unwrap();
     let b = t.path().canonicalize().unwrap();
