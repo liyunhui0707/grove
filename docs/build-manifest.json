@@ -1,20 +1,20 @@
 {
-  "version": "0.5.1",
+  "version": "0.5.2",
   "channel": "public-prerelease",
-  "buildId": "trial-20261115T150154-a536cbe1e1",
+  "buildId": "trial-20261116T054403-c4e5e29ad1",
   "architecture": "arm64",
-  "sourceDigest": "a536cbe1e1cc496a5873a8d70d55db37c691c6c7d53cc71f58bff6d5d9c5f9de",
-  "binarySha256": "22ac021ecc608ab9b40a2f5fa96d6f5f8c3715b8e713f5d6b8ea411aac3f120a",
+  "sourceDigest": "c4e5e29ad14f54513630f6c78f28a6f93cb3499f44575eea72b3ab499a988985",
+  "binarySha256": "c16c7e99c60a5579d18cd3f0502d38e2e5953997844f5c16df6c4350472e7865",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.5.1-macOS-arm64.zip",
-      "bytes": 5662240,
-      "sha256": "138640f0ca139771bc5bfab02245d7552713875bdfc1112c0deda064e9f521a1"
+      "name": "Moment-Grove-0.5.2-macOS-arm64.zip",
+      "bytes": 5663758,
+      "sha256": "7083d8f0e6e7aaf80dbbf925110b74de1e71793df7ed7402506f93223b605de2"
     },
     {
-      "name": "Moment-Grove-0.5.1-macOS-arm64.dmg",
-      "bytes": 6497685,
-      "sha256": "fa87288d6aae86fc686fa9849d9139b35cb5c71efafc89a8a697064ddac14ba0"
+      "name": "Moment-Grove-0.5.2-macOS-arm64.dmg",
+      "bytes": 6499903,
+      "sha256": "5a19f39c2abaa2a79e95b42d46137eb65a456def28cd58d424e00db3469649dd"
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
@@ -28,28 +28,16 @@
       "passed": 17
     },
     "browser": {
-      "passed": 65,
-      "finalEntryAttributeRegression": 4
+      "passed": 72
     },
     "delivery": {
-      "passed": 7
+      "passed": 10
     },
+    "compiler": "build + clippy -D warnings passed",
     "website": {
       "viewportTestsPassed": 6,
-      "downloadVersion": "0.5.1",
-      "deployment": "SUCCEEDED",
-      "sourceStatus": "DEPLOYED_VERSION_4",
-      "sourceCommit": "8fd6eaaef27348dfe625b815337ec61cf6cff072",
-      "url": "https://moment-grove.outerepoch3.chatgpt.site/",
-      "anonymousHttp": 200,
-      "staticAssetsMatch": 4,
-      "visualWidthsReviewed": [
-        360,
-        768,
-        1440
-      ],
-      "phoneHardwareTested": false,
-      "liveBrowserHandoff": "unavailable; local Chrome viewport checks and anonymous HTTP/resource readback passed"
+      "downloadVersion": "0.5.2",
+      "sourceStatus": "PREPARED_NOT_DEPLOYED"
     },
     "archives": {
       "sourceFiles": 83,
@@ -60,54 +48,31 @@
     },
     "native": {
       "system": "macOS 27.2.1 arm64",
-      "upgrade": "0.5.0 to 0.5.1 at the same isolated install/data paths",
+      "upgrade": "0.5.1 to 0.5.2 at the same isolated install/data paths",
       "generatedAssets": 24,
-      "identitiesPreserved": 24,
-      "sourceHashesPreserved": 24,
-      "ratings": [
+      "identitiesAndSourceHashesPreserved": 24,
+      "baselineRatings": [
         4,
         5,
-        3
+        0
       ],
-      "pending": 3,
-      "history": 3,
-      "position": "3/24",
-      "copyVerified": 2,
+      "compareRatingUndo": "photo23: 3 then undo to null then 4; photo24 stayed null",
+      "copyVerified": 3,
       "watermarkVerified": 1,
-      "startupReady": true,
-      "diagnosticRecordUnwritableStillUsable": true,
-      "normalQuit": true,
-      "ratingAndUndoLockFailureRecovery": "passed on preceding candidate with identical App source",
-      "finalCandidateRatingUndo": "passed",
-      "historicalBlankRootCauseConfirmed": false,
-      "frontendFaultInjection": "browser only; native frontend_ready is commit evidence, not pixel proof",
-      "actualUploadedPackage": "full ZIP/DMG/checksum readback verified; downloaded ZIP installed, 3/24 resumed and normal quit",
-      "rollback": "0.5.1 to 0.5.0 retained all asset identities, ratings and workspace"
+      "watermarkInput": "generated SDR HEIC; explicit manual fallback date and test city",
+      "normalQuit": "baseline, upgrade, final export session and rollback; no watchdog in these sessions",
+      "reopen": "0.5.2 grid and picks retained after normal upgrade-session exit; 0.5.1 rollback resumed photo23 at 3/3 picks",
+      "rollback": "0.5.2 to 0.5.1; all24 IDs/paths/identities/ratings/revisions and complete workspace identical",
+      "interruptedAttempt": "First export attempt exceeded 15-minute QA watchdog before copying; preserved and completed in a separate bounded session",
+      "unexpectedLauncherReopen": "After watchdog, computer-use lookup opened an empty instance without test-data override; no photo folder opened; closed exact staged-path process; excluded from acceptance",
+      "actualUploadedPackage": "NOT_RUN"
     },
-    "compiler": "build + clippy -D warnings passed",
-    "downloadedAssets": [
-      {
-        "id": 751374225,
-        "name": "Moment-Grove-0.5.1-macOS-arm64.zip",
-        "bytes": 5662240,
-        "sha256": "138640f0ca139771bc5bfab02245d7552713875bdfc1112c0deda064e9f521a1",
-        "allBytesVerified": true
-      },
-      {
-        "id": 751374222,
-        "name": "Moment-Grove-0.5.1-macOS-arm64.dmg",
-        "bytes": 6497685,
-        "sha256": "fa87288d6aae86fc686fa9849d9139b35cb5c71efafc89a8a697064ddac14ba0",
-        "allBytesVerified": true
-      },
-      {
-        "id": 751374223,
-        "name": "SHA256SUMS.txt",
-        "bytes": 202,
-        "sha256": "1c1a03e929a6003e0084ad32c0e9f7e17fb365ad33d31effb4d4309b360c78ad",
-        "allBytesVerified": true
-      }
-    ]
+    "priorLargeLibraryEvidence": {
+      "report": "large-native-review-stage.md",
+      "baselineBuild": "trial-20261115T154912-9283f4875f",
+      "repairBuild": "trial-20261116T021900-536d265c9b",
+      "notCurrentReleaseThirtyMinuteSoak": true
+    }
   },
   "limitations": [
     "ad-hoc signed; no Developer ID or notarization",
@@ -117,20 +82,8 @@
     "no automatic updater or runtime-render crash recovery"
   ],
   "publication": {
-    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.1",
-    "releaseId": 446145003,
-    "tagCommit": "87a7e862213de309d569fe6396c4d4da2ed0cb23",
-    "anonymousAssetAccessVerified": true,
-    "allDraftAssetBytesVerified": true,
-    "oldReleaseAssetsUnchanged": [
-      "v0.5.0",
-      "v0.4.0",
-      "v0.3.0",
-      "v0.2.0",
-      "v0.1.0"
-    ],
-    "websiteVersion": 4,
-    "websiteDeploymentId": "appgdep_6af9cc9aeb94819196bd3913b93f5427",
-    "update": "manual replacement"
+    "update": "manual replacement",
+    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.2",
+    "status": "PREPARED_FOR_PUBLICATION"
   }
 }

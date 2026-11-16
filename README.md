@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.5.1 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.5.2 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.1 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.1). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.2 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.2). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -59,7 +59,7 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 ## Local development candidate
 
-The working branch adds one-time reveal of the active photo when returning from review or comparison to the filtered grid. It preserves filters and selection. This is an accepted **local candidate**, not a replacement for the public 0.5.1 assets. See [scope and evidence](docs/daily-review-efficiency-stage.md).
+The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
 
 ## Build from source
 
