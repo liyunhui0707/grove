@@ -265,7 +265,27 @@ test('grid resume waits for streamed scan and measured columns before restoring 
   await page.setViewportSize({ width: 1720, height: 1050 });
   await page.goto('/');
   await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();
-  await expect.poll(() => maximallyVisible(page, 2999)).toBe(true);
+  try {
+    await expect.poll(() => maximallyVisible(page, 2999)).toBe(true);
+  } catch (error) {
+    const geometry = await page.getByLabel('照片网格').evaluate((grid) => {
+      const card = grid.querySelector('[aria-label="查看 照片_02999.jpg"]');
+      return {
+        top: grid.scrollTop,
+        height: grid.scrollHeight,
+        viewport: grid.clientHeight,
+        spacer: (grid.firstElementChild as HTMLElement)?.style.height,
+        grid: grid.getBoundingClientRect().toJSON(),
+        card: card?.getBoundingClientRect().toJSON(),
+        workspace: JSON.parse(localStorage.getItem('workspace') || 'null'),
+      };
+    });
+    await test.info().attach('grid-resume-geometry', {
+      body: JSON.stringify(geometry),
+      contentType: 'application/json',
+    });
+    throw error;
+  }
   const grid = page.getByLabel('照片网格');
   await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
   await grid.evaluate((el) => {
