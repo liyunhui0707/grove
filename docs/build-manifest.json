@@ -18,7 +18,7 @@
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "VALIDATED_PENDING_PUBLICATION",
+  "status": "PUBLISHED_TECHNICAL_PRERELEASE",
   "validation": {
     "build": "TypeScript/Vite + offline Rust release passed",
     "clippy": "all targets -D warnings passed after packaging",
@@ -68,14 +68,31 @@
       "catalogLogicalTablesUnchanged": true,
       "all24OriginalsUnchanged": true,
       "quit": "normal baseline and upgrade quit; no watchdog",
-      "downloadedPackage": "NOT_RUN"
+      "downloadedPackage": "PASS for identity/startup/invariants: actual uploaded ZIP installed at the same isolated path; all 12 payload hashes match native-accepted candidate; frontend_ready; 24 originals and catalog/workspace retained. Supplemental GUI reopen unavailable (cgWindowNotFound); exact test PID stopped via SIGTERM, not normal GUI quit. Existing candidate upgrade/export/normal-quit evidence remains applicable to identical bytes."
+    },
+    "website": {
+      "viewportTestsPassed": 6,
+      "visualReviewWidths": [
+        360,
+        1440
+      ],
+      "version": 6,
+      "sourceCommit": "44addad183d92f8003617bf7387a633b85314597",
+      "deploymentStatus": "succeeded",
+      "url": "https://moment-grove.outerepoch3.chatgpt.site",
+      "httpReadback": "anonymous homepage and four static resources match source except host challenge-script injection; exact 0.6.0 download links; not live browser acceptance"
     }
   },
   "publication": {
     "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0",
-    "status": "NOT_PUBLISHED",
+    "status": "PUBLISHED",
     "update": "manual replacement",
-    "website": "PREPARED_NOT_DEPLOYED"
+    "website": "DEPLOYED",
+    "sourceCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9",
+    "releaseId": 446782691,
+    "tagCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9",
+    "oldReleasesPreserved": 7,
+    "downloadReadback": "ZIP/DMG/checksum fully downloaded and exact hashes verified while draft; published immutable assets checked for anonymous access/prefix and unchanged IDs/digests"
   },
   "limitations": [
     "ad-hoc signed; no Developer ID or notarization",
@@ -83,5 +100,6 @@
     "0.5.2 rejects new format2 export logs; cannot resume those tasks and export history may show incompatibility",
     "other macOS versions/platforms, personal-library soak and arbitrary photo compression quality not accepted",
     "no automatic updater or runtime-render crash recovery"
-  ]
+  ],
+  "sourceCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9"
 }
