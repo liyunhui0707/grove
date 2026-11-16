@@ -311,7 +311,10 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
         ]
         .contains(&key(kind).to_string().as_str())
     {
-        return Err("首版仅预览 JPEG、PNG、WebP 和单帧 SDR HEIC/HEIF".into());
+        return Err(
+            "无法识别照片编码：文件可能损坏，或不是受支持的 JPEG、PNG、WebP、HEIC/HEIF 静态照片"
+                .into(),
+        );
     }
     if unsafe { CGImageSourceGetCount(source.as_CFTypeRef()) } != 1 {
         return Err("多帧或配对照片暂不预览，请保留完整资源组".into());

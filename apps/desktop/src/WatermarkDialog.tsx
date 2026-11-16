@@ -245,7 +245,12 @@ export function WatermarkDialog({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === 'Escape' && !busy && !e.nativeEvent.isComposing) {
+          if (
+            e.key === 'Escape' &&
+            !busy &&
+            !e.nativeEvent.isComposing &&
+            !(e.target instanceof HTMLSelectElement)
+          ) {
             e.preventDefault();
             onClose();
           }

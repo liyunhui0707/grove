@@ -1,5 +1,21 @@
 import { test, expect, type Page } from '@playwright/test';
 
+test('Escape in a watermark select preserves the panel and current batch inputs', async ({
+  page,
+}) => {
+  await mock(page);
+  await open(page);
+  await page.getByLabel('手动城市', { exact: true }).fill('QA City');
+  const size = page.getByLabel('成品尺寸', { exact: true });
+  await size.focus();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '日期城市水印' })).toBeVisible();
+  await expect(page.getByLabel('手动城市', { exact: true })).toHaveValue('QA City');
+  await page.getByRole('button', { name: '关闭水印', exact: true }).focus();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '日期城市水印' })).toHaveCount(0);
+});
+
 const style = {
   font: 'serif',
   sizePercent: 3.2,
