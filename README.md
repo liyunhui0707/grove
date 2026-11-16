@@ -57,9 +57,9 @@ The app does not upload photos, require an account, query online city services, 
 
 Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. Rollback is limited to the exact pairs and data described in the release evidence; arbitrary version rollback is not promised. Retain the old app and an independent catalog snapshot before replacing it. Uninstalling the app does not automatically erase the photo folder or application data.
 
-## Local development candidate
+## Maintenance preview and local trial
 
-The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
+The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. The accepted local trial is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its identity and independent data scope. The launcher preserves the existing trial catalog even when testing the public download. Opening the public app directly uses its daily catalog instead. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
 
 ## Build from source
 

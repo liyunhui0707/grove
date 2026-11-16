@@ -18,7 +18,7 @@
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "VALIDATED_TECHNICAL_PRERELEASE",
+  "status": "PUBLISHED_TECHNICAL_PRERELEASE",
   "validation": {
     "backend": {
       "passed": 116,
@@ -31,13 +31,20 @@
       "passed": 72
     },
     "delivery": {
-      "passed": 10
+      "passed": 10,
+      "postPublicationTrialEntryRegressionPassed": 2,
+      "finalDeliverySuitePassed": 12
     },
     "compiler": "build + clippy -D warnings passed",
     "website": {
       "viewportTestsPassed": 6,
       "downloadVersion": "0.5.2",
-      "sourceStatus": "PREPARED_NOT_DEPLOYED"
+      "sourceStatus": "DEPLOYED",
+      "version": 5,
+      "sourceCommit": "f7565f7071041efc711401a3170dce45915e60e8",
+      "url": "https://moment-grove.outerepoch3.chatgpt.site",
+      "deploymentStatus": "succeeded",
+      "httpReadback": "Anonymous homepage contains 0.5.2 and exact three release links; one Cloudflare challenge-script insertion, remaining HTML and four static resources match source; not live browser acceptance"
     },
     "archives": {
       "sourceFiles": 83,
@@ -51,27 +58,29 @@
       "upgrade": "0.5.1 to 0.5.2 at the same isolated install/data paths",
       "generatedAssets": 24,
       "identitiesAndSourceHashesPreserved": 24,
-      "baselineRatings": [
-        4,
-        5,
-        0
-      ],
+      "baselineRatings": [4, 5, 0],
       "compareRatingUndo": "photo23: 3 then undo to null then 4; photo24 stayed null",
       "copyVerified": 3,
       "watermarkVerified": 1,
       "watermarkInput": "generated SDR HEIC; explicit manual fallback date and test city",
-      "normalQuit": "baseline, upgrade, final export session and rollback; no watchdog in these sessions",
+      "normalQuit": "baseline, upgrade, final export session, rollback and uploaded-ZIP reinstall; no watchdog in these sessions",
       "reopen": "0.5.2 grid and picks retained after normal upgrade-session exit; 0.5.1 rollback resumed photo23 at 3/3 picks",
       "rollback": "0.5.2 to 0.5.1; all24 IDs/paths/identities/ratings/revisions and complete workspace identical",
       "interruptedAttempt": "First export attempt exceeded 15-minute QA watchdog before copying; preserved and completed in a separate bounded session",
       "unexpectedLauncherReopen": "After watchdog, computer-use lookup opened an empty instance without test-data override; no photo folder opened; closed exact staged-path process; excluded from acceptance",
-      "actualUploadedPackage": "NOT_RUN"
+      "actualUploadedPackage": "PASS: draft release ZIP downloaded, all12 payload hashes and strict ad-hoc signature verified; installed at same isolated path, resumed photo23 at 3/3 picks and quit normally; all24 rows and workspace identical",
+      "watermarkMetadata": "3024x4032 sRGB JPEG; no GPS; encoder EXIF contains only dimensions and color space; not an arbitrary personal-metadata stripping acceptance"
     },
     "priorLargeLibraryEvidence": {
       "report": "large-native-review-stage.md",
       "baselineBuild": "trial-20261115T154912-9283f4875f",
       "repairBuild": "trial-20261116T021900-536d265c9b",
       "notCurrentReleaseThirtyMinuteSoak": true
+    },
+    "trialEntry": {
+      "version": "0.5.2",
+      "scope": "same independent local-trial catalog; explicit MOMENT_GROVE_DATA_DIR via LaunchServices",
+      "verification": "two regression cases and actual --info identity/scope check; native QA used equivalent explicit override with separate generated fixture data"
     }
   },
   "limitations": [
@@ -84,6 +93,30 @@
   "publication": {
     "update": "manual replacement",
     "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.2",
-    "status": "PREPARED_FOR_PUBLICATION"
-  }
+    "status": "PUBLISHED",
+    "releaseId": 446684648,
+    "tagCommit": "dfeef0420bb407899d85c96bbe96b9453ddb8fa2",
+    "prerelease": true,
+    "oldReleasesPreserved": 6,
+    "downloadReadback": {
+      "authenticatedDraft": "all ZIP/DMG/checksum bytes identical; ZIP installed and native workflow resumed",
+      "anonymousPublic": "ZIP/DMG/checksum downloaded and exact hashes verified",
+      "checksumSha256": "f54d240e34d04c5bd7f1710744f716acfd2d73007b4de8a5c42741287a8b5c5c",
+      "assets": [
+        {
+          "name": "Moment-Grove-0.5.2-macOS-arm64.zip",
+          "id": 753762517
+        },
+        {
+          "name": "Moment-Grove-0.5.2-macOS-arm64.dmg",
+          "id": 753762518
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "id": 753762519
+        }
+      ]
+    }
+  },
+  "sourceCommit": "dfeef0420bb407899d85c96bbe96b9453ddb8fa2"
 }
