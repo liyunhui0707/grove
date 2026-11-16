@@ -91,10 +91,14 @@
   },
   "website": {
     "url": "https://moment-grove.outerepoch3.chatgpt.site",
-    "status": "SOURCE_READY_NOT_DEPLOYED",
-    "currentVersionNumber": 6,
-    "currentDownloadVersion": "0.6.0",
-    "preparedDownloadVersion": "0.7.0"
+    "status": "DEPLOYED_VERIFIED",
+    "currentVersionNumber": 7,
+    "currentDownloadVersion": "0.7.0",
+    "sourceCommit": "cf4fc9ac3e7a4cf370a55ab33c011457bd3bca51",
+    "deploymentId": "appgdep_6afb8ddba8b08191afd6eeef5d0ffe12",
+    "accessMode": "public",
+    "verification": "Sites deployment succeeded; anonymous HTTP product HTML matches packaged output excluding injected Cloudflare script; all4 static assets match bytes;0.7.0 download links verified",
+    "verificationLimit": "Default Python user agent returned403; explicit release-verifier user agent returned200; no new online browser interaction acceptance"
   },
   "knownLimitations": [
     "ad-hoc; no Developer ID or notarization; browser-quarantine first opening unaccepted",
