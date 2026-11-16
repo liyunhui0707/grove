@@ -1908,6 +1908,11 @@ kbd {
   color: var(--muted);
   background: var(--bg);
 }
+.review-input-hint {
+  bottom: 72px;
+  max-width: min(80%, 620px);
+  pointer-events: none;
+}
 .scan-scope {
   flex: none;
   padding: 10px 25px;

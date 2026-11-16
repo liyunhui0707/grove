@@ -1,4 +1,4 @@
-# Photo support in 0.6.0
+# Photo support in 0.7.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
@@ -39,3 +39,9 @@ ImageIO's [explicit SDR decode request](https://developer.apple.com/documentatio
 ## 0.4.0 everyday-photo trial
 
 Mixed-folder completion reports counts for skipped video, RAW and unsupported image formats; it does not decode or import those resources. Search and rating filters do not change these whole-folder counts. JPEG listing dimensions follow EXIF orientation. For unnamed thumbnail transfer profiles, the macOS preview uses the full SDR image’s actual profile before drawing into sRGB, keeping the original unchanged. Prior cached previews are rebuilt under a new generation. Personal trial fixtures are never included in this repository, downloads or the website.
+
+## 0.7.0 verification and folder boundaries
+
+The same three attributed originals were downloaded again and verified against their recorded SHA-256 identities. The 11-file mobile SDR matrix and six-file camera/conversion trial were rerun on the local Mac; generated HEIC/HDR variants remain derivatives, not original device captures. Corrupt-input isolation, partial permission errors, eight orientations, repeated scans and output recovery remain regression-covered. This does not expand the list of certified devices or operating systems.
+
+When opening a parent folder, standard Moment Grove copy, watermark and move batch subdirectories are excluded, alongside the existing quarantine/hidden exclusions. Opening the output folder itself remains supported. This prevents generated outputs from silently becoming new review candidates; similarly named ordinary albums are retained.

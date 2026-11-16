@@ -526,6 +526,7 @@ export function App() {
   const [scanning, setScanning] = useState(false);
   const [scanOutcome, setScanOutcome] = useState<'complete' | 'cancelled' | 'failed' | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reviewInputHint, setReviewInputHint] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -605,8 +606,8 @@ export function App() {
   const byId = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
   const unreviewed = assets.filter((a) => a.rating === null).length;
   const picks = assets.filter((a) => (a.rating ?? -1) >= 4).length;
-  const snapshot = useRef({ active, mode, folder, reviewQueue });
-  snapshot.current = { active, mode, folder, reviewQueue };
+  const snapshot = useRef({ active, mode, folder, reviewQueue, autoAdvance });
+  snapshot.current = { active, mode, folder, reviewQueue, autoAdvance };
   const toast = useCallback((message: string) => setNotice(message), []);
   useEffect(() => {
     if (!notice) return;
@@ -633,6 +634,7 @@ export function App() {
       setSelected([]);
       setActive('');
       setHistory([]);
+      setReviewInputHint('');
       setMode('grid');
       setDetail(false);
       setFilter('all');
@@ -828,6 +830,7 @@ export function App() {
       finish: () => finish(),
     };
     reviewWriteError.current = '';
+    setReviewInputHint('');
     saveLock.current = true;
     setSaving(true);
   };
@@ -904,9 +907,9 @@ export function App() {
   };
   const previousCandidate = nextComparisonId(reviewQueue, compareIds, active, -1);
   const followingCandidate = nextComparisonId(reviewQueue, compareIds, active, 1);
-  const canReplace = mode === 'compare' && !detail && !saving && !scanning && !loading;
+  const canReplace = mode === 'compare' && !detail && !scanning && !loading;
   const replaceCandidate = (delta: -1 | 1) => {
-    if (mode !== 'compare' || detail || saveLock.current || scanning || loading) return;
+    if (mode !== 'compare' || detail || scanning || loading) return;
     const id = nextComparisonId(reviewQueue, compareIds, active, delta);
     if (!id || !byId.has(id)) return;
     const group = compareIds.map((shown) => (shown === active ? id : shown));
@@ -918,7 +921,11 @@ export function App() {
     setViewports((current) => ({ ...current, [id]: fit }));
   };
   const rate = async (rating: Rating, explicitId?: string) => {
-    if (!folder || saveLock.current || scanning || loading || reviewWriteError.current) return;
+    if (saveLock.current) {
+      setReviewInputHint('刚才的评分未执行：输入时上一笔操作仍在保存。请确认当前照片后重新评分。');
+      return;
+    }
+    if (!folder || scanning || loading || reviewWriteError.current) return;
     const ids = explicitId ? [explicitId] : mode === 'grid' ? selected : [active];
     if (!ids.length || !ids[0]) return;
     beginReviewWrite();
@@ -942,7 +949,7 @@ export function App() {
       setHistory((current) => [...current, { ...before, token: batch.token }]);
       if (
         mode === 'review' &&
-        autoAdvance &&
+        snapshot.current.autoAdvance &&
         snapshot.current.active === before.active &&
         snapshot.current.mode === 'review' &&
         snapshot.current.folder?.id === folderId
@@ -964,9 +971,12 @@ export function App() {
     }
   };
   const undo = async () => {
-    const entry = history.at(-1);
-    if (!folder || !entry || saveLock.current || scanning || loading || reviewWriteError.current)
+    if (saveLock.current) {
+      setReviewInputHint('刚才的撤销未执行：输入时上一笔操作仍在保存。请保存完成后重新撤销。');
       return;
+    }
+    const entry = history.at(-1);
+    if (!folder || !entry || scanning || loading || reviewWriteError.current) return;
     const folderId = folder.id;
     beginReviewWrite();
     try {
@@ -1021,7 +1031,7 @@ export function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        void undo();
+        if (!e.repeat) void undo();
         return;
       }
       if (e.key === 'Escape') {
@@ -1034,10 +1044,10 @@ export function App() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (/^[0-5]$/.test(e.key)) {
         e.preventDefault();
-        void rate(Number(e.key) as Rating);
+        if (!e.repeat) void rate(Number(e.key) as Rating);
       } else if (e.key.toLowerCase() === 'u') {
         e.preventDefault();
-        void rate(null);
+        if (!e.repeat) void rate(null);
       } else if ((e.key === '[' || e.key === ']') && mode === 'compare') {
         e.preventDefault();
         replaceCandidate(e.key === ']' ? 1 : -1);
@@ -1758,14 +1768,14 @@ export function App() {
             </div>
             <div className="review-bottom">
               <div className="review-navigation">
-                <IconButton label="上一张" disabled={saving} onClick={() => move(-1)}>
+                <IconButton label="上一张" onClick={() => move(-1)}>
                   <ChevronLeft size={20} />
                 </IconButton>
                 <span>
                   {(mode === 'compare' ? compareIds : reviewQueue).indexOf(active) + 1}
                   <small> / {(mode === 'compare' ? compareIds : reviewQueue).length}</small>
                 </span>
-                <IconButton label="下一张" disabled={saving} onClick={() => move(1)}>
+                <IconButton label="下一张" onClick={() => move(1)}>
                   <ChevronRight size={20} />
                 </IconButton>
               </div>
@@ -1792,14 +1802,19 @@ export function App() {
             {workspaceStatus}
           </div>
         )}
-        {notice && (
+        {reviewInputHint && (
+          <div className="toast review-input-hint" role="status">
+            {reviewInputHint}
+          </div>
+        )}
+        {notice && !reviewInputHint && (
           <div className="toast" role="status">
             <Check size={16} />
             {notice}
           </div>
         )}
         {saving && (
-          <div className="save-indicator">
+          <div className="save-indicator" role="status">
             <LoaderCircle size={12} className="spin" />
             正在保存评分
           </div>

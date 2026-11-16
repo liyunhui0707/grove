@@ -859,6 +859,25 @@ async fn scan_folder(
     .await
     .map_err(|e| e.to_string())?
 }
+// Skip our generated batches when browsing a parent folder. An explicit
+// open of the output itself still works; similarly named personal albums stay.
+fn generated_output_directory(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("Moment-Grove-") else {
+        return false;
+    };
+    let rest = rest
+        .strip_prefix("Watermark-")
+        .or_else(|| rest.strip_prefix("Move-"))
+        .or_else(|| rest.strip_prefix("Quarantine-"))
+        .unwrap_or(rest);
+    let Some((timestamp, suffix)) = rest.split_once('-') else {
+        return false;
+    };
+    !timestamp.is_empty()
+        && timestamp.bytes().all(|b| b.is_ascii_digit())
+        && suffix.len() == 8
+        && suffix.bytes().all(|b| b.is_ascii_hexdigit())
+}
 fn scan_directory(
     state: &AppState,
     root: &Path,
@@ -896,6 +915,7 @@ fn scan_directory(
                 let name = e.file_name().to_string_lossy();
                 !name.starts_with('.')
                     && !name.starts_with("Moment-Grove-Quarantine-")
+                    && !(e.file_type().is_dir() && generated_output_directory(&name))
                     && !matches!(
                         name.as_ref(),
                         "secrets" | "node_modules" | "target" | "exports" | "quarantine"

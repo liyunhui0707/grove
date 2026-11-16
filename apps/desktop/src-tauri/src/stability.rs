@@ -323,6 +323,53 @@ fn mixed_scan_reports_skipped_media_without_cataloguing_them() {
 }
 
 #[test]
+fn generated_outputs_are_skipped_under_parent_but_can_be_opened_explicitly() {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let source = base.join("sources");
+    fs::create_dir(&source).unwrap();
+    let pixel = image::RgbImage::new(48, 32);
+    pixel.save(source.join("original.jpg")).unwrap();
+    let outputs = [
+        "Moment-Grove-1794834919-d42deae3",
+        "Moment-Grove-Watermark-1794835283-f5daaad7",
+        "Moment-Grove-Move-1794835283-aabbccdd",
+        "Moment-Grove-Quarantine-1794835283-01020304",
+    ];
+    for name in outputs
+        .iter()
+        .chain(["Moment-Grove-holiday", "Moment-Grove-2026-album"].iter())
+    {
+        let child = source.join(name);
+        fs::create_dir(&child).unwrap();
+        pixel.save(child.join("same-name.jpg")).unwrap();
+    }
+    let s = state(&base.join("runtime"));
+    let folder = grant(&s, source.clone()).unwrap();
+    let (channel, recorded) = events();
+    scan_directory(&s, &source, folder.id, 0, &channel).unwrap();
+    let values = recorded.lock().unwrap();
+    assert_eq!(
+        values.iter().find(|e| e["kind"] == "done").unwrap()["count"],
+        3
+    );
+    drop(values);
+    let output = source.join(outputs[1]);
+    let f = grant(&s, output.clone()).unwrap();
+    let (channel, recorded) = events();
+    scan_directory(&s, &output, f.id, 0, &channel).unwrap();
+    assert_eq!(
+        recorded
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == "done")
+            .unwrap()["count"],
+        1
+    );
+}
+
+#[test]
 fn jpeg_scan_dimensions_match_oriented_preview_for_all_eight_directions() {
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path().canonicalize().unwrap();

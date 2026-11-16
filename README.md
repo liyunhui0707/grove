@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.6.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.7.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -14,7 +14,7 @@
 - Resume the last folder, exact photo and essential review settings after a normal quit. Normal exit waits for in-flight rating/undo and the resulting final checkpoint; failures keep the window open for return or retry without automatically repeating rating operations.
 - See the app version, build and data location; opening the same catalog again brings its existing window forward.
 - Remember six watermark appearance settings. Each new batch clears city and fallback date; historical batches retain their original parameters.
-- Keep comparison references visible while replacing only the active candidate with `[` / `]`.
+- Keep comparison references visible while replacing only the active candidate with `[` / `]`, including while an earlier rating saves. Pending writes keep their original target; extra rating/undo input is explicitly reported as unexecuted, not queued.
 - On macOS 14+, view tested Apple gain-map JPEG/HEIC and 10-bit PQ HEIC as SDR and export independent sRGB watermark JPEGs. HDR appearance is not retained.
 - See explicit counts for skipped video, RAW and unsupported images in mixed folders.
 - Read orientation-correct JPEG/HEIC dimensions and EXIF capture dates; rebuild previews with a corrected source profile for affected phone HEIC thumbnails.
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.6.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.7.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.7.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -57,11 +57,11 @@ The app does not upload photos, require an account, query online city services, 
 
 Update manually: create a catalog snapshot, quit the app, keep the old app, and replace it. Withdrawal must precede catalog restoration when safe moves exist. Rollback is limited to the exact pairs and data described in the release evidence; arbitrary version rollback is not promised. Retain the old app and an independent catalog snapshot before replacing it. Uninstalling the app does not automatically erase the photo folder or application data.
 
-## Maintenance preview and local trial
+## Local trial and update scope
 
-The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. The accepted local trial is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its identity and independent data scope. The launcher preserves the existing trial catalog even when testing the public download. Opening the public app directly uses its daily catalog instead. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
+The accepted isolated candidate is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its version/build and independent data scope. Opening the public app directly uses its daily catalog instead.
 
-Version **0.6.0** adds watermark JPEG output sizes (original, 2048 or 4096 long edge) and quality choices (80, 92 or 98). Older apps reject nondefault output plans instead of silently ignoring their parameters; they cannot resume those jobs. See the [sharing export evidence](docs/share-export-stage.md) and [upgrade limits](docs/installation-upgrade.md).
+Version **0.7.0** keeps the watermark size/quality settings introduced in 0.6.0 and improves navigation while saving, explicit unexecuted-input feedback, historical watermark hints and final-batch grid restoration. Standard output batches are excluded when scanning their parent folder. Older apps cannot resume nondefault format2 export jobs; see the [upgrade limits](docs/installation-upgrade.md).
 
 ## Build from source
 
