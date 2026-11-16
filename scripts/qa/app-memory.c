@@ -19,13 +19,17 @@ static int group(pid_t pid, Membership *out) {
 }
 int main(int argc, char **argv) {
     int single = argc == 4 && !strcmp(argv[3], "--single");
-    if (argc != 3 && !single) return 2;
+    int webview = argc == 4 && !strcmp(argv[3], "--webview");
+    if (argc != 3 && !single && !webview) return 2;
     char *end = NULL;
     long number = strtol(argv[1], &end, 10);
     if (!end || *end || number <= 1 || number > INT_MAX) return 2;
     pid_t main_pid = (pid_t)number;
     char actual[PROC_PIDPATHINFO_MAXSIZE], expected[PATH_MAX];
     if (!realpath(argv[2], expected) || proc_pidpath(main_pid, actual, sizeof(actual)) <= 0 || strcmp(actual, expected)) return 3;
+    char webkit[PATH_MAX];
+    // System frameworks can resolve into a Cryptex rather than /System/Library.
+    if (webview && !realpath("/System/Library/Frameworks/WebKit.framework", webkit)) return 4;
     Membership root;
     if (!single && (!group(main_pid, &root) || !root.groups[0])) return 4;
     int capacity = proc_listallpids(NULL, 0) + 1024;
@@ -35,23 +39,32 @@ int main(int argc, char **argv) {
     int count = proc_listallpids(pids, capacity * (int)sizeof(*pids));
     if (count <= 0 || count >= capacity) { free(pids); return 5; }
     uint64_t total = 0, footprint = 0;
-    unsigned found = 0, missing = 0, main_seen = 0;
-    printf("{\"method\":\"%s; proc_pid_rusage physical footprint and RSS (RSS includes reclaimable/shared pages)\",\"processes\":[", single ? "single validated process" : "same resource coalition");
+    unsigned found = 0, missing = 0, main_seen = 0, web_processes = 0;
+    printf("{\"method\":\"%s; proc_pid_rusage physical footprint and RSS (RSS includes reclaimable/shared pages)\",\"processes\":[", single ? "single validated process" : webview ? "validated main plus same-coalition WebKit processes; excludes other services and kernel/GPU allocations" : "same resource coalition");
     for (int i = 0; i < count; i++) {
         Membership membership;
         if (single ? pids[i] != main_pid : (!group(pids[i], &membership) || membership.groups[0] != root.groups[0])) continue;
+        if (webview && pids[i] != main_pid) {
+            // SSH launches can share a resource coalition with the QA driver,
+            // shells and transient samplers. Do not label that total App memory.
+            char executable[PROC_PIDPATHINFO_MAXSIZE];
+            size_t prefix_length = strlen(webkit);
+            if (proc_pidpath(pids[i], executable, sizeof(executable)) <= 0 ||
+                strncmp(executable, webkit, prefix_length) || executable[prefix_length] != '/') continue;
+        }
         struct proc_taskallinfo info;
         if (proc_pidinfo(pids[i], PROC_PIDTASKALLINFO, 0, &info, sizeof(info)) != sizeof(info)) { missing++; continue; }
-        if (info.pbsd.pbi_uid != getuid()) { missing++; continue; }
+        if (info.pbsd.pbi_uid != getuid()) { if (!webview) missing++; continue; }
         struct rusage_info_v0 usage;
         if (proc_pid_rusage(pids[i], RUSAGE_INFO_V0, (rusage_info_t *)&usage) != 0) { missing++; continue; }
         total += info.ptinfo.pti_resident_size;
         footprint += usage.ri_phys_footprint;
         if (pids[i] == main_pid) main_seen = 1;
+        else if (webview) web_processes++;
         printf("%s{\"pid\":%d,\"main\":%s,\"rssBytes\":%llu,\"footprintBytes\":%llu}", found ? "," : "", pids[i], pids[i] == main_pid ? "true" : "false", (unsigned long long)info.ptinfo.pti_resident_size, (unsigned long long)usage.ri_phys_footprint);
         found++;
     }
     free(pids);
-    printf("],\"rssBytes\":%llu,\"footprintBytes\":%llu,\"members\":%u,\"unreadableMembers\":%u,\"mainSeen\":%s}\n", (unsigned long long)total, (unsigned long long)footprint, found, missing, main_seen ? "true" : "false");
-    return main_seen && !missing && found <= 32 ? 0 : 6;
+    printf("],\"rssBytes\":%llu,\"footprintBytes\":%llu,\"members\":%u,\"webViewProcesses\":%u,\"unreadableMembers\":%u,\"mainSeen\":%s}\n", (unsigned long long)total, (unsigned long long)footprint, found, web_processes, missing, main_seen ? "true" : "false");
+    return main_seen && !missing && found <= 32 && (!webview || web_processes) ? 0 : 6;
 }
