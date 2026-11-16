@@ -43,8 +43,11 @@ async function installLibrary(page: Page) {
             return;
           }
           if (cmd === 'scan_folder') {
-            for (let i = 0; i < assets.length; i += 64)
+            for (let i = 0; i < assets.length; i += 64) {
               args.onEvent.onmessage({ kind: 'batch', items: assets.slice(i, i + 64) });
+              if (localStorage.getItem('delayed-scan'))
+                await new Promise((resolve) => setTimeout(resolve, 10));
+            }
             args.onEvent.onmessage({ kind: 'done', count: 3000, warnings: [] });
             return;
           }
@@ -231,4 +234,115 @@ test('comparison return reveals the replaced active pane and keeps the exact sel
   await expect(openPhoto(page, 41)).toBeInViewport({ ratio: 1 });
   await expect(choosePhoto(page, 41)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.statusbar')).toContainText('已选择 2 张');
+});
+
+test('grid resume waits for streamed scan and measured columns before restoring a clamped offset', async ({
+  page,
+}) => {
+  await installLibrary(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('delayed-scan', 'true');
+    if (!localStorage.getItem('workspace'))
+      localStorage.setItem(
+        'workspace',
+        JSON.stringify({
+          folderId: 1,
+          name: 'Generated 3000',
+          view: {
+            mode: 'grid',
+            active: 'photo-2999',
+            filter: 'all',
+            sort: 'name',
+            search: '',
+            size: 200,
+            autoAdvance: true,
+            theme: 'light',
+            offset: 1000000,
+          },
+        }),
+      );
+  });
+  await page.setViewportSize({ width: 1720, height: 1050 });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();
+  await expect.poll(() => maximallyVisible(page, 2999)).toBe(true);
+  const grid = page.getByLabel('照片网格');
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
+  await grid.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('workspace')!).view.offset))
+    .toBe(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();
+  await expect(openPhoto(page, 0)).toBeInViewport();
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBe(0);
+});
+
+test('streamed grid resume keeps saved browsing offset instead of forcing the active photo', async ({
+  page,
+}) => {
+  await installLibrary(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('delayed-scan', 'true');
+    localStorage.setItem(
+      'workspace',
+      JSON.stringify({
+        folderId: 1,
+        name: 'Generated 3000',
+        view: {
+          mode: 'grid',
+          active: 'photo-2999',
+          filter: 'all',
+          sort: 'name',
+          search: '',
+          size: 260,
+          autoAdvance: false,
+          theme: 'dark',
+          offset: 5000,
+        },
+      }),
+    );
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();
+  await expect.poll(() => page.getByLabel('照片网格').evaluate((el) => el.scrollTop)).toBe(5000);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await openPhoto(page, 2999).count()).toBe(0);
+  expect(await page.evaluate(() => localStorage.getItem('rated-ids'))).toBeNull();
+});
+
+test('an empty restored search does not leave a scroll request for a later filter change', async ({
+  page,
+}) => {
+  await installLibrary(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('delayed-scan', 'true');
+    localStorage.setItem(
+      'workspace',
+      JSON.stringify({
+        folderId: 1,
+        name: 'Generated 3000',
+        view: {
+          mode: 'grid',
+          active: 'photo-2999',
+          filter: 'all',
+          sort: 'name',
+          search: 'no-match',
+          size: 200,
+          autoAdvance: true,
+          theme: 'light',
+          offset: 5000,
+        },
+      }),
+    );
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: '没有符合条件的照片' })).toBeVisible();
+  await page.getByRole('textbox', { name: '搜索照片' }).fill('');
+  await expect(page.getByRole('button', { name: '所有照片 3000', exact: true })).toBeVisible();
+  await expect(openPhoto(page, 0)).toBeInViewport();
+  await expect.poll(() => page.getByLabel('照片网格').evaluate((el) => el.scrollTop)).toBe(0);
 });

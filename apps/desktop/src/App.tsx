@@ -201,6 +201,8 @@ function Gallery({
   active,
   size,
   initialOffset,
+  restorePosition,
+  onOffsetRestored,
   revealId,
   onRevealed,
   onOffset,
@@ -212,6 +214,8 @@ function Gallery({
   active: string;
   size: number;
   initialOffset: number;
+  restorePosition: { offset: number; count: number } | null;
+  onOffsetRestored: () => void;
   revealId: string | null;
   onRevealed: () => void;
   onOffset: (n: number) => void;
@@ -238,6 +242,34 @@ function Gallery({
     overscan: 2,
     initialOffset,
   });
+  const totalSize = virtual.getTotalSize();
+  useLayoutEffect(() => {
+    virtual.measure();
+  }, [rowHeight, virtual]);
+  useLayoutEffect(() => {
+    // Native scans stream batches: the grid can mount before the saved view
+    // arrives. Apply it once after scan completion and real column measurement;
+    // initialOffset alone is only read when the virtualizer first mounts.
+    if (restorePosition === null || !measuredWidth || assets.length !== restorePosition.count)
+      return;
+    // Density changes invalidate cached estimates. Wait for the render using
+    // the new row sizes, so a long saved offset clamps against the final list.
+    if (Math.abs(totalSize - Math.ceil(assets.length / columns) * rowHeight) > 1) return;
+    const frame = requestAnimationFrame(() => {
+      virtual.scrollToOffset(restorePosition.offset);
+      onOffsetRestored();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    restorePosition,
+    measuredWidth,
+    assets.length,
+    columns,
+    rowHeight,
+    totalSize,
+    virtual,
+    onOffsetRestored,
+  ]);
   useLayoutEffect(() => {
     // Returning from review is a one-shot request. Wait for the real column
     // geometry, then let ordinary scrolling/selection proceed undisturbed.
@@ -259,7 +291,7 @@ function Gallery({
       onScroll={(e) => onOffset(e.currentTarget.scrollTop)}
       aria-label="照片网格"
     >
-      <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
+      <div style={{ height: totalSize, position: 'relative' }}>
         {virtual.getVirtualItems().map((row) => (
           <div
             className="photo-row"
@@ -455,6 +487,11 @@ export function App() {
   const [workspaceStatus, setWorkspaceStatus] = useState('');
   const [workspaceError, setWorkspaceError] = useState('');
   const [gridOffset, setGridOffset] = useState(0);
+  const [gridRestorePosition, setGridRestorePosition] = useState<{
+    offset: number;
+    count: number;
+  } | null>(null);
+  const clearGridRestore = useCallback(() => setGridRestorePosition(null), []);
   const workspaceWrites = useRef(
     createWorkspaceWriter(({ folderId, view }) => bridge.saveWorkspace(folderId, view)),
   );
@@ -582,6 +619,7 @@ export function App() {
       setScanSummary(null);
       scrollOffset.current = 0;
       setGridOffset(0);
+      setGridRestorePosition(null);
       setWorkspaceStatus('');
       const scanned: Asset[] = [];
       let scanCompleted = false;
@@ -611,8 +649,16 @@ export function App() {
             setActive(resume.active);
             setReviewQueue(resume.queue);
             setMode(resume.mode);
-            scrollOffset.current = restored.offset;
-            setGridOffset(restored.offset);
+            const count = filterAssets(
+              scanned,
+              restored.filter,
+              restored.search,
+              restored.sort,
+            ).length;
+            const offset = count ? restored.offset : 0;
+            scrollOffset.current = offset;
+            setGridOffset(offset);
+            setGridRestorePosition(resume.mode === 'grid' && count ? { offset, count } : null);
             toast(
               resume.missing
                 ? '上次照片已不在当前目录，已恢复照片列表；评分仍保存在资料库。'
@@ -1475,6 +1521,8 @@ export function App() {
                   active={active}
                   size={size}
                   initialOffset={scrollOffset.current}
+                  restorePosition={gridRestorePosition}
+                  onOffsetRestored={clearGridRestore}
                   revealId={gridReturnTarget.current}
                   onRevealed={() => {
                     gridReturnTarget.current = null;
