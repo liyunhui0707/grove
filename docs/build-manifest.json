@@ -1,105 +1,106 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261116T082513-121aab8e68",
+  "buildId": "trial-20261116T152832-fba13f5cf3",
+  "sourceCommit": "eb17fd137a655905bd8f737dfd5b1a78bc2f52c1",
   "architecture": "arm64",
-  "sourceDigest": "121aab8e687c7a0b09b40b926ad0b33c2e4c3a474a57bf35ed7d7db200fcda77",
-  "binarySha256": "da8a639d6fd8e3b27fdef9040974c8fcaec8fd869605700ed5c5d6058d5c9ccd",
+  "sourceDigest": "fba13f5cf341fd5742dcd623e8388f180a8b2446c25e8f2286fdf2a594fa233a",
+  "binarySha256": "6990a98b01ba6f33c79cff5febd5231af741418b31a87880d770eff71089b596",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.6.0-macOS-arm64.zip",
-      "bytes": 5653517,
-      "sha256": "af54a5ad30bf979f282931a3849431131e507ee5c51d130a921812b6735bacc9"
+      "name": "Moment-Grove-0.7.0-macOS-arm64.zip",
+      "bytes": 5665834,
+      "sha256": "5f45772ad9c5dc206a3c3ae19df15a62aa3117bd6f230c261bd425f8f05a2551"
     },
     {
-      "name": "Moment-Grove-0.6.0-macOS-arm64.dmg",
-      "bytes": 6494317,
-      "sha256": "20826e0eca6e3631d824779c2a91dd5c57ad5288c9a24505126742501ca6d817"
+      "name": "Moment-Grove-0.7.0-macOS-arm64.dmg",
+      "bytes": 6508952,
+      "sha256": "ce7d32ffabc1a0c8c315593e9c1524693016d8640925173a263c767bcd6c5099"
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
   "status": "PUBLISHED_TECHNICAL_PRERELEASE",
+  "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.7.0",
   "validation": {
-    "build": "TypeScript/Vite + offline Rust release passed",
-    "clippy": "all targets -D warnings passed after packaging",
-    "deliveryTests": 12,
-    "websiteViewportTests": 6,
-    "reusedApplicationTests": {
-      "sourceCommit": "6593b51b681a5396be262890f3f1fec065fcb137",
-      "rustPassed": 120,
-      "rustIgnored": 17,
-      "uiPassed": 74,
-      "logicPassed": 17,
-      "unchangedSourceFiles": 78,
-      "onlyVersionFilesChanged": [
-        "package.json",
-        "package-lock.json",
-        "apps/desktop/src-tauri/Cargo.toml",
-        "apps/desktop/src-tauri/Cargo.lock",
-        "apps/desktop/src-tauri/tauri.conf.json"
-      ]
+    "uiPassed": 80,
+    "logicPassed": 17,
+    "deliveryPassed": 12,
+    "websiteViewportPassed": 6,
+    "rustBaseline": {
+      "sourceCommit": "1beccb92",
+      "passed": 122,
+      "ignored": 17,
+      "explicitLicensedTrialsPassed": 3,
+      "finalChangedDecoderRegressionPassed": 6
     },
+    "clippy": "all targets -D warnings passed",
     "archives": {
-      "status": "PASS",
       "sourceFiles": 83,
       "zipPayloadFiles": 12,
-      "signature": "strict ad-hoc",
-      "artifacts": [
-        {
-          "name": "Moment-Grove-0.6.0-macOS-arm64.zip",
-          "bytes": 5653517,
-          "sha256": "af54a5ad30bf979f282931a3849431131e507ee5c51d130a921812b6735bacc9"
-        },
-        {
-          "name": "Moment-Grove-0.6.0-macOS-arm64.dmg",
-          "bytes": 6494317,
-          "sha256": "20826e0eca6e3631d824779c2a91dd5c57ad5288c9a24505126742501ca6d817"
-        }
-      ],
       "dmgPayloadFiles": 12,
-      "dmgDetached": true
+      "readOnlyDmgMount": true,
+      "strictAdHocSignature": true
     },
     "native": {
-      "system": "macOS 27.2.1 arm64",
-      "upgrade": "0.5.2 to 0.6.0 at the same isolated install/data paths",
-      "restoredReview": "photo23 at 3/3 picks; 24 assets and prior ratings retained",
-      "watermarkVerified": 3,
-      "output": "generated 12MP HEIC/JPEG to 2048 long edge / quality80; independent ImageIO dimensions, sRGB and no GPS verified",
-      "catalogLogicalTablesUnchanged": true,
-      "all24OriginalsUnchanged": true,
-      "quit": "normal baseline and upgrade quit; no watchdog",
-      "downloadedPackage": "PASS for identity/startup/invariants: actual uploaded ZIP installed at the same isolated path; all 12 payload hashes match native-accepted candidate; frontend_ready; 24 originals and catalog/workspace retained. Supplemental GUI reopen unavailable (cgWindowNotFound); exact test PID stopped via SIGTERM, not normal GUI quit. Existing candidate upgrade/export/normal-quit evidence remains applicable to identical bytes."
+      "initialBuild": "trial-20261116T150043-93fed0deb0",
+      "finalBuild": "trial-20261116T152832-fba13f5cf3",
+      "inputFiles": 1020,
+      "listed": 1016,
+      "copyOutputs": 5,
+      "watermarkOutputs": 4,
+      "originalsUnchanged": true,
+      "allLogicalTablesRetainedAfterWorkflow": true,
+      "upgrade": "0.6.0 to0.7.0 same path",
+      "rollback": "0.7.0 data read by0.6.0",
+      "normalQuitSessions": 6,
+      "finalNativeScope": "cold grid resume; select Escape; fresh-path copy1/1/watermark1/1; actual downloaded daily install copy1/1"
     },
-    "website": {
-      "viewportTestsPassed": 6,
-      "visualReviewWidths": [
-        360,
-        1440
-      ],
-      "version": 6,
-      "sourceCommit": "44addad183d92f8003617bf7387a633b85314597",
-      "deploymentStatus": "succeeded",
-      "url": "https://moment-grove.outerepoch3.chatgpt.site",
-      "httpReadback": "anonymous homepage and four static resources match source except host challenge-script injection; exact 0.6.0 download links; not live browser acceptance"
-    }
+    "uploadedReadback": "full ZIP/DMG/checksum verified; extracted installed payload identical",
+    "anonymousAccess": [
+      {
+        "name": "Moment-Grove-0.7.0-macOS-arm64.dmg",
+        "status": 206,
+        "verifiedPrefixBytes": 1024,
+        "totalBytes": 6508952,
+        "range": "bytes 0-1023/6508952"
+      },
+      {
+        "name": "Moment-Grove-0.7.0-macOS-arm64.zip",
+        "status": 206,
+        "verifiedPrefixBytes": 1024,
+        "totalBytes": 5665834,
+        "range": "bytes 0-1023/5665834"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "status": 206,
+        "verifiedPrefixBytes": 202,
+        "totalBytes": 202,
+        "range": "bytes 0-201/202"
+      }
+    ]
   },
-  "publication": {
-    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0",
-    "status": "PUBLISHED",
-    "update": "manual replacement",
-    "website": "DEPLOYED",
-    "sourceCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9",
-    "releaseId": 446782691,
-    "tagCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9",
-    "oldReleasesPreserved": 7,
-    "downloadReadback": "ZIP/DMG/checksum fully downloaded and exact hashes verified while draft; published immutable assets checked for anonymous access/prefix and unchanged IDs/digests"
+  "dailyInstall": {
+    "version": "0.7.0",
+    "previousVersion": "0.6.0",
+    "path": "/Applications/Moment Grove.app",
+    "originalEntryPreserved": true,
+    "coherentBackupAndOldAppRetained": true,
+    "dailyCatalogUnchanged": true,
+    "personalMediaNotOpened": true
   },
-  "limitations": [
-    "ad-hoc signed; no Developer ID or notarization",
-    "browser-quarantine first opening not accepted",
-    "0.5.2 rejects new format2 export logs; cannot resume those tasks and export history may show incompatibility",
-    "other macOS versions/platforms, personal-library soak and arbitrary photo compression quality not accepted",
-    "no automatic updater or runtime-render crash recovery"
+  "website": {
+    "url": "https://moment-grove.outerepoch3.chatgpt.site",
+    "status": "SOURCE_READY_NOT_DEPLOYED",
+    "currentVersionNumber": 6,
+    "currentDownloadVersion": "0.6.0",
+    "preparedDownloadVersion": "0.7.0"
+  },
+  "knownLimitations": [
+    "ad-hoc; no Developer ID or notarization; browser-quarantine first opening unaccepted",
+    "reused same-version test path system picker disabled; fresh path and actual0.6-to0.7 Applications update passed; root cause unconfirmed",
+    "bundled installation guide retained0.6 version text; online guide/release erratum corrected; immutable assets unchanged",
+    "other OS/architectures and arbitrary real libraries not certified"
   ],
-  "sourceCommit": "328ea707f2efe0cab6159fc20586f4eccb3ed3a9"
+  "previousRelease": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0"
 }

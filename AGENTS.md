@@ -68,7 +68,7 @@ The owner explicitly approved 0.1.0 as the initial Spike version on 2026-11-08. 
 
 ## Publication and continuity
 
-The project already has an approved public repository and 0.5.1 technical prerelease. Work from this repository root on the existing public history. The former `.local/public-release-0.1.0` copy is a historical reference, not a second development workspace. Review privacy, notices, source identity, and installers before an authorized upload; an existing remote does not authorize a push or publication.
+The project already has an approved public repository and technical prereleases; current release identity is recorded in docs/current-status.md. Work from this repository root on the existing public history. The former `.local/public-release-0.1.0` copy is a historical reference, not a second development workspace. Review privacy, notices, source identity, and installers before an authorized upload; an existing remote does not authorize a push or publication.
 
 .local/ contains private conversation history and local launch metadata. Keep it ignored and never force-add it. Read only the relevant planning archive if necessary; never copy its personal details into public docs or product code.
 
