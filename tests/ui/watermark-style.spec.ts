@@ -18,6 +18,8 @@ async function mock(
     history?: boolean;
     holdSave?: boolean;
     failRegistration?: boolean;
+    failPreview?: boolean;
+    previewWarning?: string;
   } = {},
 ) {
   await page.addInitScript((config) => {
@@ -141,6 +143,7 @@ async function mock(
           if (cmd === 'export_history') return config.history ? [old] : [];
           if (cmd === 'watermark_preview') {
             controls.previews.push(args.options);
+            if (config.failPreview) throw Error('current preview unavailable');
             return {
               dataUrl: svg,
               exportWidth: args.options.outputMaxEdge === 2048 ? 2048 : 4032,
@@ -155,7 +158,7 @@ async function mock(
                     : '',
                   width: 4032,
                   height: 3024,
-                  warning: null,
+                  warning: config.previewWarning ?? null,
                 },
                 outputWidth: 48,
                 outputHeight: 32,
@@ -420,3 +423,31 @@ test('legacy batch resumes original-size 92 quality with controls fixed', async 
   await expect(dialog.getByLabel('成品尺寸', { exact: true })).toBeDisabled();
   await expect(dialog.getByLabel('本批导出设置')).toContainText('原尺寸 · JPEG 质量 92%');
 });
+
+for (const failPreview of [false, true]) {
+  test(`historical batch hides unrelated current-photo ${failPreview ? 'preview error' : 'date warning'}`, async ({
+    page,
+  }) => {
+    await mock(page, {
+      history: true,
+      failPreview,
+      previewWarning: '当前照片没有有效 EXIF 日期',
+    });
+    const dialog = await open(page);
+    const currentHint = dialog.getByText(
+      failPreview ? 'current preview unavailable' : '缺少拍摄日期，请填写备用日期',
+      { exact: false },
+    );
+    await expect(currentHint.first()).toBeVisible();
+    await dialog.getByRole('button', { name: '继续核验', exact: true }).click();
+    await expect(dialog.getByText('使用上次保存的日期和样式。', { exact: false })).toBeVisible();
+    await expect(dialog.getByLabel('手动城市', { exact: true })).toHaveValue('旧批城市');
+    await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeEnabled();
+    await expect(currentHint).toHaveCount(0);
+    await expect(dialog.getByText('当前照片没有有效 EXIF 日期', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByLabel('本批导出设置')).toContainText('参数已固定');
+    await dialog.getByRole('button', { name: '关闭水印', exact: true }).click();
+    await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
+    await expect(currentHint.first()).toBeVisible();
+  });
+}

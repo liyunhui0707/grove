@@ -352,14 +352,16 @@ export function WatermarkDialog({
                   </select>
                 </label>
               )}
-              <p className="watermark-caption" aria-live="polite">
-                {native
-                  ? preview
-                    ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '缺少拍摄日期，请填写备用日期'} · ${preview.info.source.text || '尚无水印'} · ${preview.info.source.width} × ${preview.info.source.height}`
-                    : previewError
-                  : '浏览器仅布局示意，不读取 EXIF 或生成文件。'}
-              </p>
-              {preview?.info.source.warning && (
+              {!resuming && (
+                <p className="watermark-caption" aria-live="polite">
+                  {native
+                    ? preview
+                      ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '缺少拍摄日期，请填写备用日期'} · ${preview.info.source.text || '尚无水印'} · ${preview.info.source.width} × ${preview.info.source.height}`
+                      : previewError
+                    : '浏览器仅布局示意，不读取 EXIF 或生成文件。'}
+                </p>
+              )}
+              {!resuming && preview?.info.source.warning && (
                 <p className="watermark-caption">{preview.info.source.warning}</p>
               )}
               {preview && !resuming && (
