@@ -16,6 +16,13 @@ pub struct Options {
     pub opacity: f64,
     pub margin_percent: f64,
     pub shadow: bool,
+    #[serde(default)]
+    pub output_max_edge: Option<u32>,
+    #[serde(default = "default_jpeg_quality")]
+    pub jpeg_quality: u8,
+}
+fn default_jpeg_quality() -> u8 {
+    92
 }
 impl Default for Options {
     fn default() -> Self {
@@ -28,12 +35,19 @@ impl Default for Options {
             opacity: 0.88,
             margin_percent: 2.5,
             shadow: true,
+            output_max_edge: None,
+            jpeg_quality: default_jpeg_quality(),
         }
     }
 }
 impl Options {
     pub fn normalized(&self) -> Result<Self> {
         let mut o = self.clone();
+        if !matches!(o.output_max_edge, None | Some(2048 | 4096))
+            || ![80, 92, 98].contains(&o.jpeg_quality)
+        {
+            return Err("导出尺寸或JPEG质量无效".into());
+        }
         o.city = o.city.trim().to_string();
         if o.city.chars().count() > 32
             || o.city.chars().any(|c| {
@@ -64,6 +78,18 @@ impl Options {
         }
         Ok(o)
     }
+}
+/// Preserve aspect ratio, round to the nearest pixel, and never enlarge.
+pub fn output_dimensions(width: u32, height: u32, max: Option<u32>) -> (u32, u32) {
+    let long = width.max(height);
+    let edge = max.unwrap_or(long).min(long);
+    if long == 0 || edge == long {
+        return (width, height);
+    }
+    let scale = |n: u32| {
+        ((u64::from(n) * u64::from(edge) + u64::from(long / 2)) / u64::from(long)).max(1) as u32
+    };
+    (scale(width), scale(height))
 }
 pub fn valid_date(s: &str) -> bool {
     let b = s.as_bytes();
@@ -156,6 +182,8 @@ pub struct Preview {
     pub data_url: String,
     pub info: RenderInfo,
     pub can_export: bool,
+    pub export_width: u32,
+    pub export_height: u32,
 }
 pub fn read_input(file: std::fs::File) -> Result<Vec<u8>> {
     let size = file.metadata().map_err(|e| e.to_string())?.len();

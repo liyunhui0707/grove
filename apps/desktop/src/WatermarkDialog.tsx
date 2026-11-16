@@ -181,7 +181,7 @@ export function WatermarkDialog({
       if (result && !preparation.ignored(ticket)) {
         if (result.kind !== 'watermark' || !result.watermark)
           throw Error('导出记录类型不符，请重新打开面板');
-        setOptions(result.watermark);
+        setOptions({ ...defaults, ...result.watermark });
         setReport(result);
         setPrepared(true);
         setResuming(resumeId !== null);
@@ -362,6 +362,13 @@ export function WatermarkDialog({
               {preview?.info.source.warning && (
                 <p className="watermark-caption">{preview.info.source.warning}</p>
               )}
+              {preview && !resuming && (
+                <p className="watermark-caption" aria-label="成品尺寸说明">
+                  成品 {preview.exportWidth ?? preview.info.source.width} ×{' '}
+                  {preview.exportHeight ?? preview.info.source.height} px · sRGB JPEG · 质量{' '}
+                  {options.jpegQuality}%
+                </p>
+              )}
             </div>
             <fieldset className="watermark-controls" disabled={busy || resuming || styleLoading}>
               <legend className="sr-only">水印样式</legend>
@@ -411,6 +418,40 @@ export function WatermarkDialog({
               </label>
               <p className="watermark-hint">
                 优先使用实际拍摄日期。城市留空时仅显示日期；不联网查询位置。
+              </p>
+              <label>
+                成品尺寸
+                <select
+                  aria-label="成品尺寸"
+                  value={options.outputMaxEdge ?? 'original'}
+                  onChange={(e) =>
+                    update({
+                      outputMaxEdge:
+                        e.target.value === 'original'
+                          ? null
+                          : (Number(e.target.value) as 2048 | 4096),
+                    })
+                  }
+                >
+                  <option value="original">原尺寸</option>
+                  <option value="2048">分享 · 长边 2048 px</option>
+                  <option value="4096">较大 · 长边 4096 px</option>
+                </select>
+              </label>
+              <label>
+                JPEG 质量
+                <select
+                  aria-label="JPEG 质量"
+                  value={options.jpegQuality}
+                  onChange={(e) => update({ jpegQuality: Number(e.target.value) as 80 | 92 | 98 })}
+                >
+                  <option value="80">较小文件 · 80%</option>
+                  <option value="92">标准 · 92%</option>
+                  <option value="98">高画质 · 98%</option>
+                </select>
+              </label>
+              <p className="watermark-hint">
+                保持比例，不放大小图；质量值不代表文件大小或无损。每批单独选择。
               </p>
               <label>
                 字体
@@ -501,6 +542,15 @@ export function WatermarkDialog({
           )}
           {report && (
             <>
+              {report.watermark && (
+                <p className="batch-review-note" aria-label="本批导出设置">
+                  本批成品：
+                  {report.watermark.outputMaxEdge
+                    ? `长边至多 ${report.watermark.outputMaxEdge} px`
+                    : '原尺寸'}{' '}
+                  · JPEG 质量 {report.watermark.jpegQuality ?? 92}% · 不放大 · 参数已固定
+                </p>
+              )}
               <div className="export-destination">
                 <span>独立水印文件夹</span>
                 <strong>{report.destination}</strong>
@@ -560,7 +610,7 @@ export function WatermarkDialog({
             </>
           )}
           <p className="sync-footnote">
-            取消会保留部分成果。可在下方继续，重新选择原目标父目录；不会覆盖同名未知文件。预览为缩小版本，成品保持方向归正后的原尺寸。
+            取消会保留部分成果。可在下方继续，重新选择原目标父目录；不会覆盖同名未知文件。预览为缩小版本，成品按本批尺寸与质量生成。原格式副本仍从“导出副本”获取。
           </p>
           {!!recent.length && (
             <div className="export-history">

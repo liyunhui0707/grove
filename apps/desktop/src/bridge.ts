@@ -82,11 +82,18 @@ export type WatermarkOptions = {
   opacity: number;
   marginPercent: number;
   shadow: boolean;
+  outputMaxEdge: 2048 | 4096 | null;
+  jpegQuality: 80 | 92 | 98;
 };
-export type WatermarkStyle = Omit<WatermarkOptions, 'city' | 'fallbackDate'>;
+export type WatermarkStyle = Pick<
+  WatermarkOptions,
+  'font' | 'sizePercent' | 'color' | 'opacity' | 'marginPercent' | 'shadow'
+>;
 export type WatermarkPreview = {
   dataUrl: string;
   canExport: boolean;
+  exportWidth: number;
+  exportHeight: number;
   info: {
     source: {
       width: number;

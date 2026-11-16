@@ -678,3 +678,141 @@ fn copy_resume_review_can_be_cancelled_without_changing_saved_results() {
         7
     );
 }
+
+#[test]
+#[cfg(target_os = "macos")]
+fn sharing_plan_preview_and_resume_preserve_dimensions_quality_and_sources() {
+    use image::GenericImageView;
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let source = roots[&f].join("generated-5.jpg");
+    let before = crate::watermark::tests::fixture(3000, 2000, 6, Some("2026:10:25 23:59:59"));
+    fs::write(&source, &before).unwrap();
+    let options = crate::watermark::Options {
+        output_max_edge: Some(2048),
+        jpeg_quality: 80,
+        ..Default::default()
+    };
+    let preview = preview_watermark(&c, &roots, &targets[5].id, &options).unwrap();
+    assert_eq!((preview.export_width, preview.export_height), (1365, 2048));
+    assert_eq!(
+        preview.info.output_width.max(preview.info.output_height),
+        1280
+    );
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[5..6],
+        &b.join("output"),
+        &b.join("data"),
+        &options,
+    )
+    .unwrap();
+    let stopped = execute(plan, &b.join("data"), &AtomicBool::new(true));
+    assert_eq!(stopped.status, "cancelled");
+    let plan_path = b.join("data/exports").join(&stopped.id).join("plan.json");
+    let original_plan = fs::read(&plan_path).unwrap();
+    let mut saved: serde_json::Value = serde_json::from_slice(&original_plan).unwrap();
+    assert_eq!(
+        saved["format"], 2,
+        "old apps only read format1 and must reject this plan"
+    );
+    saved["format"] = 1.into();
+    fs::write(&plan_path, serde_json::to_vec(&saved).unwrap()).unwrap();
+    assert!(
+        resume(
+            &c,
+            &roots,
+            f,
+            &stopped.id,
+            &b.join("output"),
+            &b.join("data")
+        )
+        .is_err()
+    );
+    fs::write(&plan_path, original_plan).unwrap();
+    let resumed = resume(
+        &c,
+        &roots,
+        f,
+        &stopped.id,
+        &b.join("output"),
+        &b.join("data"),
+    )
+    .unwrap();
+    let result = execute(resumed, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!(result.status, "completed");
+    assert_eq!(result.verified, 1);
+    assert_eq!(result.watermark.as_ref().unwrap(), &options);
+    let photo = fs::read(Path::new(&result.destination).join(&result.items[0].output)).unwrap();
+    assert_eq!(
+        image::load_from_memory(&photo).unwrap().dimensions(),
+        (1365, 2048)
+    );
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &fs::read(Path::new(&result.destination).join("moment-grove-export.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(manifest["watermark"]["outputMaxEdge"], 2048);
+    assert_eq!(manifest["watermark"]["jpegQuality"], 80);
+    assert_eq!(fs::read(source).unwrap(), before);
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn legacy_watermark_plan_without_output_options_resumes_unchanged() {
+    use image::GenericImageView;
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    fs::write(
+        roots[&f].join("generated-5.jpg"),
+        crate::watermark::tests::fixture(640, 480, 6, Some("2026:10:25 23:59:59")),
+    )
+    .unwrap();
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[5..6],
+        &b.join("output"),
+        &b.join("data"),
+        &Default::default(),
+    )
+    .unwrap();
+    let stopped = execute(plan, &b.join("data"), &AtomicBool::new(true));
+    let path = b.join("data/exports").join(&stopped.id).join("plan.json");
+    let mut saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(saved["format"], 1);
+    saved["watermark"]
+        .as_object_mut()
+        .unwrap()
+        .remove("outputMaxEdge");
+    saved["watermark"]
+        .as_object_mut()
+        .unwrap()
+        .remove("jpegQuality");
+    fs::write(path, serde_json::to_vec(&saved).unwrap()).unwrap();
+    let result = execute(
+        resume(
+            &c,
+            &roots,
+            f,
+            &stopped.id,
+            &b.join("output"),
+            &b.join("data"),
+        )
+        .unwrap(),
+        &b.join("data"),
+        &AtomicBool::new(false),
+    );
+    assert_eq!(result.status, "completed");
+    assert_eq!(result.watermark.unwrap().jpeg_quality, 92);
+    let bytes = fs::read(Path::new(&result.destination).join(&result.items[0].output)).unwrap();
+    assert_eq!(
+        image::load_from_memory(&bytes).unwrap().dimensions(),
+        (480, 640)
+    );
+}

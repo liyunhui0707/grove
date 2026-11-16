@@ -236,7 +236,14 @@ pub fn preview_watermark(
     let root = roots.get(&folder).ok_or("请先打开照片目录")?;
     let bytes = watermark::read_input(files::source(root, Path::new(&path), &key)?)?;
     let rendered = watermark::render(&bytes, options, Some(1280))?;
+    let (export_width, export_height) = watermark::output_dimensions(
+        rendered.info.source.width,
+        rendered.info.source.height,
+        options.output_max_edge,
+    );
     Ok(watermark::Preview {
+        export_width,
+        export_height,
         can_export: rendered.info.source.date.is_some(),
         data_url: format!(
             "data:image/jpeg;base64,{}",
@@ -390,7 +397,16 @@ fn prepare_kind(
     }
     review.check()?;
     let job = Job {
-        format: 1,
+        // Older apps must reject a resized/different-quality plan rather than
+        // silently regenerate it using their fixed original-size settings.
+        format: if options
+            .as_ref()
+            .is_some_and(|o| o.output_max_edge.is_some() || o.jpeg_quality != 92)
+        {
+            2
+        } else {
+            1
+        },
         id,
         folder,
         root,
@@ -512,7 +528,7 @@ fn load(data: &Path, id: &str) -> Result<Job> {
             item.derivative = d;
         }
     }
-    if j.format != 1
+    if ![1, 2].contains(&j.format)
         || j.id != id
         || j.items.is_empty()
         || j.items.len() > LIMIT
@@ -562,6 +578,13 @@ fn load(data: &Path, id: &str) -> Result<Job> {
         && *o != o.normalized()?
     {
         return Err("水印设置无效".into());
+    }
+    if j.format == 1
+        && j.watermark
+            .as_ref()
+            .is_some_and(|o| o.output_max_edge.is_some() || o.jpeg_quality != 92)
+    {
+        return Err("导出设置与清单版本不符，未继续".into());
     }
     Ok(j)
 }

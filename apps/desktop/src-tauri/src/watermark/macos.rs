@@ -204,7 +204,7 @@ fn line(text: &str, size: f64, font: &str) -> Result<CFType> {
     }
     Ok(line)
 }
-fn jpeg(image: &CGImage) -> Result<Vec<u8>> {
+fn jpeg(image: &CGImage, quality: u8) -> Result<Vec<u8>> {
     let raw = unsafe { CFDataCreateMutable(ptr::null(), 0) };
     if raw.is_null() {
         return Err("无法分配JPEG输出".into());
@@ -216,7 +216,7 @@ fn jpeg(image: &CGImage) -> Result<Vec<u8>> {
     })?;
     let props = CFDictionary::from_CFType_pairs(&[(
         key(unsafe { kCGImageDestinationLossyCompressionQuality }),
-        CFNumber::from(0.92).as_CFType(),
+        CFNumber::from(f64::from(quality) / 100.).as_CFType(),
     )]);
     unsafe {
         CGImageDestinationAddImage(
@@ -246,9 +246,11 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     if preview.is_some_and(|n| !(320..=1600).contains(&n)) {
         return Err("水印预览尺寸无效".into());
     }
+    let (export_width, export_height) =
+        super::output_dimensions(info.width, info.height, o.output_max_edge);
     let max = preview
-        .unwrap_or(info.width.max(info.height))
-        .min(info.width.max(info.height));
+        .unwrap_or(export_width.max(export_height))
+        .min(export_width.max(export_height));
     let manual = crate::imaging::unequal_density(&props);
     let orientation = number(&props, "Orientation").unwrap_or(1);
     let mut attrs = vec![
@@ -274,7 +276,7 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
         return Err("系统无法解码这张照片".into());
     }
     let image = unsafe { CGImage::from_ptr(raw) };
-    let (width, height) = if manual && orientation >= 5 {
+    let (decoded_width, decoded_height) = if manual && orientation >= 5 {
         (image.height(), image.width())
     } else {
         (image.width(), image.height())
@@ -282,9 +284,13 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     if image.bits_per_component() > 8 {
         return Err("暂不输出高位深/HDR照片".into());
     }
-    if preview.is_none() && (width != info.width as usize || height != info.height as usize) {
+    let (width, height) = super::output_dimensions(info.width, info.height, Some(max));
+    // ImageIO may round a thumbnail edge differently by one pixel. The output
+    // canvas uses our exact planned dimensions; larger mismatches remain errors.
+    if decoded_width.abs_diff(width as usize) > 1 || decoded_height.abs_diff(height as usize) > 1 {
         return Err("照片方向或解码尺寸不一致，未输出".into());
     }
+    let (width, height) = (width as usize, height as usize);
     let space =
         CGColorSpace::create_with_name(unsafe { kCGColorSpaceSRGB }).ok_or("sRGB色彩空间不可用")?;
     // Dimensions were checked before decode. The bitmap is 8-bit RGBA, at most 24MP.
@@ -373,7 +379,7 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     }
     let output = context.create_image().ok_or("无法生成水印画面")?;
     Ok(Rendered {
-        jpeg: jpeg(&output)?,
+        jpeg: jpeg(&output, o.jpeg_quality)?,
         info: RenderInfo {
             source: info,
             output_width: width as u32,

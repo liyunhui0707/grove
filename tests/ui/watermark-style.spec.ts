@@ -31,6 +31,7 @@ async function mock(
       failSave: !!config.failSave,
       releaseLoad: () => {},
       previews: [] as any[],
+      plans: [] as any[],
       requestExit: (_token: number) => {},
       resolutions: [] as { token: number; proceed: boolean }[],
       releaseSave: () => {},
@@ -42,8 +43,8 @@ async function mock(
       folderId: 1,
       name: 'generated.jpg',
       relative: 'generated.jpg',
-      width: 48,
-      height: 32,
+      width: 4032,
+      height: 3024,
       bytes: 100,
       modified: 1,
       captured: null,
@@ -142,6 +143,8 @@ async function mock(
             controls.previews.push(args.options);
             return {
               dataUrl: svg,
+              exportWidth: args.options.outputMaxEdge === 2048 ? 2048 : 4032,
+              exportHeight: args.options.outputMaxEdge === 2048 ? 1536 : 3024,
               canExport: !!args.options.fallbackDate,
               info: {
                 source: {
@@ -150,8 +153,8 @@ async function mock(
                   text: args.options.fallbackDate
                     ? `${args.options.fallbackDate} ${args.options.city}`
                     : '',
-                  width: 48,
-                  height: 32,
+                  width: 4032,
+                  height: 3024,
                   warning: null,
                 },
                 outputWidth: 48,
@@ -159,7 +162,12 @@ async function mock(
               },
             };
           }
-          if (cmd === 'choose_export_folder') return old;
+          if (cmd === 'choose_export_folder') {
+            controls.plans.push(args.watermark);
+            return args.resumeId
+              ? old
+              : { ...old, id: 'new-batch', status: 'ready', watermark: args.watermark };
+          }
           throw Error(`Unhandled ${cmd}`);
         },
       },
@@ -371,4 +379,44 @@ test('load and save errors are visible, and retry recovers in a small dark dialo
   await expect(dialog.getByRole('alert')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: '确认生成并核验' })).toBeInViewport();
   expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
+test('sharing size and quality reach preview and the frozen plan without changing remembered style', async ({
+  page,
+}) => {
+  await mock(page);
+  const dialog = await open(page);
+  await dialog.getByLabel('备用日期').fill('2026-11-16');
+  await dialog.getByLabel('成品尺寸', { exact: true }).selectOption('2048');
+  await dialog.getByLabel('JPEG 质量', { exact: true }).selectOption('80');
+  await expect(dialog.getByLabel('成品尺寸', { exact: true })).toHaveValue('2048');
+  await expect(dialog.getByText('成品 2048 × 1536 px', { exact: false })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '选择导出位置', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (window as any).__wm.previews.at(-1))).toMatchObject({
+    outputMaxEdge: 2048,
+    jpegQuality: 80,
+  });
+  expect(await page.evaluate(() => (window as any).__wm.writes)).toEqual([]);
+  await dialog.getByRole('button', { name: '选择导出位置', exact: true }).click();
+  await expect(dialog.getByLabel('本批导出设置')).toHaveText(
+    '本批成品：长边至多 2048 px · JPEG 质量 80% · 不放大 · 参数已固定',
+  );
+  await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeEnabled();
+  await dialog.getByLabel('JPEG 质量', { exact: true }).selectOption('98');
+  await expect(dialog.getByLabel('本批导出设置')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeDisabled();
+  await dialog.getByLabel('关闭水印').click();
+  await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
+  await expect(dialog.getByLabel('成品尺寸', { exact: true })).toHaveValue('original');
+  await expect(dialog.getByLabel('JPEG 质量', { exact: true })).toHaveValue('92');
+});
+
+test('legacy batch resumes original-size 92 quality with controls fixed', async ({ page }) => {
+  await mock(page, { history: true });
+  const dialog = await open(page);
+  await dialog.getByRole('button', { name: '继续核验' }).click();
+  await expect(dialog.getByLabel('成品尺寸', { exact: true })).toHaveValue('original');
+  await expect(dialog.getByLabel('JPEG 质量', { exact: true })).toHaveValue('92');
+  await expect(dialog.getByLabel('成品尺寸', { exact: true })).toBeDisabled();
+  await expect(dialog.getByLabel('本批导出设置')).toContainText('原尺寸 · JPEG 质量 92%');
 });

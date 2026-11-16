@@ -61,6 +61,8 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. The accepted local trial is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its identity and independent data scope. The launcher preserves the existing trial catalog even when testing the public download. Opening the public app directly uses its daily catalog instead. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
 
+An **unpublished local candidate** additionally provides watermark JPEG output sizes (original, 2048 or 4096 long edge) and quality choices (80, 92 or 98). This is separate from the public 0.5.2 download and daily installation. See the [sharing export evidence](docs/share-export-stage.md).
+
 ## Build from source
 
 Use an existing Rust toolchain, a Node.js version satisfying the locked Vite package's engine requirement, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).

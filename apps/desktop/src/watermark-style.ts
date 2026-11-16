@@ -9,6 +9,8 @@ export const defaultWatermarkOptions: WatermarkOptions = {
   opacity: 0.88,
   marginPercent: 2.5,
   shadow: true,
+  outputMaxEdge: null,
+  jpegQuality: 92,
 };
 export function styleFrom(options: WatermarkOptions): WatermarkStyle {
   const { font, sizePercent, color, opacity, marginPercent, shadow } = options;

@@ -325,3 +325,85 @@ fn bounded_file_input_checks_size_and_uses_the_open_file() {
         MAX_INPUT_BYTES
     );
 }
+
+#[test]
+fn sharing_options_validate_and_old_batches_keep_original_size_and_quality() {
+    let mut legacy = serde_json::to_value(Options::default()).unwrap();
+    legacy.as_object_mut().unwrap().remove("outputMaxEdge");
+    legacy.as_object_mut().unwrap().remove("jpegQuality");
+    let normalized = serde_json::to_value(
+        serde_json::from_value::<Options>(legacy.clone())
+            .unwrap()
+            .normalized()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(normalized["outputMaxEdge"], serde_json::Value::Null);
+    assert_eq!(normalized["jpegQuality"], 92);
+    assert_eq!(output_dimensions(6000, 4000, Some(4096)), (4096, 2731));
+    assert_eq!(output_dimensions(600, 400, Some(4096)), (600, 400));
+    for (key, value) in [
+        ("outputMaxEdge", serde_json::json!(100)),
+        ("jpegQuality", serde_json::json!(0)),
+        ("jpegQuality", serde_json::json!(99)),
+    ] {
+        let mut invalid = legacy.clone();
+        invalid[key] = value;
+        assert!(
+            serde_json::from_value::<Options>(invalid)
+                .unwrap()
+                .normalized()
+                .is_err()
+        );
+    }
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn sharing_resize_is_oriented_bounded_and_never_upscales() {
+    use image::GenericImageView;
+    for (w, h, orientation, expected) in [
+        (3000, 2000, 1, (2048, 1365)),
+        (3000, 2000, 6, (1365, 2048)),
+        (640, 480, 1, (640, 480)),
+    ] {
+        let bytes = fixture(w, h, orientation, Some("2026:10:25 23:59:59"));
+        let mut value = serde_json::to_value(Options::default()).unwrap();
+        value["outputMaxEdge"] = 2048.into();
+        value["jpegQuality"] = 80.into();
+        let options: Options = serde_json::from_value(value).unwrap();
+        let output = render(&bytes, &options, None).unwrap();
+        assert_eq!(
+            image::load_from_memory(&output.jpeg).unwrap().dimensions(),
+            expected
+        );
+        assert_eq!(
+            (output.info.output_width, output.info.output_height),
+            expected
+        );
+        if w == 3000 && orientation == 1 {
+            let high = render(
+                &bytes,
+                &Options {
+                    jpeg_quality: 98,
+                    ..options.clone()
+                },
+                None,
+            )
+            .unwrap();
+            assert!(
+                output.jpeg.len() < high.jpeg.len(),
+                "fixed generated fixture must reflect the selected encoder quality"
+            );
+            let preview = render(&bytes, &options, Some(1280)).unwrap();
+            assert_eq!(preview.info.bounds, output.info.bounds);
+            assert_eq!(preview.info.font_size, output.info.font_size);
+        }
+        assert!(
+            inspect(&output.jpeg, &Options::default())
+                .unwrap()
+                .date
+                .is_none()
+        );
+    }
+}
