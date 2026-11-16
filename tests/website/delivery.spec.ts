@@ -43,7 +43,7 @@ for (const width of [360, 390, 768, 900, 901, 1440]) {
     for (const ext of ['dmg', 'zip'])
       await expect(page.locator(`[data-download="${ext}"]`)).toHaveAttribute(
         'href',
-        `https://github.com/liyunhui0707/moment-grove/releases/download/v0.5.2/Moment-Grove-0.5.2-macOS-arm64.${ext}`,
+        `https://github.com/liyunhui0707/moment-grove/releases/download/v0.6.0/Moment-Grove-0.6.0-macOS-arm64.${ext}`,
       );
     await expect(page.locator('#download')).toContainText('未完成 Developer ID');
     const summary = page.locator('details summary').first();

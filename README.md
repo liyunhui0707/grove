@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.5.2 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.6.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -22,12 +22,12 @@
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
-- Export separate sRGB JPEGs with a date and optional manually entered city inside the photo.
+- Export separate sRGB JPEGs with a date and optional manually entered city inside the photo. Choose original size or a 2048/4096-pixel long edge, and JPEG quality 80/92/98; smaller images are never enlarged.
 - Review same-volume moves and low-rating isolation, with durable logs and reviewed withdrawal.
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.5.2 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.2). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.6.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -61,7 +61,7 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 The 0.5.2 maintenance preview includes one-time reveal of the active photo when returning to the filtered grid and restores the saved browsing offset after the final native scan batch. Filters and selection remain unchanged. The accepted local trial is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its identity and independent data scope. The launcher preserves the existing trial catalog even when testing the public download. Opening the public app directly uses its daily catalog instead. See the [return-position evidence](docs/daily-review-efficiency-stage.md) and [large-library scope](docs/large-native-review-stage.md).
 
-An **unpublished local candidate** additionally provides watermark JPEG output sizes (original, 2048 or 4096 long edge) and quality choices (80, 92 or 98). This is separate from the public 0.5.2 download and daily installation. See the [sharing export evidence](docs/share-export-stage.md).
+Version **0.6.0** adds watermark JPEG output sizes (original, 2048 or 4096 long edge) and quality choices (80, 92 or 98). Older apps reject nondefault output plans instead of silently ignoring their parameters; they cannot resume those jobs. See the [sharing export evidence](docs/share-export-stage.md) and [upgrade limits](docs/installation-upgrade.md).
 
 ## Build from source
 

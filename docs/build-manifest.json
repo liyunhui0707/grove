@@ -1,122 +1,87 @@
 {
-  "version": "0.5.2",
+  "version": "0.6.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261116T054403-c4e5e29ad1",
+  "buildId": "trial-20261116T082513-121aab8e68",
   "architecture": "arm64",
-  "sourceDigest": "c4e5e29ad14f54513630f6c78f28a6f93cb3499f44575eea72b3ab499a988985",
-  "binarySha256": "c16c7e99c60a5579d18cd3f0502d38e2e5953997844f5c16df6c4350472e7865",
+  "sourceDigest": "121aab8e687c7a0b09b40b926ad0b33c2e4c3a474a57bf35ed7d7db200fcda77",
+  "binarySha256": "da8a639d6fd8e3b27fdef9040974c8fcaec8fd869605700ed5c5d6058d5c9ccd",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.5.2-macOS-arm64.zip",
-      "bytes": 5663758,
-      "sha256": "7083d8f0e6e7aaf80dbbf925110b74de1e71793df7ed7402506f93223b605de2"
+      "name": "Moment-Grove-0.6.0-macOS-arm64.zip",
+      "bytes": 5653517,
+      "sha256": "af54a5ad30bf979f282931a3849431131e507ee5c51d130a921812b6735bacc9"
     },
     {
-      "name": "Moment-Grove-0.5.2-macOS-arm64.dmg",
-      "bytes": 6499903,
-      "sha256": "5a19f39c2abaa2a79e95b42d46137eb65a456def28cd58d424e00db3469649dd"
+      "name": "Moment-Grove-0.6.0-macOS-arm64.dmg",
+      "bytes": 6494317,
+      "sha256": "20826e0eca6e3631d824779c2a91dd5c57ad5288c9a24505126742501ca6d817"
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "PUBLISHED_TECHNICAL_PRERELEASE",
+  "status": "VALIDATED_PENDING_PUBLICATION",
   "validation": {
-    "backend": {
-      "passed": 116,
-      "defaultIgnored": 17
-    },
-    "logic": {
-      "passed": 17
-    },
-    "browser": {
-      "passed": 72
-    },
-    "delivery": {
-      "passed": 10,
-      "postPublicationTrialEntryRegressionPassed": 2,
-      "finalDeliverySuitePassed": 12
-    },
-    "compiler": "build + clippy -D warnings passed",
-    "website": {
-      "viewportTestsPassed": 6,
-      "downloadVersion": "0.5.2",
-      "sourceStatus": "DEPLOYED",
-      "version": 5,
-      "sourceCommit": "f7565f7071041efc711401a3170dce45915e60e8",
-      "url": "https://moment-grove.outerepoch3.chatgpt.site",
-      "deploymentStatus": "succeeded",
-      "httpReadback": "Anonymous homepage contains 0.5.2 and exact three release links; one Cloudflare challenge-script insertion, remaining HTML and four static resources match source; not live browser acceptance"
+    "build": "TypeScript/Vite + offline Rust release passed",
+    "clippy": "all targets -D warnings passed after packaging",
+    "deliveryTests": 12,
+    "websiteViewportTests": 6,
+    "reusedApplicationTests": {
+      "sourceCommit": "6593b51b681a5396be262890f3f1fec065fcb137",
+      "rustPassed": 120,
+      "rustIgnored": 17,
+      "uiPassed": 74,
+      "logicPassed": 17,
+      "unchangedSourceFiles": 78,
+      "onlyVersionFilesChanged": [
+        "package.json",
+        "package-lock.json",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "apps/desktop/src-tauri/Cargo.lock",
+        "apps/desktop/src-tauri/tauri.conf.json"
+      ]
     },
     "archives": {
+      "status": "PASS",
       "sourceFiles": 83,
       "zipPayloadFiles": 12,
+      "signature": "strict ad-hoc",
+      "artifacts": [
+        {
+          "name": "Moment-Grove-0.6.0-macOS-arm64.zip",
+          "bytes": 5653517,
+          "sha256": "af54a5ad30bf979f282931a3849431131e507ee5c51d130a921812b6735bacc9"
+        },
+        {
+          "name": "Moment-Grove-0.6.0-macOS-arm64.dmg",
+          "bytes": 6494317,
+          "sha256": "20826e0eca6e3631d824779c2a91dd5c57ad5288c9a24505126742501ca6d817"
+        }
+      ],
       "dmgPayloadFiles": 12,
-      "strictAdHocSignature": true,
       "dmgDetached": true
     },
     "native": {
       "system": "macOS 27.2.1 arm64",
-      "upgrade": "0.5.1 to 0.5.2 at the same isolated install/data paths",
-      "generatedAssets": 24,
-      "identitiesAndSourceHashesPreserved": 24,
-      "baselineRatings": [4, 5, 0],
-      "compareRatingUndo": "photo23: 3 then undo to null then 4; photo24 stayed null",
-      "copyVerified": 3,
-      "watermarkVerified": 1,
-      "watermarkInput": "generated SDR HEIC; explicit manual fallback date and test city",
-      "normalQuit": "baseline, upgrade, final export session, rollback and uploaded-ZIP reinstall; no watchdog in these sessions",
-      "reopen": "0.5.2 grid and picks retained after normal upgrade-session exit; 0.5.1 rollback resumed photo23 at 3/3 picks",
-      "rollback": "0.5.2 to 0.5.1; all24 IDs/paths/identities/ratings/revisions and complete workspace identical",
-      "interruptedAttempt": "First export attempt exceeded 15-minute QA watchdog before copying; preserved and completed in a separate bounded session",
-      "unexpectedLauncherReopen": "After watchdog, computer-use lookup opened an empty instance without test-data override; no photo folder opened; closed exact staged-path process; excluded from acceptance",
-      "actualUploadedPackage": "PASS: draft release ZIP downloaded, all12 payload hashes and strict ad-hoc signature verified; installed at same isolated path, resumed photo23 at 3/3 picks and quit normally; all24 rows and workspace identical",
-      "watermarkMetadata": "3024x4032 sRGB JPEG; no GPS; encoder EXIF contains only dimensions and color space; not an arbitrary personal-metadata stripping acceptance"
-    },
-    "priorLargeLibraryEvidence": {
-      "report": "large-native-review-stage.md",
-      "baselineBuild": "trial-20261115T154912-9283f4875f",
-      "repairBuild": "trial-20261116T021900-536d265c9b",
-      "notCurrentReleaseThirtyMinuteSoak": true
-    },
-    "trialEntry": {
-      "version": "0.5.2",
-      "scope": "same independent local-trial catalog; explicit MOMENT_GROVE_DATA_DIR via LaunchServices",
-      "verification": "two regression cases and actual --info identity/scope check; native QA used equivalent explicit override with separate generated fixture data"
+      "upgrade": "0.5.2 to 0.6.0 at the same isolated install/data paths",
+      "restoredReview": "photo23 at 3/3 picks; 24 assets and prior ratings retained",
+      "watermarkVerified": 3,
+      "output": "generated 12MP HEIC/JPEG to 2048 long edge / quality80; independent ImageIO dimensions, sRGB and no GPS verified",
+      "catalogLogicalTablesUnchanged": true,
+      "all24OriginalsUnchanged": true,
+      "quit": "normal baseline and upgrade quit; no watchdog",
+      "downloadedPackage": "NOT_RUN"
     }
+  },
+  "publication": {
+    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0",
+    "status": "NOT_PUBLISHED",
+    "update": "manual replacement",
+    "website": "PREPARED_NOT_DEPLOYED"
   },
   "limitations": [
     "ad-hoc signed; no Developer ID or notarization",
     "browser-quarantine first opening not accepted",
-    "other macOS versions and platforms not accepted",
-    "initial historical blank root cause unconfirmed",
+    "0.5.2 rejects new format2 export logs; cannot resume those tasks and export history may show incompatibility",
+    "other macOS versions/platforms, personal-library soak and arbitrary photo compression quality not accepted",
     "no automatic updater or runtime-render crash recovery"
-  ],
-  "publication": {
-    "update": "manual replacement",
-    "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.5.2",
-    "status": "PUBLISHED",
-    "releaseId": 446684648,
-    "tagCommit": "dfeef0420bb407899d85c96bbe96b9453ddb8fa2",
-    "prerelease": true,
-    "oldReleasesPreserved": 6,
-    "downloadReadback": {
-      "authenticatedDraft": "all ZIP/DMG/checksum bytes identical; ZIP installed and native workflow resumed",
-      "anonymousPublic": "ZIP/DMG/checksum downloaded and exact hashes verified",
-      "checksumSha256": "f54d240e34d04c5bd7f1710744f716acfd2d73007b4de8a5c42741287a8b5c5c",
-      "assets": [
-        {
-          "name": "Moment-Grove-0.5.2-macOS-arm64.zip",
-          "id": 753762517
-        },
-        {
-          "name": "Moment-Grove-0.5.2-macOS-arm64.dmg",
-          "id": 753762518
-        },
-        {
-          "name": "SHA256SUMS.txt",
-          "id": 753762519
-        }
-      ]
-    }
-  },
-  "sourceCommit": "dfeef0420bb407899d85c96bbe96b9453ddb8fa2"
+  ]
 }

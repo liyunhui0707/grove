@@ -1,4 +1,4 @@
-# Photo support in 0.5.2
+# Photo support in 0.6.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
