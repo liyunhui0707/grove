@@ -61,6 +61,8 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 The accepted isolated candidate is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its version/build and independent data scope. Opening the public app directly uses its daily catalog instead.
 
+The local experience-remediation candidate adds explicit hidden-selection counts, **查看已选**, a unified **导出照片** panel, completed-export folder actions, readable recovery prompts and native macOS task menus. These changes are local development work; the public 0.8.0 download and daily installation do not yet contain them. See [local stage evidence](docs/experience-remediation-stage.md).
+
 Version **0.8.0** adds persistent volume identities and static-photo exports for recognized associated resources. It upgrades the catalog to schema3, creating a coherent schema2 snapshot first. Older versions refuse schema3; rollback requires the pre-upgrade catalog and settings rather than directly sharing the upgraded data. Finish or withdraw older file-operation jobs before updating. See the [upgrade limits](docs/installation-upgrade.md).
 
 ## Build from source
