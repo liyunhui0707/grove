@@ -41,6 +41,121 @@ fn execute(c: &mut Catalog, p: Plan, b: &Path) -> Report {
     .unwrap()
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn legacy_move_continues_and_withdraws_after_online_identity_upgrade() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (mut c, roots, f, targets) = fixture(&b);
+    let data = b.join("data");
+    let legacy = |p: &Path| imaging::identity_from_metadata(&fs::metadata(p).unwrap()).unwrap();
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets,
+        &b.join("destination"),
+        &data,
+        "move",
+    )
+    .unwrap();
+    let cancel = AtomicBool::new(false);
+    let first = run(
+        &mut c,
+        plan,
+        &data,
+        &cancel,
+        |r| {
+            if r.verified == 1 {
+                cancel.store(true, Ordering::SeqCst);
+            }
+        },
+        |_| Ok(()),
+    )
+    .unwrap();
+    assert_eq!((first.status.as_str(), first.verified), ("paused", 1));
+    // Recreate legacy directory/file keys without changing any occurrence or bytes.
+    let journal = data.join("moves").join(&first.id);
+    let plan_path = journal.join("plan.json");
+    let mut job: serde_json::Value =
+        serde_json::from_slice(&fs::read(&plan_path).unwrap()).unwrap();
+    job["root_key"] = legacy(&roots[&f]).into();
+    job["parent_key"] = legacy(&b.join("destination")).into();
+    for item in job["items"].as_array_mut().unwrap() {
+        let original = PathBuf::from(item["path"].as_str().unwrap());
+        item["parent_key"] = legacy(original.parent().unwrap()).into();
+        for resource in item["resources"].as_array_mut().unwrap() {
+            let name = resource["name"].as_str().unwrap();
+            let source = original.parent().unwrap().join(name);
+            let actual = if source.exists() {
+                source
+            } else {
+                Path::new(&first.destination).join(name)
+            };
+            resource["identity"] = legacy(&actual).into();
+        }
+        c.db.execute(
+            "UPDATE assets SET identity=?1 WHERE id=?2",
+            rusqlite::params![
+                item["resources"][0]["identity"].as_str().unwrap(),
+                item["id"].as_str().unwrap()
+            ],
+        )
+        .unwrap();
+    }
+    fs::write(plan_path, serde_json::to_vec(&job).unwrap()).unwrap();
+    let checkpoint = fs::read_dir(&journal)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("state-")
+        })
+        .max()
+        .unwrap();
+    let mut state: serde_json::Value =
+        serde_json::from_slice(&fs::read(&checkpoint).unwrap()).unwrap();
+    state["directory_key"] = legacy(Path::new(&first.destination)).into();
+    fs::write(checkpoint, serde_json::to_vec(&state).unwrap()).unwrap();
+    for target in &targets {
+        let (folder, path, _, _) = c.location(&target.id).unwrap();
+        let path = Path::new(&path);
+        assert_eq!(
+            c.upsert(folder, path, &imaging::identity(path).unwrap(), None)
+                .unwrap()
+                .0,
+            target.id
+        );
+    }
+    // The next resource was claimed before a process interruption; the catalog
+    // still points at its original name. Legacy recovery must recognize staging.
+    let pending = &job["items"][1];
+    let original = Path::new(pending["path"].as_str().unwrap());
+    let staged = original
+        .parent()
+        .unwrap()
+        .join(pending["resources"][0]["stage"].as_str().unwrap());
+    fs::rename(original, staged).unwrap();
+    let next = resume(&c, &data, &first.id, false).unwrap();
+    let moved = execute(&mut c, next, &b);
+    assert_eq!((moved.status.as_str(), moved.verified), ("completed", 7));
+    let back = resume(&c, &data, &first.id, true).unwrap();
+    let restored = execute(&mut c, back, &b);
+    assert_eq!(
+        (restored.status.as_str(), restored.verified),
+        ("restored", 7)
+    );
+    for target in &targets {
+        let (folder, path, _, key) = c.location(&target.id).unwrap();
+        assert_eq!(folder, f);
+        assert!(Path::new(&path).starts_with(&roots[&f]));
+        assert!(key.starts_with("volume:"));
+        assert_eq!(imaging::identity(Path::new(&path)).unwrap(), key);
+    }
+}
+
 #[test]
 fn stale_review_changes_and_snapshot_failure_leave_all_files_in_place() {
     for case in ["rating", "photo", "xmp", "snapshot"] {

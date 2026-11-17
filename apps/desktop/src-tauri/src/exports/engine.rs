@@ -147,7 +147,11 @@ fn current_with_progress(
     for i in &j.items {
         review.item(&i.relative)?;
         let (f, path, rev, key) = c.location(&i.id)?;
-        if f != j.folder || Path::new(&path) != i.path || rev != i.revision || key != i.identity {
+        if f != j.folder
+            || Path::new(&path) != i.path
+            || rev != i.revision
+            || !files::equivalent_identity(&j.root, &i.path, &i.identity, &key)?
+        {
             return Err("照片位置或评分修订已变化，请重新创建导出清单".into());
         }
         review.done()?;
@@ -659,7 +663,7 @@ pub fn run(
     mut after_photo: impl FnMut() -> Result<()>,
 ) -> Result<Report> {
     let parent = Dir::open(&p.job.parent)?;
-    if parent.key()? != p.job.parent_key {
+    if !parent.matches_key(&p.job.parent_key)? {
         return Err("目标父目录已变化".into());
     }
     let all_logs = logs(data)?;
@@ -676,7 +680,7 @@ pub fn run(
     }
     let dir = if let Some(key) = &p.job.directory_key {
         let dir = Dir::open(&parent.path.join(&p.job.directory))?;
-        if dir.key()? != *key {
+        if !dir.matches_key(key)? {
             return Err("导出子目录身份已变化，未写入".into());
         }
         dir
@@ -832,7 +836,7 @@ pub fn resume_with_progress(
     let j = load(data, id)?;
     if j.folder != folder
         || parent.canonicalize().map_err(|_| "目标目录不可用")? != j.parent
-        || Dir::open(&j.parent)?.key()? != j.parent_key
+        || !Dir::open(&j.parent)?.matches_key(&j.parent_key)?
     {
         return Err("请选择这次导出的原目标父目录".into());
     }

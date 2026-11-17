@@ -53,6 +53,9 @@ impl Dir {
     pub fn key(&self) -> Result<String> {
         imaging::identity_from_file(&self.file)
     }
+    pub fn matches_key(&self, expected: &str) -> Result<bool> {
+        imaging::matches_file_identity(&self.file, expected)
+    }
     pub fn unchanged(&self) -> Result<()> {
         if Self::open(&self.path)?.key()? != self.key()? {
             return Err("导出目录已被替换，保留现场".into());
@@ -232,4 +235,14 @@ pub fn source(root: &Path, path: &Path, key: &str) -> Result<File> {
         return Err("照片身份已变化".into());
     }
     Ok(f)
+}
+
+// Catalog scans may upgrade an exact online legacy key while an immutable
+// operation journal retains it. Require both keys to identify the same pinned
+// occurrence; never equate keys using a path or matching bytes alone.
+pub fn equivalent_identity(root: &Path, path: &Path, a: &str, b: &str) -> Result<bool> {
+    if a == b {
+        return Ok(true);
+    }
+    imaging::matches_file_identity(&source(root, path, a)?, b)
 }

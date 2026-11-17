@@ -35,6 +35,95 @@ fn execute(plan: Plan, data: &Path, cancel: &AtomicBool) -> Report {
     run(plan, data, cancel, |_| {}, || Ok(())).unwrap()
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn legacy_export_resumes_after_online_catalog_identity_upgrade() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let data = b.join("data");
+    let parent = b.join("output");
+    let legacy = |p: &Path| imaging::identity_from_metadata(&fs::metadata(p).unwrap()).unwrap();
+    let plan = prepare(&c, &roots, f, &targets, &parent, &data).unwrap();
+    let cancel = AtomicBool::new(false);
+    let first = run(
+        plan,
+        &data,
+        &cancel,
+        |r| {
+            if r.verified == 1 {
+                cancel.store(true, Ordering::SeqCst);
+            }
+        },
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!((first.status.as_str(), first.verified), ("cancelled", 1));
+    // Recreate the unchanged version1 journal layout written by0.7.0.
+    let journal = data.join("exports").join(&first.id);
+    let plan_path = journal.join("plan.json");
+    let mut job: serde_json::Value =
+        serde_json::from_slice(&fs::read(&plan_path).unwrap()).unwrap();
+    job["parent_key"] = legacy(&parent).into();
+    for item in job["items"].as_array_mut().unwrap() {
+        let path = Path::new(item["path"].as_str().unwrap());
+        let key = legacy(path);
+        c.db.execute(
+            "UPDATE assets SET identity=?1 WHERE id=?2",
+            rusqlite::params![key, item["id"].as_str().unwrap()],
+        )
+        .unwrap();
+        item["identity"] = key.into();
+    }
+    fs::write(plan_path, serde_json::to_vec(&job).unwrap()).unwrap();
+    let checkpoint = fs::read_dir(&journal)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("state-")
+        })
+        .max()
+        .unwrap();
+    let mut state: serde_json::Value =
+        serde_json::from_slice(&fs::read(&checkpoint).unwrap()).unwrap();
+    state["directory_key"] = legacy(Path::new(&first.destination)).into();
+    fs::write(checkpoint, serde_json::to_vec(&state).unwrap()).unwrap();
+    for target in &targets {
+        let (_, path, _, _) = c.location(&target.id).unwrap();
+        let path = Path::new(&path);
+        assert_eq!(
+            c.upsert(f, path, &imaging::identity(path).unwrap(), None)
+                .unwrap()
+                .0,
+            target.id
+        );
+    }
+    let original = roots[&f].join("generated-1.jpg");
+    let retained = roots[&f].join("retained-original");
+    let bytes = fs::read(&original).unwrap();
+    fs::rename(&original, &retained).unwrap();
+    fs::write(&original, &bytes).unwrap();
+    assert!(resume(&c, &roots, f, &first.id, &parent, &data).is_err());
+    fs::rename(&original, roots[&f].join("retained-replacement")).unwrap();
+    fs::rename(retained, original).unwrap();
+    let existing = Path::new(&first.destination).join(&first.items[0].output);
+    let meta = fs::metadata(&existing).unwrap();
+    let second = execute(
+        resume(&c, &roots, f, &first.id, &parent, &data).unwrap(),
+        &data,
+        &AtomicBool::new(false),
+    );
+    assert_eq!((second.status.as_str(), second.verified), ("completed", 7));
+    use std::os::unix::fs::MetadataExt;
+    assert_eq!(fs::metadata(existing).unwrap().ino(), meta.ino());
+    for target in &targets {
+        assert!(c.location(&target.id).unwrap().3.starts_with("volume:"));
+    }
+}
+
 #[test]
 fn less_common_raw_companions_are_not_split_by_copy_export() {
     for ext in ["PEF", "SRW", "RW2"] {

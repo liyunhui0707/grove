@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     backups,
-    exports::files::{Dir, digest},
+    exports::files::{self, Dir, digest},
     imaging, sidecar,
 };
 use rusqlite::{Connection, TransactionBehavior, params};
@@ -427,7 +427,7 @@ fn verify(dir: &Dir, name: &str, r: &Resource, cancel: &AtomicBool) -> Result<bo
     }
     Ok(true)
 }
-fn row_binding(db: &Connection, i: &Item, j: &Job, strict: bool) -> Result<()> {
+fn row_binding(db: &Connection, i: &Item, j: &Job, strict: bool) -> Result<String> {
     let (f, p, rev, key): (i64, String, i64, String) = db
         .query_row(
             "SELECT folder_id,path,revision,identity FROM assets WHERE id=?1",
@@ -436,11 +436,30 @@ fn row_binding(db: &Connection, i: &Item, j: &Job, strict: bool) -> Result<()> {
         )
         .map_err(|_| "照片记录缺失")?;
     let dest = j.parent.join(&j.directory).join(&i.resources[0].name);
-    if key != i.resources[0].identity
-        || !((Path::new(&p) == i.path && f == j.folder) || Path::new(&p) == dest)
+    if !((Path::new(&p) == i.path && f == j.folder) || Path::new(&p) == dest)
         || (strict && rev != i.revision)
     {
         return Err("照片位置或评分修订已变化，请重新核对".into());
+    }
+    if key != i.resources[0].identity {
+        let staged = i
+            .path
+            .parent()
+            .ok_or("照片路径无效")?
+            .join(&i.resources[0].stage);
+        let destination = j.parent.join(&j.directory);
+        let matches = [
+            (&j.root, &i.path),
+            (&j.root, &staged),
+            (&destination, &dest),
+        ]
+        .into_iter()
+        .any(|(root, path)| {
+            files::equivalent_identity(root, path, &i.resources[0].identity, &key).unwrap_or(false)
+        });
+        if !matches {
+            return Err("照片身份已变化，未关联旧整理记录".into());
+        }
     }
     let duplicates: i64 = db
         .query_row(
@@ -462,17 +481,17 @@ fn row_binding(db: &Connection, i: &Item, j: &Job, strict: bool) -> Result<()> {
     if active != 0 {
         return Err("该照片有未完成XMP任务，请先处理评分同步".into());
     }
-    Ok(())
+    Ok(key)
 }
 fn parent_dirs(j: &Job, s: &State) -> Result<(Dir, Option<Dir>)> {
     let root = Dir::open(&j.root)?;
     let parent = Dir::open(&j.parent)?;
-    if root.key()? != j.root_key || parent.key()? != j.parent_key {
+    if !root.matches_key(&j.root_key)? || !parent.matches_key(&j.parent_key)? {
         return Err("源或目标父目录身份已变化，请保留现场".into());
     }
     let dest = if let Some(key) = &s.directory_key {
         let d = Dir::open(&j.parent.join(&j.directory))?;
-        if d.key()? != *key {
+        if !d.matches_key(key)? {
             return Err("整理目录被替换，未移动文件".into());
         }
         Some(d)
@@ -508,7 +527,7 @@ fn positions_with_cancel(
 ) -> Result<(Dir, Option<Dir>, Vec<u8>)> {
     let (_, dest) = parent_dirs(j, s)?;
     let source = Dir::open(i.path.parent().ok_or("源父目录无效")?)?;
-    if source.key()? != i.parent_key {
+    if !source.matches_key(&i.parent_key)? {
         return Err("照片父目录被替换，未移动文件".into());
     }
     paired(&i.path)?;
@@ -690,7 +709,7 @@ pub fn prepare_with_progress(
             format!(".moment-grove-move-{id}-{n}-0"),
             review.cancel,
         )?];
-        if resources[0].identity != key {
+        if !files::equivalent_identity(&root, &p, &resources[0].identity, &key)? {
             return Err("照片身份已变化".into());
         }
         let obs = sidecar::capture(&root, &p, &key);
@@ -838,7 +857,7 @@ fn shift(
     Ok(())
 }
 fn bind(db: &Connection, j: &Job, i: &Item, restore: bool, destination_folder: i64) -> Result<()> {
-    row_binding(db, i, j, false)?;
+    let key = row_binding(db, i, j, false)?;
     let dest = j.parent.join(&j.directory).join(&i.resources[0].name);
     let to = if restore { &i.path } else { &dest };
     let folder = if restore {
@@ -849,7 +868,7 @@ fn bind(db: &Connection, j: &Job, i: &Item, restore: bool, destination_folder: i
     if db
         .execute(
             "UPDATE assets SET path=?1,folder_id=?2 WHERE id=?3 AND identity=?4",
-            params![to.to_str(), folder, i.id, i.resources[0].identity],
+            params![to.to_str(), folder, i.id, key],
         )
         .map_err(|e| e.to_string())?
         != 1
