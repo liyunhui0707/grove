@@ -590,6 +590,24 @@ pub fn history(data: &Path, folder: i64) -> Result<Vec<Report>> {
     reports.truncate(10);
     Ok(reports)
 }
+
+/// The frontend supplies a journal ID, never a shell command or arbitrary path.
+pub fn completed_destination(data: &Path, folder: i64, id: &str) -> Result<PathBuf> {
+    let job = load(data, id)?;
+    if job.folder != folder || job.status != "completed" {
+        return Err("请先完成这个目录的导出".into());
+    }
+    let parent = Dir::open(&job.parent)?;
+    if !parent.matches_key(&job.parent_key)? {
+        return Err("导出父目录已变化，请重新核对位置".into());
+    }
+    let path = job.parent.join(&job.directory);
+    let destination = Dir::open(&path)?;
+    if !destination.matches_key(job.directory_key.as_deref().ok_or("导出位置尚未核验")?)? {
+        return Err("导出文件夹已变化，请重新核对位置".into());
+    }
+    Ok(path)
+}
 #[cfg(test)]
 pub fn resume(
     c: &Catalog,

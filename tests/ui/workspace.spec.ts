@@ -159,7 +159,7 @@ test('offline folder and missing photo never silently resume another occurrence'
     localStorage.setItem('missing-active', 'true');
   });
   await page.reload();
-  await expect(page.getByRole('status')).toContainText('上次照片已不在当前目录');
+  await expect(page.locator('.toast')).toContainText('上次照片已不在当前目录');
   await expect(page.locator('.photo-pane')).toHaveCount(0);
   await expect(page.locator('.photo-card')).toHaveCount(5);
 });

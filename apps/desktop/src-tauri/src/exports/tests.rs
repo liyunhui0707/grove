@@ -35,6 +35,39 @@ fn execute(plan: Plan, data: &Path, cancel: &AtomicBool) -> Report {
     run(plan, data, cancel, |_| {}, || Ok(())).unwrap()
 }
 
+#[test]
+fn opening_export_requires_a_completed_matching_journal_and_original_directory() {
+    let t = tempfile::tempdir().unwrap();
+    let base = t.path().canonicalize().unwrap();
+    let (catalog, roots, folder, targets) = fixture(&base);
+    let data = base.join("data");
+    let plan = prepare(
+        &catalog,
+        &roots,
+        folder,
+        &targets[..2],
+        &base.join("output"),
+        &data,
+    )
+    .unwrap();
+    let id = review(&plan).id;
+    assert!(completed_destination(&data, folder, &id).is_err());
+    assert!(completed_destination(&data, folder, "../../sources").is_err());
+    let done = execute(plan, &data, &AtomicBool::new(false));
+    let destination = completed_destination(&data, folder, &id).unwrap();
+    assert_eq!(destination.to_string_lossy(), done.destination);
+    assert!(completed_destination(&data, folder + 1, &id).is_err());
+    let expected_count = fs::read_dir(&destination).unwrap().count();
+    let retained = base.join("retained-output");
+    fs::rename(&destination, &retained).unwrap();
+    fs::create_dir(&destination).unwrap();
+    assert!(completed_destination(&data, folder, &id).is_err());
+    fs::rename(&destination, base.join("replacement-output")).unwrap();
+    std::os::unix::fs::symlink(&retained, &destination).unwrap();
+    assert!(completed_destination(&data, folder, &id).is_err());
+    assert_eq!(fs::read_dir(&retained).unwrap().count(), expected_count);
+}
+
 #[cfg(target_os = "macos")]
 #[test]
 fn legacy_export_resumes_after_online_catalog_identity_upgrade() {

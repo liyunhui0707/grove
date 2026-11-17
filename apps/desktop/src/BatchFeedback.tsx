@@ -98,11 +98,22 @@ export function BatchOutcome({
   reviewing,
   action,
 }: {
-  report: { verified: number; items: { status: string; error: string | null }[] } | null;
+  report: {
+    status?: string;
+    verified: number;
+    items: { status: string; error: string | null }[];
+  } | null;
   reviewing: boolean;
   action: string;
 }) {
-  if (!report || reviewing) return null;
+  if (
+    !report ||
+    reviewing ||
+    report.status === 'completed' ||
+    report.status === 'restored' ||
+    report.status === 'running'
+  )
+    return null;
   const errors = report.items.filter((i) => i.error || i.status === 'error').length;
   return (
     <p className="batch-outcome" role="status" aria-label="本次处理结果">

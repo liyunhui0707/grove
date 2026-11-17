@@ -45,6 +45,9 @@ pub fn resume_with_progress(
 pub fn history(_: &Path, _: i64) -> Result<Vec<Report>> {
     Ok(Vec::new())
 }
+pub fn completed_destination(_: &Path, _: i64, _: &str) -> Result<PathBuf> {
+    Err("此平台导出尚未验证".into())
+}
 pub fn validate(_: &Catalog, _: &HashMap<i64, PathBuf>, _: &Plan) -> Result<()> {
     Err("此平台复制导出尚未验证".into())
 }

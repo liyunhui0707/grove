@@ -165,6 +165,8 @@ test('safe organization isolates only zero and one and protects shortcuts in bot
     await page.getByLabel('取消选择').click();
   }
   const trigger = page.getByRole('button', { name: '安全整理', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '安全整理' });
   await expect(dialog).toContainText('本次范围 24 张，仅纳入 2 张');
@@ -184,11 +186,17 @@ test('safe organization isolates only zero and one and protects shortcuts in bot
   await dialog.getByRole('button', { name: '低分隔离 · 0–1', exact: true }).click();
   await page.screenshot({ path: 'test-results/safe-moves-light.png' });
   await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
+  await expect(
+    (await trigger.isVisible())
+      ? trigger
+      : page.getByRole('button', { name: '资料库工具', exact: true }),
+  ).toBeFocused();
   await page.getByLabel('评分筛选').selectOption('5');
   await expect(page.locator('.photo-card')).toHaveCount(0);
   await page.getByLabel('评分筛选').selectOption('all');
   await page.getByLabel('切换暗色主题').click();
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   await expect(dialog.locator('.export-file')).toHaveCount(2);
   await page.screenshot({ path: 'test-results/safe-moves-dark.png' });
@@ -199,12 +207,16 @@ test('unreviewed selected photos never enter quarantine and recovery opens witho
 }) => {
   await page.goto('/');
   const trigger = page.getByRole('button', { name: '安全整理', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   await expect(page.getByRole('dialog', { name: '安全整理' })).toContainText('操作历史与恢复');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '体验示例图库' }).click();
   for (const i of [1, 2])
     await page.getByRole('button', { name: `选择 山海_0${i}.jpg`, exact: true }).click();
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '安全整理' });
   await expect(dialog).toContainText('本次范围 2 张，仅纳入 0 张');
@@ -212,7 +224,11 @@ test('unreviewed selected photos never enter quarantine and recovery opens witho
   await dialog.getByRole('button', { name: '移动所选照片', exact: true }).click();
   await expect(dialog.locator('.export-file')).toHaveCount(2);
   await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
+  await expect(
+    (await trigger.isVisible())
+      ? trigger
+      : page.getByRole('button', { name: '资料库工具', exact: true }),
+  ).toBeFocused();
 });
 
 async function installMoveMock(page: Page) {
@@ -359,6 +375,7 @@ test('mock IPC requires renewed review and explicit confirmation for move and wi
   await installMoveMock(page);
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '安全整理', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '安全整理' });
   await dialog.getByRole('button', { name: '选择整理位置' }).click();
@@ -424,6 +441,7 @@ test('mock IPC stops once, reopens paused history, and requires a new review aft
   await installMoveMock(page);
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '安全整理', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '安全整理' });
   await dialog.getByRole('button', { name: '选择整理位置' }).click();
@@ -431,7 +449,7 @@ test('mock IPC stops once, reopens paused history, and requires a new review aft
   await page.evaluate(() => Object.assign(window, { __holdMove: true }));
   await dialog.getByRole('button', { name: '确认移动并核验' }).click();
   await expect(dialog.getByRole('button', { name: '关闭安全整理' })).toBeDisabled();
-  await dialog.getByRole('button', { name: '停止并保留现场' }).click();
+  await dialog.getByRole('button', { name: '停止并保留已完成项' }).click();
   await expect(dialog.getByRole('button', { name: '完成当前照片后停止…' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
@@ -441,6 +459,7 @@ test('mock IPC stops once, reopens paused history, and requires a new review aft
   await expect(dialog.getByRole('button', { name: '选择整理位置' })).toBeDisabled();
   await page.screenshot({ path: 'test-results/move-paused-light.png' });
   await dialog.getByRole('button', { name: '关闭安全整理' }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '安全整理', exact: true }).click();
   await expect(dialog).toContainText('有未完成的整理');
   await dialog.getByRole('button', { name: '继续', exact: true }).click();
@@ -458,7 +477,8 @@ test('mock IPC stops once, reopens paused history, and requires a new review aft
     '请查看提示，重新核对',
   );
   await expect(dialog.getByRole('checkbox')).toHaveCount(0);
-  await expect(dialog.getByRole('button', { name: '确认移动并核验' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: '确认移动并核验' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '完成', exact: true })).toBeEnabled();
   await page.screenshot({ path: 'test-results/move-conflict-light.png' });
   await page.evaluate(() => Object.assign(window, { __rejectReview: false }));
   await dialog.getByRole('button', { name: '核对撤回' }).click();
@@ -489,6 +509,7 @@ test('safe organization keeps scope, confirmation and long paths usable in both 
       const switchTheme = page.getByLabel(theme === 'dark' ? '切换暗色主题' : '切换浅色主题');
       if (await switchTheme.isVisible()) await switchTheme.click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await page.getByRole('button', { name: '资料库工具', exact: true }).click();
       await page.getByRole('button', { name: '安全整理', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: '安全整理' });
       const scope = dialog.getByRole('region', { name: '本次整理范围' });
@@ -549,6 +570,7 @@ test('safe organization keeps status text clear of both scrollbars', async ({ pa
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       // A short list viewport represents a larger batch while keeping mock media bounded.
       await page.addStyleTag({ content: '.move-dialog .export-file-list { max-height: 100px; }' });
+      await page.getByRole('button', { name: '资料库工具', exact: true }).click();
       await page.getByRole('button', { name: '安全整理', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: '安全整理' });
       await dialog.getByRole('button', { name: '移动当前范围', exact: true }).click();
@@ -628,6 +650,8 @@ test('watermark inputs protect ratings and fit both small-window themes', async 
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 山海_01.jpg', exact: true }).dblclick();
   const trigger = page.getByRole('button', { name: '日期城市水印', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '日期城市水印' });
   await expect(dialog).toContainText('浏览器仅布局示意');
@@ -642,16 +666,16 @@ test('watermark inputs protect ratings and fit both small-window themes', async 
   await dialog.getByLabel('水印透明度').fill('0.75');
   await expect(dialog.locator('output').nth(1)).toHaveText('75%');
   await expect(dialog.getByRole('button', { name: '选择导出位置' })).toBeDisabled();
-  await expect(dialog.getByRole('button', { name: '确认生成并核验' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: '生成水印照片' })).toBeDisabled();
   await expect(dialog.getByRole('button', { name: '选择导出位置' })).toBeInViewport({ ratio: 1 });
-  await expect(dialog.getByRole('button', { name: '确认生成并核验' })).toBeInViewport({ ratio: 1 });
+  await expect(dialog.getByRole('button', { name: '生成水印照片' })).toBeInViewport({ ratio: 1 });
   await dialog.getByLabel('手动城市').clear();
   await expect(dialog.locator('.watermark-illustration span')).toHaveText('2026-10-25');
   await dialog.getByLabel('手动城市').fill('温州');
   await dialog.getByText('更多样式', { exact: true }).click();
   await dialog.getByLabel('关闭水印').focus();
   await page.keyboard.press('Shift+Tab');
-  await expect(dialog.locator('summary')).toBeFocused();
+  await expect(dialog.locator('summary').last()).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('关闭水印')).toBeFocused();
   expect(
@@ -667,10 +691,16 @@ test('watermark inputs protect ratings and fit both small-window themes', async 
   ).toBe(true);
   await page.screenshot({ path: 'test-results/watermark-light.png' });
   await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
+  await expect(
+    (await trigger.isVisible())
+      ? trigger
+      : page.getByRole('button', { name: '资料库工具', exact: true }),
+  ).toBeFocused();
   await expect(page.locator('.single-stage').getByLabel('5 星')).not.toHaveClass(/rated/);
   await expect(page.locator('.single-stage .pane-name')).toContainText('山海_01.jpg');
   await page.getByLabel('切换暗色主题').click();
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   await dialog.getByLabel('备用日期').fill('2026-10-25');
   await dialog.getByLabel('手动城市').fill('温州');
@@ -682,6 +712,7 @@ test('watermark batch freezes the explicit two-photo selection', async ({ page }
   await page.getByRole('button', { name: '体验示例图库' }).click();
   for (const i of [1, 2])
     await page.getByRole('button', { name: `选择 山海_0${i}.jpg`, exact: true }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '日期城市水印' });
   await expect(dialog).toContainText('已选照片 · 2 张');
@@ -706,10 +737,12 @@ test('logical picks export fixes the visible batch and isolates shortcuts in bot
     await page.getByRole('button', { name: `选择 山海_0${i}.jpg`, exact: true }).click();
   await page.locator('.selection-bar').getByLabel('4 星', { exact: true }).click();
   await page.getByLabel('取消选择').click();
-  await page.getByRole('button', { name: /家庭精选/ }).click();
+  await page.getByRole('button', { name: /精选照片/ }).click();
   await expect(page.locator('.photo-card')).toHaveCount(2);
   await expect(page.locator('.collection-heading')).toContainText('不额外占用照片空间');
   const trigger = page.getByRole('button', { name: '导出照片副本', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '导出照片副本' });
   await expect(dialog).toContainText('当前筛选结果');
@@ -719,6 +752,7 @@ test('logical picks export fixes the visible batch and isolates shortcuts in bot
   await page.keyboard.press('0');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
   await expect(dialog.getByLabel('关闭导出副本')).toBeFocused();
   expect(
     await dialog.evaluate((el) => {
@@ -728,9 +762,15 @@ test('logical picks export fixes the visible batch and isolates shortcuts in bot
   ).toBe(true);
   await page.screenshot({ path: 'test-results/export-picks-light.png' });
   await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
+  await expect(
+    (await trigger.isVisible())
+      ? trigger
+      : page.getByRole('button', { name: '资料库工具', exact: true }),
+  ).toBeFocused();
   await expect(page.locator('.photo-card')).toHaveCount(2);
   await page.getByLabel('切换暗色主题').click();
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   await expect(dialog).toBeVisible();
   await page.screenshot({ path: 'test-results/export-picks-dark.png' });
@@ -754,6 +794,7 @@ test('relinking keeps review shortcuts isolated and explains browser limits', as
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 山海_01.jpg', exact: true }).dblclick();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '重新关联目录', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '重新关联目录' });
   await expect(dialog).toContainText('浏览器预览不访问本机目录或修改资料库');
@@ -765,14 +806,15 @@ test('relinking keeps review shortcuts isolated and explains browser limits', as
   await page.screenshot({ path: 'test-results/relink-preview-light.png' });
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '重新关联目录', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '资料库工具', exact: true })).toBeFocused();
   await expect(page.locator('.single-stage').getByLabel('0 分：淘汰候选')).not.toHaveClass(/rated/);
   await page.getByLabel('切换暗色主题').click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '重新关联目录', exact: true }).click();
   await expect(dialog).toBeVisible();
   await page.screenshot({ path: 'test-results/relink-preview-dark.png' });
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: '重新关联目录', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '资料库工具', exact: true })).toBeFocused();
 });
 
 test('sync panel protects ratings and separates browser preview from XMP writes', async ({
@@ -782,6 +824,7 @@ test('sync panel protects ratings and separates browser preview from XMP writes'
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 山海_01.jpg', exact: true }).dblclick();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '评分同步', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '评分同步' });
   await expect(dialog).toContainText('浏览器预览不读取或写入 XMP');
@@ -793,7 +836,7 @@ test('sync panel protects ratings and separates browser preview from XMP writes'
   await page.screenshot({ path: 'test-results/sync-preview-light.png' });
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '资料库工具', exact: true })).toBeFocused();
   await expect(page.locator('.single-stage').getByLabel('0 分：淘汰候选')).not.toHaveClass(/rated/);
 });
 
@@ -873,6 +916,7 @@ test('backup panel explains preview limits, traps focus, and protects review sho
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 山海_01.jpg', exact: true }).dblclick();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '资料库备份', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '资料库备份' });
   await expect(dialog).toContainText('浏览器预览不使用本机资料库');
@@ -884,7 +928,7 @@ test('backup panel explains preview limits, traps focus, and protects review sho
   await page.screenshot({ path: 'test-results/backup-light.png' });
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '资料库备份', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '资料库工具', exact: true })).toBeFocused();
   await expect(page.locator('.single-stage').getByLabel('5 星')).not.toHaveClass(/rated/);
 });
 
@@ -1083,6 +1127,8 @@ for (const kind of ['copy', 'watermark', 'move'] as const) {
     await page.getByRole('button', { name: '体验示例图库' }).click();
     const label =
       kind === 'move' ? '安全整理' : kind === 'watermark' ? '日期城市水印' : '导出照片副本';
+    if (label !== '导出照片副本')
+      await page.getByRole('button', { name: '资料库工具', exact: true }).click();
     await page.getByRole('button', { name: label, exact: true }).click();
     const dialog = page.getByRole('dialog', {
       name: kind === 'move' ? '安全整理' : kind === 'watermark' ? '日期城市水印' : '导出照片副本',
@@ -1092,11 +1138,7 @@ for (const kind of ['copy', 'watermark', 'move'] as const) {
     const confirm = () =>
       dialog.getByRole('button', {
         name:
-          kind === 'move'
-            ? '确认移动并核验'
-            : kind === 'watermark'
-              ? '确认生成并核验'
-              : '确认复制并核验',
+          kind === 'move' ? '确认移动并核验' : kind === 'watermark' ? '生成水印照片' : '开始导出',
       });
     await resume().click();
     const preparing = dialog.getByRole('status', { name: '清单准备进度' });
@@ -1151,9 +1193,7 @@ for (const kind of ['copy', 'watermark', 'move'] as const) {
     await expect(preparing).toHaveCount(0);
     await expect(dialog.getByRole('progressbar')).toHaveCount(0);
     await expect(dialog.locator('.export-file-index svg')).toHaveCount(0);
-    await expect(dialog).toContainText(
-      kind === 'move' ? '尚未执行本次移动' : '尚未开始本次文件操作',
-    );
+    await expect(dialog).toContainText(kind === 'move' ? '尚未执行本次移动' : '已准备好');
     if (kind === 'move') await dialog.getByRole('checkbox').check();
     await expect(confirm()).toBeEnabled();
     await confirm().click();
@@ -1185,6 +1225,8 @@ test('local trial guide keeps data location readable and isolates keyboard focus
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
   const trigger = page.getByRole('button', { name: '使用说明与资料', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '使用说明与资料' });
   await expect(dialog).toContainText('0.1.0');
@@ -1199,6 +1241,8 @@ test('local trial guide keeps data location readable and isolates keyboard focus
   ).toBe(0);
   const close = dialog.getByRole('button', { name: '关闭使用说明' });
   await page.keyboard.press('Tab');
+  await expect(dialog.locator('summary')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
   await expect(close).toBeFocused();
   for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width: 960, height: 640 });
@@ -1217,5 +1261,9 @@ test('local trial guide keeps data location readable and isolates keyboard focus
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  await expect(
+    (await trigger.isVisible())
+      ? trigger
+      : page.getByRole('button', { name: '资料库工具', exact: true }),
+  ).toBeFocused();
 });

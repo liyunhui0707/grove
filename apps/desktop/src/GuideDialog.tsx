@@ -1,3 +1,4 @@
+import { dialogControls, TaskError, CopyPath } from './TaskFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { bridge, native } from './bridge';
@@ -39,16 +40,23 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
             onClose();
           }
           if (e.key === 'Tab') {
-            e.preventDefault();
-            close.current?.focus();
+            const controls = dialogControls(e.currentTarget);
+            const first = controls[0],
+              last = controls.at(-1);
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last?.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first?.focus();
+            }
           }
         }}
       >
         <div className="dialog-heading">
           <BookOpen size={22} />
           <div>
-            <span className="eyebrow">A LITTLE HELP, AT YOUR PACE</span>
-            <h2>从浏览，到安心整理。</h2>
+            <h2>使用说明与资料</h2>
           </div>
           <button ref={close} className="icon-button" aria-label="关闭使用说明" onClick={onClose}>
             <X size={18} />
@@ -72,7 +80,7 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
           <h3>同步、导出与整理</h3>
           <p>
             “评分同步”明确写入照片旁的 XMP。“导出副本”保留原字节和元数据；“水印”生成独立
-            JPEG，移除源 EXIF/GPS。安全整理会移动测试副本及已有
+            JPEG，移除源 EXIF/GPS。安全整理会移动所选照片及已有
             XMP；先核对清单再确认，完成后可核对撤回。
             水印样式自动记住，看到“样式已保存”后退出可继续使用；城市和备用日期每批重新填写，历史清单保留原参数。
           </p>
@@ -87,47 +95,59 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
             预览和水印，不保留 HDR
             显示效果；其他高位深和多帧照片仍不支持。混合目录会说明未载入的视频、RAW
             和其他图片数量；这些文件保留原位。失败时可重试或继续查看其他照片。导出每批最多 100 张；
-            水印限静态 SDR、24MP/32MiB。Live Photo/RAW 配对及跨卷移动暂不支持。
+            水印成品为静态 SDR，限 24MP/32MiB；macOS 14+ 可转换已支持的 HDR 照片。
+            Live Photo/RAW 成组复制、移动及跨卷移动暂不支持。
           </p>
-          <h3>本机资料目录</h3>
-          {info ? (
-            <>
-              <p>
-                {info.isolated ? '当前使用独立测试资料目录。' : '当前使用应用默认资料目录。'}
-                可选中文字复制到 Finder“前往文件夹”。
-              </p>
-              <code className="guide-path guide-data-path">{info.dataDirectory}</code>
-              <h3>当前应用位置</h3>
-              <code className="guide-path">{info.executable || '应用位置不可用'}</code>
-              {info.startup && (
-                <>
-                  <h3>本次启动</h3>
-                  <p>
-                    {info.startup.ready ? '界面已就绪。' : '尚未收到界面就绪信号。'}
-                    {info.startup.recorded
-                      ? '本机启动记录已保存。'
-                      : '本机启动记录不可写；不影响继续使用。'}
-                    startup.json
-                    仅保留本次和上次启动的阶段代码、版本与耗时，不记录照片、路径或异常原文，不上传。
-                  </p>
-                </>
-              )}
-              <p>
-                同一资料目录重复打开会唤回已有窗口，实际版本以窗口标识为准。更新前先用 ⌘Q
-                退出旧版；独立测试与日常资料库互不合并。
-              </p>
-            </>
-          ) : (
-            <p>
-              {native
-                ? error || '正在读取资料位置…'
-                : '浏览器预览不使用本机资料库，请在桌面 App 中查看。'}
+          <details className="task-details">
+            <summary>版本、资料位置与诊断</summary>
+            <h3>本机资料目录</h3>
+            {info ? (
+              <>
+                <p>
+                  {info.isolated ? '当前使用独立测试资料目录。' : '当前使用应用默认资料目录。'}
+                  路径可选中复制到 Finder“前往文件夹”。
+                </p>
+                <code className="guide-path guide-data-path">{info.dataDirectory}</code>
+                <CopyPath value={info.dataDirectory} />
+                <h3>当前应用位置</h3>
+                <code className="guide-path">{info.executable || '应用位置不可用'}</code>
+                {info.executable && <CopyPath value={info.executable} />}
+                {info.startup && (
+                  <>
+                    <h3>本次启动</h3>
+                    <p>
+                      {info.startup.ready ? '界面已就绪。' : '尚未收到界面就绪信号。'}
+                      {info.startup.recorded
+                        ? '本机启动记录已保存。'
+                        : '本机启动记录不可写；不影响继续使用。'}
+                      startup.json
+                      仅保留本次和上次启动的阶段代码、版本与耗时，不记录照片、路径或异常原文，不上传。
+                    </p>
+                  </>
+                )}
+                <p>
+                  同一资料目录重复打开会唤回已有窗口，实际版本以窗口标识为准。更新前先用 ⌘Q
+                  退出旧版；独立测试与日常资料库互不合并。
+                </p>
+              </>
+            ) : (
+              <div>
+                {native ? (
+                  error ? (
+                    <TaskError error={error} title="无法读取资料位置" />
+                  ) : (
+                    '正在读取资料位置…'
+                  )
+                ) : (
+                  '浏览器预览不使用本机资料库，请在桌面 App 中查看。'
+                )}
+              </div>
+            )}
+            <p className="sync-footnote">
+              catalog.sqlite 保存评分与队列；cache 可重建；backups 保存快照；exports/moves
+              保存恢复记录。请通过应用创建一致快照，不单独复制活动数据库。当前没有自动更新或云同步。
             </p>
-          )}
-          <p className="sync-footnote">
-            catalog.sqlite 保存评分与队列；cache 可重建；backups 保存快照；exports/moves
-            保存恢复记录。请通过应用创建一致快照，不单独复制活动数据库。当前没有自动更新或云同步。
-          </p>
+          </details>
         </div>
       </section>
     </div>

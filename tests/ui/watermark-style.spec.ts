@@ -198,6 +198,7 @@ async function mock(
 async function open(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库', exact: true }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   return page.getByRole('dialog', { name: '日期城市水印' });
 }
@@ -344,6 +345,7 @@ test('styles survive close and reload, while every new batch clears city and fal
   expect(await page.evaluate(() => (window as any).__wm.writes.length)).toBe(writes);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('wm-style')!))).toEqual(style);
   await dialog.getByLabel('关闭水印').click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   await expect(dialog.getByLabel('水印字体')).toHaveValue('serif');
   await expect(dialog.getByLabel('手动城市')).toHaveValue('');
@@ -351,6 +353,7 @@ test('styles survive close and reload, while every new batch clears city and fal
   await expect(dialog.getByRole('button', { name: '选择导出位置', exact: true })).toBeDisabled();
   await page.reload();
   await page.getByRole('button', { name: '体验示例图库', exact: true }).click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   await expect(dialog.getByLabel('水印字号')).toHaveValue('3.2');
   await expect(dialog.getByLabel('备用日期')).toHaveValue('');
@@ -412,7 +415,7 @@ test('load and save errors are visible, and retry recovers in a small dark dialo
   await dialog.getByRole('button', { name: '重试保存样式' }).click();
   await expect(dialog.getByRole('status', { name: '水印样式保存状态' })).toHaveText('样式已保存');
   await expect(dialog.getByRole('alert')).toHaveCount(0);
-  await expect(dialog.getByRole('button', { name: '确认生成并核验' })).toBeInViewport();
+  await expect(dialog.getByRole('button', { name: '生成水印照片' })).toBeInViewport();
   expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
 });
 
@@ -436,11 +439,12 @@ test('sharing size and quality reach preview and the frozen plan without changin
   await expect(dialog.getByLabel('本批导出设置')).toHaveText(
     '本批成品：长边至多 2048 px · JPEG 质量 80% · 不放大 · 参数已固定',
   );
-  await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: '生成水印照片', exact: true })).toBeEnabled();
   await dialog.getByLabel('JPEG 质量', { exact: true }).selectOption('98');
   await expect(dialog.getByLabel('本批导出设置')).toHaveCount(0);
-  await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: '生成水印照片', exact: true })).toBeDisabled();
   await dialog.getByLabel('关闭水印').click();
+  await page.getByRole('button', { name: '资料库工具', exact: true }).click();
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   await expect(dialog.getByLabel('成品尺寸', { exact: true })).toHaveValue('original');
   await expect(dialog.getByLabel('JPEG 质量', { exact: true })).toHaveValue('92');
@@ -467,18 +471,19 @@ for (const failPreview of [false, true]) {
     });
     const dialog = await open(page);
     const currentHint = dialog.getByText(
-      failPreview ? 'current preview unavailable' : '缺少拍摄日期，请填写备用日期',
+      failPreview ? 'current preview unavailable' : '当前照片没有有效 EXIF 日期',
       { exact: false },
     );
     await expect(currentHint.first()).toBeVisible();
     await dialog.getByRole('button', { name: '继续核验', exact: true }).click();
     await expect(dialog.getByText('使用上次保存的日期和样式。', { exact: false })).toBeVisible();
     await expect(dialog.getByLabel('手动城市', { exact: true })).toHaveValue('旧批城市');
-    await expect(dialog.getByRole('button', { name: '确认生成并核验', exact: true })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: '生成水印照片', exact: true })).toBeEnabled();
     await expect(currentHint).toHaveCount(0);
     await expect(dialog.getByText('当前照片没有有效 EXIF 日期', { exact: true })).toHaveCount(0);
     await expect(dialog.getByLabel('本批导出设置')).toContainText('参数已固定');
     await dialog.getByRole('button', { name: '关闭水印', exact: true }).click();
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
     await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
     await expect(currentHint.first()).toBeVisible();
   });

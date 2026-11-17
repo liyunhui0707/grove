@@ -1,3 +1,4 @@
+import { dialogControls, TaskError, DirectoryPath } from './TaskFeedback';
 import { usePreparation, PreparationStatus, BatchOutcome } from './BatchFeedback';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -199,11 +200,7 @@ export function MoveDialog({
             close();
           }
           if (e.key === 'Tab') {
-            const controls = Array.from(
-              panel.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input:not(:disabled)',
-              ) ?? [],
-            ).filter((el) => el.getClientRects().length > 0);
+            const controls = dialogControls(panel.current);
             const a = document.activeElement as HTMLElement;
             if (!controls.length) {
               e.preventDefault();
@@ -221,14 +218,13 @@ export function MoveDialog({
         <div className="dialog-heading">
           <FolderInput size={22} />
           <div>
-            <span className="eyebrow">A LITTLE SPACE, WITH A WAY BACK</span>
-            <h2>整理此刻，也留好归途。</h2>
+            <h2>移动与隔离</h2>
           </div>
           <button className="icon-button" aria-label="关闭安全整理" disabled={busy} onClick={close}>
             <X size={18} />
           </button>
         </div>
-        <p className="dialog-intro">仅使用测试副本 · 同卷整理，完成后可核对撤回</p>
+        <p className="dialog-intro">会移动实际文件 · 仅支持同一磁盘，可核对撤回</p>
         <div className="move-scope" role="region" aria-label="本次整理范围">
           <div className="move-scope-heading">
             <strong>
@@ -239,11 +235,7 @@ export function MoveDialog({
           <span title={report?.source ?? folder?.name}>
             {report ? '已记录清单' : scope} · 来源：{sourceName}
           </span>
-          {error && (
-            <p className="backup-error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <TaskError error={error} title="移动与隔离未完成" />}
           {reviewing && !running && !preparing && (
             <p className="move-review-note">
               尚未执行本次{action}。
@@ -290,13 +282,13 @@ export function MoveDialog({
           <div className="backup-scope">
             <ShieldCheck size={17} />
             <p>
-              确认后会改变测试副本的位置。照片与已有 XMP
+              确认后会改变照片的位置。照片与已有 XMP
               一起移动，保留原文件名、评分与待同步项。仅同卷、新建独立文件夹；不会覆盖或永久删除。完成后可核对并撤回。
             </p>
           </div>
           {!native && (
             <p className="export-preview-note">
-              浏览器仅演示清单，不移动文件或修改资料库。请在桌面 App 使用独立测试副本。
+              浏览器仅演示清单，不移动文件或修改资料库。请在桌面 App 使用独立照片。
             </p>
           )}
           {active && (
@@ -306,20 +298,11 @@ export function MoveDialog({
           )}
           {report && (
             <div className="move-route">
-              <div>
-                <span>原照片目录</span>
-                <strong>{report.source}</strong>
-              </div>
-              <div>
-                <span>
-                  {report.direction === 'restore'
-                    ? '从这里撤回原位'
-                    : report.kind === 'quarantine'
-                      ? '独立隔离文件夹'
-                      : '独立移动文件夹'}
-                </span>
-                <strong>{report.destination}</strong>
-              </div>
+              <DirectoryPath label="原照片目录" path={report.source} />
+              <DirectoryPath
+                label={report.direction === 'restore' ? '从这里撤回原位' : '移动到'}
+                path={report.destination}
+              />
             </div>
           )}
           <div className="export-summary">
@@ -373,17 +356,18 @@ export function MoveDialog({
               </span>
             </div>
           )}
-          {report?.safetyBackup && !reviewing && !preparing && (
-            <p className="sync-footnote">
-              已创建资料库安全快照。快照不包含照片，恢复资料库前应先撤回文件整理。
-            </p>
-          )}
           {report?.message && <p className="backup-error">{report.message}</p>}
-          <p className="sync-footnote">
-            清单评分为本次操作时记录；撤回保留当前本机评分。
-            最多100张；同名照片请分批。停止在当前照片及 XMP
-            处理完后生效。中断保留现场，继续或撤回需重新授权原目录和目标父目录。照片/XMP已改变或原位被占用时暂停，不覆盖；空目录与操作记录保留。
-          </p>
+          <details className="task-details">
+            <summary>整理限制与恢复说明</summary>
+            {report?.safetyBackup && !reviewing && !preparing && (
+              <p>已创建资料库安全快照。快照不包含照片，恢复资料库前应先撤回文件整理。</p>
+            )}
+            <p>
+              清单评分为本次操作时记录；撤回保留当前本机评分。
+              最多100张；同名照片请分批。停止在当前照片及 XMP
+              处理完后生效。中断保留现场，继续或撤回需重新授权原目录和目标父目录。照片/XMP已改变或原位被占用时暂停，不覆盖；空目录与操作记录保留。
+            </p>
+          </details>
           {!!recent.length && (
             <div className="export-history">
               <h3>最近的安全整理</h3>
@@ -431,43 +415,51 @@ export function MoveDialog({
               disabled={busy}
               onChange={(e) => setAcknowledged(e.target.checked)}
             />
-            我已核对 {rows.length} 张测试副本与位置，确认{action}。
+            我确认{action}这 {rows.length} 张照片，实际文件的位置将改变。
           </label>
         )}
-        <div className="backup-actions export-actions move-actions">
-          {busy && !running ? (
+        {report && ['completed', 'restored'].includes(report.status) && !busy && !prepared ? (
+          <div className="backup-actions">
+            <button className="button primary" onClick={close}>
+              完成
+            </button>
+          </div>
+        ) : (
+          <div className="backup-actions export-actions move-actions">
+            {busy && !running ? (
+              <button
+                className="button subtle"
+                disabled={preparation.cancelling}
+                onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              >
+                {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              </button>
+            ) : running ? (
+              <button className="button subtle" disabled={stopping} onClick={() => void stop()}>
+                {stopping ? '完成当前照片后停止…' : '停止并保留已完成项'}
+              </button>
+            ) : (
+              <button
+                className="button subtle"
+                disabled={
+                  !native || busy || active || !folder || !eligible.length || eligible.length > 100
+                }
+                onClick={() => void choose()}
+              >
+                <FolderOpen size={15} />
+                {busy ? '正在核对…' : '选择整理位置'}
+              </button>
+            )}
             <button
-              className="button subtle"
-              disabled={preparation.cancelling}
-              onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              className="button primary"
+              disabled={!native || busy || !prepared || !acknowledged}
+              onClick={() => void start()}
             >
-              {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              {busy ? <LoaderCircle size={15} className="spin" /> : <FolderInput size={15} />}
+              {report?.direction === 'restore' ? '确认撤回并核验' : '确认移动并核验'}
             </button>
-          ) : running ? (
-            <button className="button subtle" disabled={stopping} onClick={() => void stop()}>
-              {stopping ? '完成当前照片后停止…' : '停止并保留现场'}
-            </button>
-          ) : (
-            <button
-              className="button subtle"
-              disabled={
-                !native || busy || active || !folder || !eligible.length || eligible.length > 100
-              }
-              onClick={() => void choose()}
-            >
-              <FolderOpen size={15} />
-              {busy ? '正在核对…' : '选择整理位置'}
-            </button>
-          )}
-          <button
-            className="button primary"
-            disabled={!native || busy || !prepared || !acknowledged}
-            onClick={() => void start()}
-          >
-            {busy ? <LoaderCircle size={15} className="spin" /> : <FolderInput size={15} />}
-            {report?.direction === 'restore' ? '确认撤回并核验' : '确认移动并核验'}
-          </button>
-        </div>
+          </div>
+        )}
       </section>
     </div>
   );

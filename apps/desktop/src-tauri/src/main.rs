@@ -41,7 +41,7 @@ use std::{
     },
     time::UNIX_EPOCH,
 };
-use tauri::{Manager, ipc::Channel};
+use tauri::{Emitter, Manager, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(Default)]
@@ -52,7 +52,7 @@ struct StyleExitState {
 
 #[cfg(target_os = "macos")]
 fn style_exit_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
-    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+    use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
     let menu = Menu::default(app)?;
     // Keep the standard About/Services/Hide/Edit/Window menus. The native
     // predefined Quit action bypasses the preventable close handshake, so
@@ -75,6 +75,77 @@ fn style_exit_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<ta
             position,
         )?;
     }
+    for item in menu.items()? {
+        if let MenuItemKind::Submenu(submenu) = item {
+            match submenu.text()?.as_str() {
+                "File" => {
+                    submenu.set_text("文件")?;
+                    for (position, (id, text, shortcut)) in [
+                        ("open", "打开照片文件夹…", Some("CmdOrCtrl+O")),
+                        ("export", "导出照片…", Some("CmdOrCtrl+E")),
+                        ("watermark", "日期城市水印…", Some("CmdOrCtrl+Shift+E")),
+                        ("rescan", "重新扫描", Some("CmdOrCtrl+Shift+R")),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        submenu.insert(
+                            &MenuItem::with_id(app, format!("grove-{id}"), text, true, shortcut)?,
+                            position,
+                        )?;
+                    }
+                    submenu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
+                }
+                "Edit" => {
+                    submenu.insert(
+                        &MenuItem::with_id(app, "grove-undo", "撤销评分", true, None::<&str>)?,
+                        0,
+                    )?;
+                    submenu.append(&MenuItem::with_id(
+                        app,
+                        "grove-search",
+                        "搜索照片",
+                        true,
+                        Some("CmdOrCtrl+F"),
+                    )?)?;
+                }
+                "Help" => {
+                    submenu.set_text("帮助")?;
+                    submenu.append(&MenuItem::with_id(
+                        app,
+                        "grove-help",
+                        "快捷键",
+                        true,
+                        None::<&str>,
+                    )?)?;
+                    submenu.append(&MenuItem::with_id(
+                        app,
+                        "grove-guide",
+                        "使用说明与资料",
+                        true,
+                        None::<&str>,
+                    )?)?;
+                }
+                _ => {}
+            }
+        }
+    }
+    let tools = tauri::menu::Submenu::new(app, "资料库", true)?;
+    for (id, text) in [
+        ("move", "移动与隔离…"),
+        ("sync", "评分同步…"),
+        ("backups", "资料库备份…"),
+        ("relink", "重新关联文件夹…"),
+    ] {
+        tools.append(&MenuItem::with_id(
+            app,
+            format!("grove-{id}"),
+            text,
+            true,
+            None::<&str>,
+        )?)?;
+    }
+    menu.insert(&tools, 3)?;
     Ok(menu)
 }
 
@@ -593,6 +664,46 @@ async fn export_history(
             return Err("请先打开照片目录".into());
         }
         exports::history(&state.data, folder_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn open_export_folder(
+    folder_id: i64,
+    id: String,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<()> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !state
+            .allowed
+            .lock()
+            .map_err(|_| "目录忙碌")?
+            .contains_key(&folder_id)
+        {
+            return Err("请先打开照片目录".into());
+        }
+        let path = exports::completed_destination(&state.data, folder_id, &id)?;
+        #[cfg(target_os = "macos")]
+        {
+            let status = std::process::Command::new("/usr/bin/open")
+                .arg("--")
+                .arg(path)
+                .status()
+                .map_err(|_| "无法打开 Finder，请检查导出文件夹是否在线")?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err("无法打开导出文件夹".into())
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = path;
+            Err("此平台打开文件夹尚未验证".into())
+        }
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1365,7 +1476,7 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         if startup.warn_if_unready() {
             let _=startup_handle.clone().run_on_main_thread(move || {
                 if !startup.summary().ready {
-                    startup_handle.dialog().message("尚未收到界面就绪信号（MG-START-UI）。若窗口仍为空白，可退出后重开；请保留资料目录，不要清空数据库或照片。此提示不会自动重载或退出应用。")
+                    startup_handle.dialog().message("界面打开时间较长。若窗口仍为空白，请退出后重新打开。现有资料会保留。诊断代码：MG-START-UI。")
                         .title("Moment Grove 启动提示").show(|_| {});
                 }
             });
@@ -1402,6 +1513,9 @@ fn main() {
             if event.id().as_ref() == "save-style-and-quit" && !guard_style_exit(app) {
                 app.exit(0);
             }
+            if let Some(command) = event.id().as_ref().strip_prefix("grove-") {
+                let _ = app.emit_to("main", "grove-command", command);
+            }
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
@@ -1415,7 +1529,7 @@ fn main() {
             if let Err(error) = setup_app(app) {
                 if let Some(session)=app.try_state::<Arc<startup::Session>>() { session.record(startup::Stage::BackendFailed); }
                 let handle = app.handle().clone();
-                app.dialog().message(format!("无法打开 Moment Grove：{error}\n请保留资料目录，不要删除锁或数据库日志；退出旧版后重试。"))
+                app.dialog().message(format!("无法打开 Moment Grove：{error}\n请先退出旧版，再重新打开。保留现有资料；若仍失败，请附此提示联系支持。"))
                     .title("Moment Grove 启动失败")
                     .show(move |_| handle.exit(1));
             }
@@ -1512,6 +1626,7 @@ fn main() {
             choose_relocation_folder,
             confirm_relocation,
             export_history,
+            open_export_folder,
             choose_export_folder,
             confirm_export,
             cancel_export,

@@ -177,6 +177,8 @@ export const bridge = {
     return invoke<MoveReport>('confirm_move', { token, onEvent: channel });
   },
   cancelMove: () => invoke<void>('cancel_move'),
+  openExportFolder: (folderId: number, id: string) =>
+    invoke<void>('open_export_folder', { folderId, id }),
   exportHistory: (folderId: number) => invoke<ExportReport[]>('export_history', { folderId }),
   chooseExport: (
     folderId: number,

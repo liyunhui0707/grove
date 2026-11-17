@@ -1,3 +1,11 @@
+import {
+  dialogControls,
+  TaskError,
+  DirectoryPath,
+  ExportTabs,
+  ExportCompletion,
+  exportHistoryLabel,
+} from './TaskFeedback';
 import { usePreparation, PreparationStatus, BatchOutcome } from './BatchFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, FolderOpen, LoaderCircle, RotateCcw, ShieldCheck, X } from 'lucide-react';
@@ -22,11 +30,13 @@ export function ExportDialog({
   assets,
   scope,
   onClose,
+  onSwitch,
 }: {
   folder: Folder;
   assets: Asset[];
   scope: string;
   onClose: () => void;
+  onSwitch: () => void;
 }) {
   // Freeze the exact selection for this dialog. A later filter/scan cannot expand a confirmed batch.
   const [selection] = useState(() => assets.map((a) => ({ ...a })));
@@ -153,12 +163,10 @@ export function ExportDialog({
             onClose();
           }
           if (e.key === 'Tab') {
-            const buttons = Array.from(
-              panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-            );
+            const buttons = dialogControls(panel.current);
             const first = buttons[0],
               last = buttons.at(-1),
-              active = document.activeElement as HTMLButtonElement;
+              active = document.activeElement as HTMLElement;
             if (!first) {
               e.preventDefault();
               panel.current?.focus();
@@ -175,8 +183,7 @@ export function ExportDialog({
         <div className="dialog-heading">
           <Copy size={22} />
           <div>
-            <span className="eyebrow">GOOD MOMENTS, READY TO GO</span>
-            <h2>把精选，带到下一站。</h2>
+            <h2>导出照片</h2>
           </div>
           <button
             className="icon-button"
@@ -187,6 +194,7 @@ export function ExportDialog({
             <X size={18} />
           </button>
         </div>
+        <ExportTabs disabled={busy} onSwitch={onSwitch} />
         <p className="dialog-intro">
           {resuming ? '上次导出清单' : scope} · {folder.name} ·{' '}
           {report?.items.length ?? selection.length} 张照片
@@ -198,9 +206,7 @@ export function ExportDialog({
           </p>
         )}
         <PreparationStatus task={preparation} preparing={busy && !running} />
-        {prepared && (
-          <p className="batch-review-note">清单已核对，尚未开始本次文件操作。确认后才会执行。</p>
-        )}
+        {prepared && <p className="batch-review-note">已准备好。点击下方按钮开始导出。</p>}
         <BatchOutcome
           report={report}
           reviewing={prepared || (busy && !running) || preparation.cancelled}
@@ -209,10 +215,7 @@ export function ExportDialog({
         <div className="export-body">
           <div className="backup-scope">
             <ShieldCheck size={17} />
-            <p>
-              原格式副本与当前评分 XMP，保留原始画质和元数据（含
-              GPS）。新建独立文件夹，逐项核验；原件不变。需要日期与城市水印时，请使用顶部“水印”。
-            </p>
+            <p>复制原格式照片及评分文件，保留原始画质和元数据（含 GPS）。原件不变。</p>
           </div>
           {!native && (
             <p className="export-preview-note">
@@ -224,17 +227,8 @@ export function ExportDialog({
               单次最多 100 张，请缩小选择后分批导出。
             </p>
           )}
-          {error && (
-            <p className="backup-error" role="alert">
-              {error}
-            </p>
-          )}
-          {report && (
-            <div className="export-destination">
-              <span>独立副本文件夹</span>
-              <strong>{report.destination}</strong>
-            </div>
-          )}
+          {error && <TaskError error={error} title="导出照片未完成" />}
+          {report && <DirectoryPath label="导出到" path={report.destination} />}
           <div className="export-summary">
             <strong>
               {prepared
@@ -283,7 +277,7 @@ export function ExportDialog({
               <p className="backup-empty">当前没有照片，可从下方继续未完成的导出。</p>
             )}
           </div>
-          {report && !prepared && !(busy && !running) && (
+          {report && report.status !== 'completed' && !prepared && !(busy && !running) && (
             <div className="export-progress" aria-live="polite">
               <progress max={report.items.length} value={report.verified} />
               <span>
@@ -292,10 +286,13 @@ export function ExportDialog({
             </div>
           )}
           {report?.message && <p className="backup-error">{report.message}</p>}
-          <p className="sync-footnote">
-            单次最多 100
-            张。取消或失败时保留已核验副本和部分文件，可重新选择原目标父目录后继续核验；同名不同内容不会覆盖。操作记录留在本机。
-          </p>
+          <details className="task-details">
+            <summary>导出限制与中断恢复</summary>
+            <p>
+              单次最多 100
+              张。取消或失败时保留已核验副本和部分文件，可重新选择原目标父目录后继续核验；同名不同内容不会覆盖。操作记录留在本机。
+            </p>
+          </details>
           {historyError && <p className="backup-error">历史记录：{historyError}</p>}
           {recent.length > 0 && (
             <div className="export-history">
@@ -303,11 +300,23 @@ export function ExportDialog({
               {recent.map((r) => (
                 <div className="export-history-row" key={r.id}>
                   <div>
-                    <strong>{r.destination.split(/[\\/]/).at(-1)}</strong>
+                    <strong>{exportHistoryLabel(r.destination, r.kind, r.items.length)}</strong>
                     <small>
                       {statusLabel(r.status)} · {r.verified}/{r.items.length} 张
                     </small>
                   </div>
+                  {r.status === 'completed' && (
+                    <button
+                      className="button subtle"
+                      onClick={() =>
+                        void bridge
+                          .openExportFolder(folder.id, r.id)
+                          .catch((e) => setError(String(e)))
+                      }
+                    >
+                      打开文件夹
+                    </button>
+                  )}
                   {r.status !== 'completed' && (
                     <button
                       className="button subtle"
@@ -323,37 +332,46 @@ export function ExportDialog({
             </div>
           )}
         </div>
-        <div className="backup-actions export-actions">
-          {busy && !running ? (
+        {report?.status === 'completed' && !prepared && !busy ? (
+          <ExportCompletion
+            folderId={folder.id}
+            id={report.id}
+            count={report.verified}
+            onClose={onClose}
+          />
+        ) : (
+          <div className="backup-actions export-actions">
+            {busy && !running ? (
+              <button
+                className="button subtle"
+                disabled={preparation.cancelling}
+                onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              >
+                {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              </button>
+            ) : running ? (
+              <button className="button subtle" disabled={cancelling} onClick={() => void cancel()}>
+                {cancelling ? '正在停止…' : '停止并保留副本'}
+              </button>
+            ) : (
+              <button
+                className="button subtle"
+                disabled={!native || busy || selection.length === 0 || selection.length > 100}
+                onClick={() => void choose()}
+              >
+                <FolderOpen size={15} />
+                {busy ? '正在核对…' : '选择导出位置'}
+              </button>
+            )}
             <button
-              className="button subtle"
-              disabled={preparation.cancelling}
-              onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              className="button primary"
+              disabled={!native || !prepared || busy}
+              onClick={() => void start()}
             >
-              {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              {busy ? <LoaderCircle size={15} className="spin" /> : <Copy size={15} />}开始导出
             </button>
-          ) : running ? (
-            <button className="button subtle" disabled={cancelling} onClick={() => void cancel()}>
-              {cancelling ? '正在停止…' : '停止并保留副本'}
-            </button>
-          ) : (
-            <button
-              className="button subtle"
-              disabled={!native || busy || selection.length === 0 || selection.length > 100}
-              onClick={() => void choose()}
-            >
-              <FolderOpen size={15} />
-              {busy ? '正在核对…' : '选择导出位置'}
-            </button>
-          )}
-          <button
-            className="button primary"
-            disabled={!native || !prepared || busy}
-            onClick={() => void start()}
-          >
-            {busy ? <LoaderCircle size={15} className="spin" /> : <Copy size={15} />}确认复制并核验
-          </button>
-        </div>
+          </div>
+        )}
       </section>
     </div>
   );

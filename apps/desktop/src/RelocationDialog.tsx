@@ -1,3 +1,4 @@
+import { dialogControls, TaskError } from './TaskFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, FolderOpen, Link2, LoaderCircle, ShieldCheck, X } from 'lucide-react';
 import {
@@ -19,9 +20,12 @@ export function RelocationDialog({
   const [items, setItems] = useState<RelocationEntry[]>([]);
   const [busy, setBusy] = useState(native);
   const [error, setError] = useState('');
+  const [readAttempt, setReadAttempt] = useState(0);
   const [review, setReview] = useState<RelocationReview | null>(null);
   useEffect(() => {
     let cancelled = false;
+    setBusy(native);
+    setError('');
     if (native)
       void bridge
         .relocationFolders()
@@ -37,7 +41,7 @@ export function RelocationDialog({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [readAttempt]);
   useEffect(() => {
     const element = panel.current;
     if (element && !element.contains(document.activeElement))
@@ -91,12 +95,10 @@ export function RelocationDialog({
             else onClose();
           }
           if (e.key === 'Tab') {
-            const buttons = Array.from(
-              panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-            );
+            const buttons = dialogControls(panel.current);
             const first = buttons[0],
               last = buttons.at(-1),
-              active = document.activeElement as HTMLButtonElement;
+              active = document.activeElement as HTMLElement;
             if (!first) {
               e.preventDefault();
               panel.current?.focus();
@@ -113,8 +115,7 @@ export function RelocationDialog({
         <div className="dialog-heading">
           <Link2 size={22} />
           <div>
-            <span className="eyebrow">SAME MEMORIES, A NEW PLACE</span>
-            <h2>让挑选，跟上照片。</h2>
+            <h2>重新关联文件夹</h2>
           </div>
           <button
             className="icon-button"
@@ -133,9 +134,19 @@ export function RelocationDialog({
           </p>
         </div>
         {error && (
-          <p className="backup-error" role="alert">
-            {error}
-          </p>
+          <TaskError
+            error={error}
+            title="重新关联文件夹未完成"
+            action={
+              <button
+                className="button subtle"
+                disabled={busy}
+                onClick={() => setReadAttempt((n) => n + 1)}
+              >
+                重新读取列表
+              </button>
+            }
+          />
         )}
         {!native ? (
           <div className="backup-empty">
@@ -143,7 +154,7 @@ export function RelocationDialog({
           </div>
         ) : review ? (
           <div className="restore-confirm">
-            <span className="eyebrow">RECONNECT THIS FOLDER</span>
+            <span className="eyebrow">核对新旧位置</span>
             <div className="relocation-route">
               <strong>{review.oldName}</strong>
               <ArrowRight size={18} />
@@ -152,9 +163,7 @@ export function RelocationDialog({
             <p>
               已核对 {review.photos} 张照片 · 保留 {review.pending} 项待同步评分
             </p>
-            <p>
-              确认时会再次核对文件身份。七态评分和撤销记录保留；XMP 仍由你在评分同步中明确触发。
-            </p>
+            <p>确认时会再次核对文件身份。评分和撤销记录保留；评分文件仍需主动同步。</p>
             <div className="backup-actions">
               <button className="button subtle" disabled={busy} onClick={() => setReview(null)}>
                 返回目录列表
@@ -195,7 +204,7 @@ export function RelocationDialog({
                 ))
               ) : (
                 <div className="backup-empty">
-                  {busy ? '正在读取目录记录…' : '还没有目录记录。先打开一个测试照片文件夹。'}
+                  {busy ? '正在读取目录记录…' : '还没有目录记录。先打开照片文件夹。'}
                 </div>
               )}
             </div>

@@ -1,3 +1,4 @@
+import { dialogControls, TaskError } from './TaskFeedback';
 import { useEffect, useRef, useState } from 'react';
 import {
   Check,
@@ -134,9 +135,7 @@ export function SyncDialog({
             else onClose();
           }
           if (e.key === 'Tab') {
-            const buttons = Array.from(
-              panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-            );
+            const buttons = dialogControls(panel.current);
             const first = buttons[0],
               last = buttons.at(-1);
             if (!first) {
@@ -145,14 +144,14 @@ export function SyncDialog({
             } else if (
               e.shiftKey &&
               (document.activeElement === first ||
-                !buttons.includes(document.activeElement as HTMLButtonElement))
+                !buttons.includes(document.activeElement as HTMLElement))
             ) {
               e.preventDefault();
               last?.focus();
             } else if (
               !e.shiftKey &&
               (document.activeElement === last ||
-                !buttons.includes(document.activeElement as HTMLButtonElement))
+                !buttons.includes(document.activeElement as HTMLElement))
             ) {
               e.preventDefault();
               first.focus();
@@ -163,8 +162,7 @@ export function SyncDialog({
         <div className="dialog-heading">
           <FileCheck2 size={22} />
           <div>
-            <span className="eyebrow">TAKE YOUR RATINGS WITH YOU</span>
-            <h2>让评分，跟着照片走。</h2>
+            <h2>评分同步</h2>
           </div>
           <button
             className="icon-button"
@@ -176,8 +174,8 @@ export function SyncDialog({
           </button>
         </div>
         <p className="backup-intro">
-          {folder.demo ? '山海之间' : folder.name} · 评分已保存在本机，写入 sidecar
-          后可随照片一起复制。
+          {folder.demo ? '山海之间' : folder.name} ·
+          整个文件夹的评分已保存在本机；这里将评分写到照片旁的 XMP 文件。
         </p>
         <div className="backup-scope">
           <ShieldCheck size={17} />
@@ -187,9 +185,15 @@ export function SyncDialog({
           </p>
         </div>
         {error && (
-          <p className="backup-error" role="alert">
-            {error}
-          </p>
+          <TaskError
+            error={error}
+            title="评分同步未完成"
+            action={
+              <button className="button subtle" disabled={busy} onClick={() => void refresh()}>
+                重新检查
+              </button>
+            }
+          />
         )}
         {notice && (
           <p className="backup-notice" role="status">
@@ -201,7 +205,7 @@ export function SyncDialog({
           <div className="backup-empty">请在桌面 App 中同步评分。浏览器预览不读取或写入 XMP。</div>
         ) : adopting ? (
           <div className="restore-confirm">
-            <span className="eyebrow">USE THE FILE RATING</span>
+            <span className="eyebrow">采用文件中的评分</span>
             <h3 className="sync-confirm-name">{adopting.relative}</h3>
             <p>
               本机：{ratingLabel(adopting.rating)} → 文件：{ratingLabel(adopting.diskRating)}
@@ -219,7 +223,7 @@ export function SyncDialog({
                 disabled={busy}
                 onClick={() => void adopt(adopting)}
               >
-                确认采用文件评分
+                采用文件评分
               </button>
             </div>
           </div>
@@ -231,7 +235,7 @@ export function SyncDialog({
               </h3>
               <button className="button subtle" disabled={busy} onClick={() => void refresh()}>
                 <RefreshCw size={14} />
-                重查待处理项
+                重新检查
               </button>
             </div>
             <div className="sync-list">
@@ -312,10 +316,13 @@ export function SyncDialog({
                 </div>
               </div>
             )}
-            <p className="sync-footnote">
-              每次最多核对本页 100 项；冲突项会保留。恢复副本位于原目录的隐藏 .moment-grove-*
-              文件中，暂不自动清理。
-            </p>
+            <details className="task-details">
+              <summary>评分文件与恢复说明</summary>
+              <p>
+                每次最多核对本页 100 项；冲突项会保留。恢复副本位于原目录的隐藏 .moment-grove-*
+                文件中，暂不自动清理。
+              </p>
+            </details>
             <div className="backup-actions">
               <button
                 className="button primary"
@@ -323,7 +330,7 @@ export function SyncDialog({
                 onClick={() => void sync()}
               >
                 <FileCheck2 size={15} />
-                同步本页 {ready.length} 项
+                写出本页 {ready.length} 项评分
               </button>
             </div>
           </>

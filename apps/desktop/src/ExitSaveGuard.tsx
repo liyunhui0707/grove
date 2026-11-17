@@ -13,19 +13,27 @@ export function ExitSaveGuard({ flushReview }: { flushReview: (retry: boolean) =
   const [error, setError] = useState('');
   const [registrationError, setRegistrationError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const showTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prepare = async (token: number, retry = false) => {
     request.current = token;
     setDiscarding(false);
     setBusy(true);
     setError('');
-    dialog.current?.showModal();
+    clearTimeout(showTimer.current);
+    // A normal, already-saved quit should not flash a modal. Failures appear immediately.
+    showTimer.current = setTimeout(() => {
+      if (request.current === token) dialog.current?.showModal();
+    }, 400);
     try {
       const results = await Promise.allSettled([review.current(retry), flushWatermarkStyle(retry)]);
       const errors = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
       if (errors.length) throw Error(errors.map((r) => String(r.reason)).join('\n'));
+      clearTimeout(showTimer.current);
       if (request.current === token) await bridge.resolveStyleExit(token, true);
     } catch (reason) {
       if (request.current === token) {
+        clearTimeout(showTimer.current);
+        dialog.current?.showModal();
         setError(`退出前保存未完成，已保留窗口：${String(reason)}`);
         setBusy(false);
       }
@@ -47,12 +55,14 @@ export function ExitSaveGuard({ flushReview }: { flushReview: (retry: boolean) =
       });
     return () => {
       stale = true;
+      clearTimeout(showTimer.current);
     };
   }, [attempt]);
   const cancel = async () => {
     const token = request.current;
     if (token === null) return;
     request.current = null; // A late save must not acknowledge this canceled request.
+    clearTimeout(showTimer.current);
     try {
       await bridge.resolveStyleExit(token, false);
       dialog.current?.close();

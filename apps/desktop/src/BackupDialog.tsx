@@ -1,3 +1,4 @@
+import { dialogControls, TaskError } from './TaskFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { Archive, Check, LoaderCircle, Plus, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { bridge, native, type Restored, type Snapshot } from './bridge';
@@ -14,6 +15,7 @@ export function BackupDialog({
   const [unavailable, setUnavailable] = useState(0);
   const [busy, setBusy] = useState(native);
   const [error, setError] = useState('');
+  const [readAttempt, setReadAttempt] = useState(0);
   const [notice, setNotice] = useState('');
   const [confirm, setConfirm] = useState<Snapshot | null>(null);
   useEffect(() => {
@@ -27,6 +29,8 @@ export function BackupDialog({
       panel.current?.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? panel.current
     )?.focus();
     let cancelled = false;
+    setBusy(native);
+    setError('');
     if (native) {
       bridge
         .backups()
@@ -45,7 +49,7 @@ export function BackupDialog({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [readAttempt]);
   const create = async () => {
     if (busy || !native) return;
     setBusy(true);
@@ -98,9 +102,7 @@ export function BackupDialog({
             else onClose();
           }
           if (e.key === 'Tab') {
-            const buttons = Array.from(
-              panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-            );
+            const buttons = dialogControls(panel.current);
             const first = buttons[0],
               last = buttons.at(-1);
             if (!first) {
@@ -109,14 +111,14 @@ export function BackupDialog({
             } else if (
               e.shiftKey &&
               (document.activeElement === first ||
-                !buttons.includes(document.activeElement as HTMLButtonElement))
+                !buttons.includes(document.activeElement as HTMLElement))
             ) {
               e.preventDefault();
               last?.focus();
             } else if (
               !e.shiftKey &&
               (document.activeElement === last ||
-                !buttons.includes(document.activeElement as HTMLButtonElement))
+                !buttons.includes(document.activeElement as HTMLElement))
             ) {
               e.preventDefault();
               first.focus();
@@ -127,8 +129,7 @@ export function BackupDialog({
         <div className="dialog-heading">
           <Archive size={22} />
           <div>
-            <span className="eyebrow">A SAFE PLACE TO RETURN TO</span>
-            <h2>给挑选留一个回退点。</h2>
+            <h2>资料库备份</h2>
           </div>
           <button
             className="icon-button"
@@ -148,9 +149,19 @@ export function BackupDialog({
           </p>
         </div>
         {error && (
-          <p className="backup-error" role="alert">
-            {error}
-          </p>
+          <TaskError
+            error={error}
+            title="资料库备份未完成"
+            action={
+              <button
+                className="button subtle"
+                disabled={busy}
+                onClick={() => setReadAttempt((n) => n + 1)}
+              >
+                重新读取列表
+              </button>
+            }
+          />
         )}
         {notice && (
           <p className="backup-notice" role="status">
@@ -164,7 +175,7 @@ export function BackupDialog({
           </div>
         ) : confirm ? (
           <div className="restore-confirm">
-            <span className="eyebrow">RESTORE THIS SNAPSHOT</span>
+            <span className="eyebrow">恢复备份</span>
             <h3>{date(confirm)}</h3>
             <p>
               {confirm.photos} 条照片记录 · 已评分 {confirm.reviewed} 条（含 {confirm.rejected}{' '}
@@ -188,11 +199,11 @@ export function BackupDialog({
           <>
             <div className="backup-list-heading">
               <h3>
-                本机快照 <small>{items.length}</small>
+                本机资料库备份 <small>{items.length}</small>
               </h3>
               <button className="button primary" disabled={busy} onClick={() => void create()}>
                 <Plus size={15} />
-                创建快照
+                创建备份
               </button>
             </div>
             {unavailable > 0 && (
@@ -225,7 +236,7 @@ export function BackupDialog({
                 ))
               ) : (
                 <div className="backup-empty">
-                  {busy ? '正在读取快照…' : '还没有快照。从这一刻开始保存。'}
+                  {busy ? '正在读取快照…' : '还没有资料库备份。创建后可以恢复评分记录。'}
                 </div>
               )}
             </div>

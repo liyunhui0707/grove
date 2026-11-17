@@ -255,7 +255,9 @@ test('a committed rating with a lost reply requires a complete read before write
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('rating-0')!))).toBe(4);
   await expect(page.getByRole('button', { name: '5 星', exact: true })).toBeDisabled();
   for (const name of ['导出照片副本', '评分同步', '安全整理', '资料库备份', '打开文件夹'])
-    await expect(page.getByRole('button', { name, exact: true })).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name, exact: true, includeHidden: true }),
+    ).toBeDisabled();
   await page.locator('.pane-name').click();
   await page.keyboard.press('5');
   await page.keyboard.press('Meta+z');
@@ -269,7 +271,9 @@ test('a committed rating with a lost reply requires a complete read before write
   });
   await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('scan unavailable');
-  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '评分同步', exact: true, includeHidden: true }),
+  ).toBeDisabled();
   await page.evaluate(() => {
     const c = (window as any).__reviewExit;
     c.failScan = false;
@@ -277,7 +281,9 @@ test('a committed rating with a lost reply requires a complete read before write
   });
   await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('scan reply lost');
-  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '评分同步', exact: true, includeHidden: true }),
+  ).toBeDisabled();
   await page.evaluate(() => {
     const c = (window as any).__reviewExit;
     c.failScanAfterDone = false;
@@ -293,7 +299,9 @@ test('a committed rating with a lost reply requires a complete read before write
   });
   await page.getByRole('button', { name: '重新扫描核对评分', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('此次操作的部分照片未能载入');
-  await expect(page.getByRole('button', { name: '评分同步', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '评分同步', exact: true, includeHidden: true }),
+  ).toBeDisabled();
   await page.evaluate(() => {
     (window as any).__reviewExit.missingPhoto = false;
   });

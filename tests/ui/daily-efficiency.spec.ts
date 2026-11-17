@@ -162,7 +162,7 @@ test('return task locates the last reviewed occurrence before comparison and pic
   await page.keyboard.press('5');
   await expect(page.locator('.photo-pane.active-pane .pane-name')).toContainText(name(41));
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: '家庭精选 2', exact: true }).click();
+  await page.getByRole('button', { name: '精选照片 2', exact: true }).click();
   await page.getByRole('button', { name: '导出照片副本', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '导出照片副本' });
   await expect(dialog).toContainText(name(40));

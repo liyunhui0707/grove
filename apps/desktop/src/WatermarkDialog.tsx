@@ -1,3 +1,11 @@
+import {
+  dialogControls,
+  TaskError,
+  DirectoryPath,
+  ExportTabs,
+  ExportCompletion,
+  exportHistoryLabel,
+} from './TaskFeedback';
 import { usePreparation, PreparationStatus, BatchOutcome } from './BatchFeedback';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -39,11 +47,13 @@ export function WatermarkDialog({
   assets,
   scope,
   onClose,
+  onSwitch,
 }: {
   folder: Folder;
   assets: Asset[];
   scope: string;
   onClose: () => void;
+  onSwitch: () => void;
 }) {
   const [selection] = useState(() => assets.map((a) => ({ ...a })));
   const [index, setIndex] = useState(0);
@@ -255,15 +265,7 @@ export function WatermarkDialog({
             onClose();
           }
           if (e.key === 'Tab') {
-            const controls = Array.from(
-              panel.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input:not(:disabled),select:not(:disabled),summary',
-              ) ?? [],
-            ).filter(
-              (el) =>
-                el.getClientRects().length > 0 &&
-                !(el.tagName !== 'SUMMARY' && el.closest('details:not([open])')),
-            );
+            const controls = dialogControls(panel.current);
             const active = document.activeElement as HTMLElement;
             if (!controls.length) {
               e.preventDefault();
@@ -281,13 +283,13 @@ export function WatermarkDialog({
         <div className="dialog-heading">
           <CalendarDays size={22} />
           <div>
-            <span className="eyebrow">A PLACE AND A MOMENT</span>
-            <h2>让那一天，留在画面里。</h2>
+            <h2>导出照片</h2>
           </div>
           <button className="icon-button" aria-label="关闭水印" disabled={busy} onClick={onClose}>
             <X size={18} />
           </button>
         </div>
+        <ExportTabs watermark disabled={busy} onSwitch={onSwitch} />
         <p className="dialog-intro">
           {resuming ? '继续上次清单 · 参数已固定' : scope} ·{' '}
           {report?.items.length ?? selection.length} 张 · 原件不变
@@ -298,9 +300,7 @@ export function WatermarkDialog({
           </p>
         )}
         <PreparationStatus task={preparation} preparing={busy && !running} />
-        {prepared && (
-          <p className="batch-review-note">清单已核对，尚未开始本次文件操作。确认后才会执行。</p>
-        )}
+        {prepared && <p className="batch-review-note">已准备好。点击下方按钮开始导出。</p>}
         <BatchOutcome
           report={report}
           reviewing={prepared || (busy && !running) || preparation.cancelled}
@@ -366,13 +366,15 @@ export function WatermarkDialog({
                 <p className="watermark-caption" aria-live="polite">
                   {native
                     ? preview
-                      ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '缺少拍摄日期，请填写备用日期'} · ${preview.info.source.text || '尚无水印'} · ${preview.info.source.width} × ${preview.info.source.height}`
+                      ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '日期待填写'} · ${preview.info.source.text || '尚无水印'} · ${preview.info.source.width} × ${preview.info.source.height}`
                       : previewError
                     : '浏览器仅布局示意，不读取 EXIF 或生成文件。'}
                 </p>
               )}
               {!resuming && preview?.info.source.warning && (
-                <p className="watermark-caption">{preview.info.source.warning}</p>
+                <p className="watermark-caption">
+                  {preview.info.source.dateSource === 'missing' ? '' : preview.info.source.warning}
+                </p>
               )}
               {preview && !resuming && (
                 <p className="watermark-caption" aria-label="成品尺寸说明">
@@ -420,7 +422,7 @@ export function WatermarkDialog({
                 />
               </label>
               <label>
-                备用日期 <span>仅用于缺少 EXIF 时</span>
+                备用日期 <span>照片缺少拍摄日期时使用</span>
                 <input
                   aria-label="备用日期"
                   type="date"
@@ -431,6 +433,11 @@ export function WatermarkDialog({
               <p className="watermark-hint">
                 优先使用实际拍摄日期。城市留空时仅显示日期；不联网查询位置。
               </p>
+              {preview && !preview.canExport && !resuming && (
+                <p className="field-error" role="status">
+                  {preview.info.source.warning || '请填写备用日期后导出。'}
+                </p>
+              )}
               <label>
                 成品尺寸
                 <select
@@ -544,11 +551,7 @@ export function WatermarkDialog({
               JPEG/HEIC 转为 SDR，不保留 HDR 效果。≤2400万像素、≤32MiB。
             </p>
           </div>
-          {error && (
-            <p className="backup-error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <TaskError error={error} title="导出照片未完成" />}
           {selection.length > 100 && !resuming && (
             <p className="backup-error">单次最多100张，请缩小选择。</p>
           )}
@@ -563,10 +566,7 @@ export function WatermarkDialog({
                   · JPEG 质量 {report.watermark.jpegQuality ?? 92}% · 不放大 · 参数已固定
                 </p>
               )}
-              <div className="export-destination">
-                <span>独立水印文件夹</span>
-                <strong>{report.destination}</strong>
-              </div>
+              <DirectoryPath label="独立水印文件夹" path={report.destination} />
               <div className="export-summary">
                 <strong>
                   {prepared
@@ -610,7 +610,7 @@ export function WatermarkDialog({
                   </div>
                 ))}
               </div>
-              {!prepared && !(busy && !running) && (
+              {report.status !== 'completed' && !prepared && !(busy && !running) && (
                 <div className="export-progress" aria-live="polite">
                   <progress max={report.items.length} value={report.verified} />
                   <span>
@@ -621,20 +621,35 @@ export function WatermarkDialog({
               {report.message && <p className="backup-error">{report.message}</p>}
             </>
           )}
-          <p className="sync-footnote">
-            取消会保留部分成果。可在下方继续，重新选择原目标父目录；不会覆盖同名未知文件。预览为缩小版本，成品按本批尺寸与质量生成。原格式副本仍从“导出副本”获取。
-          </p>
+          <details className="task-details">
+            <summary>导出限制与中断恢复</summary>
+            <p>
+              取消会保留部分成果。可在下方继续，重新选择原目标父目录；不会覆盖同名未知文件。预览为缩小版本，成品按本批尺寸与质量生成。原格式副本仍从“导出副本”获取。
+            </p>
+          </details>
           {!!recent.length && (
             <div className="export-history">
               <h3>最近的水印导出</h3>
               {recent.map((r) => (
                 <div className="export-history-row" key={r.id}>
                   <div>
-                    <strong>{r.destination.split(/[\\/]/).at(-1)}</strong>
+                    <strong>{exportHistoryLabel(r.destination, r.kind, r.items.length)}</strong>
                     <small>
                       {status(r.status)} · {r.verified}/{r.items.length} 张
                     </small>
                   </div>
+                  {r.status === 'completed' && (
+                    <button
+                      className="button subtle"
+                      onClick={() =>
+                        void bridge
+                          .openExportFolder(folder.id, r.id)
+                          .catch((e) => setError(String(e)))
+                      }
+                    >
+                      打开文件夹
+                    </button>
+                  )}
                   {r.status !== 'completed' && (
                     <button
                       className="button subtle"
@@ -650,48 +665,57 @@ export function WatermarkDialog({
             </div>
           )}
         </div>
-        <div className="backup-actions export-actions">
-          {busy && !running ? (
+        {report?.status === 'completed' && !prepared && !busy ? (
+          <ExportCompletion
+            folderId={folder.id}
+            id={report.id}
+            count={report.verified}
+            onClose={onClose}
+          />
+        ) : (
+          <div className="backup-actions export-actions">
+            {busy && !running ? (
+              <button
+                className="button subtle"
+                disabled={preparation.cancelling}
+                onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              >
+                {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              </button>
+            ) : running ? (
+              <button className="button subtle" disabled={cancelling} onClick={() => void cancel()}>
+                {cancelling ? '正在停止…' : '停止并保留成果'}
+              </button>
+            ) : (
+              <button
+                className="button subtle"
+                disabled={
+                  !native ||
+                  busy ||
+                  !selection.length ||
+                  selection.length > 100 ||
+                  resuming ||
+                  !preview?.canExport ||
+                  previewBusy ||
+                  composing ||
+                  styleLoading
+                }
+                onClick={() => void choose()}
+              >
+                <FolderOpen size={15} />
+                {busy ? '正在核对…' : '选择导出位置'}
+              </button>
+            )}
             <button
-              className="button subtle"
-              disabled={preparation.cancelling}
-              onClick={() => void preparation.cancel().catch((e) => setError(String(e)))}
+              className="button primary"
+              disabled={!native || !prepared || busy}
+              onClick={() => void start()}
             >
-              {preparation.cancelling ? '正在取消核对…' : '取消核对'}
+              {busy ? <LoaderCircle size={15} className="spin" /> : <CalendarDays size={15} />}
+              生成水印照片
             </button>
-          ) : running ? (
-            <button className="button subtle" disabled={cancelling} onClick={() => void cancel()}>
-              {cancelling ? '正在停止…' : '停止并保留成果'}
-            </button>
-          ) : (
-            <button
-              className="button subtle"
-              disabled={
-                !native ||
-                busy ||
-                !selection.length ||
-                selection.length > 100 ||
-                resuming ||
-                !preview?.canExport ||
-                previewBusy ||
-                composing ||
-                styleLoading
-              }
-              onClick={() => void choose()}
-            >
-              <FolderOpen size={15} />
-              {busy ? '正在核对…' : '选择导出位置'}
-            </button>
-          )}
-          <button
-            className="button primary"
-            disabled={!native || !prepared || busy}
-            onClick={() => void start()}
-          >
-            {busy ? <LoaderCircle size={15} className="spin" /> : <CalendarDays size={15} />}
-            确认生成并核验
-          </button>
-        </div>
+          </div>
+        )}
       </section>
     </div>
   );

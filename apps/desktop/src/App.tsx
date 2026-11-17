@@ -1,3 +1,5 @@
+import { TaskError, ToolsMenu } from './TaskFeedback';
+import { listen } from '@tauri-apps/api/event';
 import { GuideDialog } from './GuideDialog';
 import { ApplicationBadge } from './ApplicationBadge';
 import { ExitSaveGuard } from './ExitSaveGuard';
@@ -12,6 +14,7 @@ import {
   useState,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -91,6 +94,19 @@ type History = {
   search: string;
   sort: Sort;
 };
+function restoreControlFocus(button: HTMLButtonElement | null) {
+  if (!button?.isConnected) return;
+  const menu = button.closest('details:not([open])');
+  if (menu) menu.querySelector('summary')?.focus();
+  else button.focus();
+}
+function useDialogReturn(open: boolean, control: RefObject<HTMLButtonElement | null>) {
+  const previous = useRef(open);
+  useEffect(() => {
+    if (previous.current && !open) restoreControlFocus(control.current);
+    previous.current = open;
+  }, [open, control]);
+}
 function IconButton({
   children,
   label,
@@ -540,6 +556,7 @@ export function App() {
   const [search, setSearch] = useState('');
   const [size, setSize] = useState(260);
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedOnly, setSelectedOnly] = useState(false);
   const [active, setActive] = useState('');
   const [mode, setMode] = useState<Mode>('grid');
   const [reviewQueue, setReviewQueue] = useState<string[]>([]);
@@ -562,33 +579,19 @@ export function App() {
   const [relocationOpen, setRelocationOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const moveReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!moveOpen && moveReturnFocus.current?.isConnected) moveReturnFocus.current.focus();
-  }, [moveOpen]);
+  useDialogReturn(moveOpen, moveReturnFocus);
   const [watermarkOpen, setWatermarkOpen] = useState(false);
   const watermarkReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!watermarkOpen && watermarkReturnFocus.current?.isConnected)
-      watermarkReturnFocus.current.focus();
-  }, [watermarkOpen]);
+  useDialogReturn(watermarkOpen, watermarkReturnFocus);
   const [exportOpen, setExportOpen] = useState(false);
   const exportReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!exportOpen && exportReturnFocus.current?.isConnected) exportReturnFocus.current.focus();
-  }, [exportOpen]);
+  useDialogReturn(exportOpen, exportReturnFocus);
   const relocationReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!relocationOpen && relocationReturnFocus.current?.isConnected)
-      relocationReturnFocus.current.focus();
-  }, [relocationOpen]);
+  useDialogReturn(relocationOpen, relocationReturnFocus);
   const syncReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!syncOpen && syncReturnFocus.current?.isConnected) syncReturnFocus.current.focus();
-  }, [syncOpen]);
+  useDialogReturn(syncOpen, syncReturnFocus);
   const backupReturnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!backupsOpen && backupReturnFocus.current?.isConnected) backupReturnFocus.current.focus();
-  }, [backupsOpen]);
+  useDialogReturn(backupsOpen, backupReturnFocus);
   useEffect(() => {
     if (!help) return;
     const previous = document.activeElement;
@@ -602,9 +605,17 @@ export function App() {
   const gridReturnTarget = useRef<string | null>(null);
   const saveLock = useRef(false);
   const visible = useMemo(
-    () => filterAssets(assets, filter, search, sort),
-    [assets, filter, search, sort],
+    () =>
+      selectedOnly
+        ? filterAssets(assets, 'all', '', sort).filter((a) => selected.includes(a.id))
+        : filterAssets(assets, filter, search, sort),
+    [assets, filter, search, sort, selectedOnly, selected],
   );
+  const orderedSelection = useMemo(
+    () => filterAssets(assets, 'all', '', sort).filter((a) => selected.includes(a.id)),
+    [assets, selected, sort],
+  );
+  const hiddenSelected = selected.filter((id) => !visible.some((a) => a.id === id)).length;
   const byId = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
   const reviewIndex = reviewQueue.indexOf(active);
   const followingReviewId = reviewIndex < 0 ? undefined : reviewQueue[reviewIndex + 1];
@@ -650,6 +661,7 @@ export function App() {
       setFolder(chosen);
       setAssets([]);
       setSelected([]);
+      setSelectedOnly(false);
       setActive('');
       setHistory([]);
       setReviewInputHint('');
@@ -895,13 +907,13 @@ export function App() {
   };
   const startCompare = () => {
     if (selected.length < 2 || selected.length > 8) return;
-    const ids = visible.filter((a) => selected.includes(a.id)).map((a) => a.id);
+    const ids = orderedSelection.map((a) => a.id);
     if (ids.length < 2) {
       toast('请在当前结果中选择至少 2 张照片');
       return;
     }
     setCompareIds(ids);
-    setReviewQueue(visible.map((a) => a.id));
+    setReviewQueue([...new Set([...visible.map((a) => a.id), ...ids])]);
     setActive(ids[0]);
     setMode('compare');
     setDetail(false);
@@ -1056,7 +1068,10 @@ export function App() {
         e.preventDefault();
         if (detail) setDetail(false);
         else if (mode !== 'grid') returnToGrid();
-        else setSelected([]);
+        else {
+          setSelected([]);
+          setSelectedOnly(false);
+        }
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1086,6 +1101,106 @@ export function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   });
+  const switchExport = (watermark: boolean) => {
+    setWatermarkOpen(watermark);
+    setExportOpen(!watermark);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>('.export-tabs [aria-selected="true"]')?.focus(),
+    );
+  };
+  const dispatchCommand = (command: string) => {
+    if (
+      guideOpen ||
+      help ||
+      backupsOpen ||
+      syncOpen ||
+      relocationOpen ||
+      exportOpen ||
+      watermarkOpen ||
+      moveOpen ||
+      document.querySelector('dialog[open]')
+    )
+      return;
+    if (command === 'help') {
+      setHelp(true);
+      return;
+    }
+    if (command === 'guide') {
+      setGuideOpen(true);
+      return;
+    }
+    if (command === 'search') {
+      returnToGrid();
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLInputElement>('[aria-label="搜索照片"]')?.focus(),
+      );
+      return;
+    }
+    if (command === 'undo') {
+      if (!isTyping(document.activeElement)) void undo();
+      return;
+    }
+    if (loading || scanning || saving || reviewFailure) return;
+    if (command === 'open') {
+      void open(false);
+      return;
+    }
+    if (command === 'backups') {
+      setBackupsOpen(true);
+      return;
+    }
+    if (command === 'relink') {
+      setRelocationOpen(true);
+      return;
+    }
+    if (!folder) {
+      toast('请先打开照片文件夹');
+      return;
+    }
+    if (command === 'export') setExportOpen(true);
+    if (command === 'watermark') setWatermarkOpen(true);
+    if (command === 'sync') setSyncOpen(true);
+    if (command === 'move') setMoveOpen(true);
+    if (command === 'rescan') void open(false, folder);
+  };
+  const commandRef = useRef(dispatchCommand);
+  commandRef.current = dispatchCommand;
+  useEffect(() => {
+    if (!native) return;
+    let stopped = false;
+    let cleanup: (() => void) | undefined;
+    void listen<string>('grove-command', (event) => commandRef.current(event.payload))
+      .then((unlisten) => {
+        const release = () => {
+          void Promise.resolve(unlisten()).catch(() => {});
+        };
+        if (stopped) release();
+        else cleanup = release;
+      })
+      .catch(() => {}); // Screen controls remain usable if native event registration fails.
+    return () => {
+      stopped = true;
+      cleanup?.();
+    };
+  }, []);
+  useEffect(() => {
+    const keyboard = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.isComposing) return;
+      const command = (
+        { o: 'open', e: event.shiftKey ? 'watermark' : 'export', f: 'search' } as Record<
+          string,
+          string
+        >
+      )[event.key.toLowerCase()];
+      // Native menu accelerators own these combinations; browser previews use this fallback.
+      if (!native && command) {
+        event.preventDefault();
+        commandRef.current(command);
+      }
+    };
+    window.addEventListener('keydown', keyboard);
+    return () => window.removeEventListener('keydown', keyboard);
+  }, []);
   const setViewport = useCallback(
     (id: string, v: Viewport) => {
       if (linked && mode === 'compare' && !detail) setLinkedViewport(v);
@@ -1107,24 +1222,19 @@ export function App() {
       : current
         ? [current]
         : [];
-  const canCompare =
-    selected.filter((id) => visible.some((a) => a.id === id)).length >= 2 && selected.length <= 8;
-  const exportAssets =
-    mode === 'grid'
-      ? selected.length
-        ? selected.map((id) => byId.get(id)).filter((a): a is Asset => Boolean(a))
-        : visible
-      : shown;
+  const canCompare = orderedSelection.length >= 2 && orderedSelection.length <= 8;
+  const exportAssets = mode === 'grid' ? (selected.length ? orderedSelection : visible) : shown;
   const exportScope =
     mode === 'grid'
       ? selected.length
-        ? '已选照片'
+        ? `已选照片${hiddenSelected ? `（含 ${hiddenSelected} 张隐藏选择）` : ''}`
         : '当前筛选结果'
       : mode === 'compare' && !detail
         ? '这组比较照片'
         : '当前审片照片';
-  const title =
-    filter === 'unreviewed'
+  const title = selectedOnly
+    ? '已选照片'
+    : filter === 'unreviewed'
       ? '还未评分的时刻'
       : filter === 'picks'
         ? '值得珍藏的时刻'
@@ -1167,36 +1277,40 @@ export function App() {
           <button
             className={filter === 'all' ? 'nav-item active' : 'nav-item'}
             onClick={() => {
+              setSelectedOnly(false);
               setFilter('all');
               setMode('grid');
             }}
           >
             <Grid2X2 size={18} />
-            所有照片<span>{assets.length || '—'}</span>
+            所有照片<span>{folder ? assets.length : '—'}</span>
           </button>
           <button
             className={filter === 'unreviewed' ? 'nav-item active' : 'nav-item'}
             onClick={() => {
+              setSelectedOnly(false);
               setFilter('unreviewed');
               setMode('grid');
             }}
           >
             <Circle size={18} />
-            未评分<span>{assets.length ? unreviewed : '—'}</span>
+            未评分<span>{folder ? unreviewed : '—'}</span>
           </button>
           <button
             className={filter === 'picks' ? 'nav-item active' : 'nav-item'}
             onClick={() => {
+              setSelectedOnly(false);
               setFilter('picks');
               setMode('grid');
             }}
           >
             <Star size={18} />
-            家庭精选<span>{assets.length ? picks : '—'}</span>
+            精选照片<span>{folder ? picks : '—'}</span>
           </button>
           <button
             className={filter === 'reject' ? 'nav-item active' : 'nav-item'}
             onClick={() => {
+              setSelectedOnly(false);
               setFilter('reject');
               setMode('grid');
             }}
@@ -1235,7 +1349,7 @@ export function App() {
         <div className="sidebar-bottom">
           <div className="local-badge">
             <ShieldCheck size={15} />
-            <span>本地优先 · 原图不改写</span>
+            <span>本地保存 · 评分不改原图</span>
           </div>
           <div className="sidebar-controls">
             <button onClick={() => setHelp(true)}>
@@ -1293,48 +1407,50 @@ export function App() {
               onClick={() => setExportOpen(true)}
             >
               <Copy size={15} />
-              导出副本
+              导出照片
             </button>
-            <IconButton
-              label="安全整理"
-              buttonRef={moveReturnFocus}
-              onClick={() => setMoveOpen(true)}
-              disabled={loading || scanning || saving || Boolean(reviewFailure)}
-            >
-              <FolderInput size={17} />
-            </IconButton>
-            <IconButton
-              label="日期城市水印"
-              buttonRef={watermarkReturnFocus}
-              onClick={() => setWatermarkOpen(true)}
-              disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
-            >
-              <CalendarDays size={17} />
-            </IconButton>
-            <IconButton
-              label="重新关联目录"
-              buttonRef={relocationReturnFocus}
-              onClick={() => setRelocationOpen(true)}
-              disabled={loading || scanning || saving || Boolean(reviewFailure)}
-            >
-              <Link2 size={17} />
-            </IconButton>
-            <IconButton
-              label="评分同步"
-              buttonRef={syncReturnFocus}
-              onClick={() => setSyncOpen(true)}
-              disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
-            >
-              <FileCheck2 size={17} />
-            </IconButton>
-            <IconButton
-              label="资料库备份"
-              buttonRef={backupReturnFocus}
-              onClick={() => setBackupsOpen(true)}
-              disabled={loading || scanning || saving || Boolean(reviewFailure)}
-            >
-              <Archive size={17} />
-            </IconButton>
+            <ToolsMenu>
+              <IconButton
+                label="安全整理"
+                buttonRef={moveReturnFocus}
+                onClick={() => setMoveOpen(true)}
+                disabled={loading || scanning || saving || Boolean(reviewFailure)}
+              >
+                <FolderInput size={17} />
+              </IconButton>
+              <IconButton
+                label="日期城市水印"
+                buttonRef={watermarkReturnFocus}
+                onClick={() => setWatermarkOpen(true)}
+                disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
+              >
+                <CalendarDays size={17} />
+              </IconButton>
+              <IconButton
+                label="重新关联目录"
+                buttonRef={relocationReturnFocus}
+                onClick={() => setRelocationOpen(true)}
+                disabled={loading || scanning || saving || Boolean(reviewFailure)}
+              >
+                <Link2 size={17} />
+              </IconButton>
+              <IconButton
+                label="评分同步"
+                buttonRef={syncReturnFocus}
+                onClick={() => setSyncOpen(true)}
+                disabled={!folder || loading || scanning || saving || Boolean(reviewFailure)}
+              >
+                <FileCheck2 size={17} />
+              </IconButton>
+              <IconButton
+                label="资料库备份"
+                buttonRef={backupReturnFocus}
+                onClick={() => setBackupsOpen(true)}
+                disabled={loading || scanning || saving || Boolean(reviewFailure)}
+              >
+                <Archive size={17} />
+              </IconButton>
+            </ToolsMenu>
             <IconButton
               label="撤销评分"
               onClick={() => void undo()}
@@ -1362,36 +1478,58 @@ export function App() {
           </div>
         </header>
         {(error || reviewFailure) && (
-          <div className="error-banner" role="alert">
-            <span>
-              {reviewFailure && (
-                <>
-                  这次评分或撤销的保存结果未确认：{reviewFailure}。先重新扫描当前文件夹核对，
-                  不会重复执行评分或撤销。重新扫描会回到照片列表并清空本次撤销记录。
-                  {error && <br />}
-                </>
-              )}
-              {error}
-            </span>
-            {reviewFailure ? (
-              <button
-                className="button subtle"
-                disabled={!folder || loading || scanning || saving}
-                onClick={() => folder && void open(false, folder)}
-              >
-                {loading || scanning ? '正在核对评分…' : '重新扫描核对评分'}
-              </button>
-            ) : (
-              <IconButton label="关闭错误提示" onClick={() => setError('')}>
-                <X size={14} />
-              </IconButton>
-            )}
-          </div>
+          <TaskError
+            error={[reviewFailure, error].filter(Boolean).join('\n')}
+            hint={
+              reviewFailure
+                ? '请重新扫描核对。不会重复评分或撤销；重新扫描会回到照片列表并清空本次撤销记录。'
+                : undefined
+            }
+            title={reviewFailure ? '评分保存结果尚未确认，已暂停后续写入' : '未能完成当前操作'}
+            action={
+              <div className="empty-actions">
+                {reviewFailure ? (
+                  <button
+                    className="button subtle"
+                    disabled={!folder || loading || scanning || saving}
+                    onClick={() => folder && void open(false, folder)}
+                  >
+                    重新扫描核对评分
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="button subtle"
+                      disabled={!folder || loading || scanning || saving}
+                      onClick={() => folder && void open(false, folder)}
+                    >
+                      重试扫描
+                    </button>
+                    <button className="button subtle" onClick={() => void open(false)}>
+                      重新选择文件夹
+                    </button>
+                    <button className="button subtle" onClick={() => setError('')}>
+                      关闭提示
+                    </button>
+                  </>
+                )}
+              </div>
+            }
+          />
         )}
         {workspaceError && (
-          <div className="error-banner" role="alert">
-            {workspaceError}
-          </div>
+          <TaskError
+            error={workspaceError}
+            title="审片位置未保存，评分独立保存"
+            action={
+              <button
+                className="button subtle"
+                onClick={() => void flushReview(true).catch(() => {})}
+              >
+                重试保存位置
+              </button>
+            }
+          />
         )}
         {scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
           <div className="scan-scope" role="note" aria-label="扫描范围">
@@ -1484,7 +1622,7 @@ export function App() {
                 </h1>
                 <p>
                   {filter === 'picks'
-                    ? '4–5 星自动归入家庭精选，不额外占用照片空间。需要时再导出副本。'
+                    ? '4–5 星自动归入精选照片，不额外占用照片空间。需要时再导出副本。'
                     : folder.demo
                       ? '用一组生成的山海影像，熟悉你的筛片节奏。'
                       : '每一张照片，都值得从容地看一眼。'}
@@ -1509,6 +1647,20 @@ export function App() {
                 </div>
               </div>
             </section>
+            <div className="scope-summary" role="status">
+              显示 {visible.length} / 共 {assets.length} 张
+              {selectedOnly && <button onClick={() => setSelectedOnly(false)}>返回筛选结果</button>}
+              {!selectedOnly && (search || filter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setFilter('all');
+                  }}
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
             <div className="gallery-toolbar">
               <label className="search-field">
                 <Search size={16} />
@@ -1516,9 +1668,20 @@ export function App() {
                   aria-label="搜索照片"
                   placeholder="搜索照片名称…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSelectedOnly(false);
+                  }}
                 />
-                <kbd>⌕</kbd>
+                {search && (
+                  <button
+                    className="icon-button"
+                    aria-label="清除搜索"
+                    onClick={() => setSearch('')}
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </label>
               <div className="toolbar-right">
                 <label className="select-field">
@@ -1526,7 +1689,10 @@ export function App() {
                   <select
                     aria-label="评分筛选"
                     value={filter}
-                    onChange={(e) => setFilter(e.target.value as Filter)}
+                    onChange={(e) => {
+                      setFilter(e.target.value as Filter);
+                      setSelectedOnly(false);
+                    }}
                   >
                     <option value="all">全部评分</option>
                     <option value="unreviewed">未评分</option>
@@ -1606,9 +1772,30 @@ export function App() {
                         : scanOutcome === 'cancelled'
                           ? '当前结果可能不完整，可点击右上角重新扫描。'
                           : assets.length
-                            ? '试试其他评分，或换一个搜索词。'
+                            ? '可以清除筛选，查看这个文件夹的全部照片。'
                             : '当前支持 JPEG、PNG、WebP、HEIC 和 HEIF。可重新扫描或打开其他文件夹。'}
                   </p>
+                  <div className="empty-actions">
+                    {assets.length ? (
+                      <button
+                        className="button subtle"
+                        onClick={() => {
+                          setSearch('');
+                          setFilter('all');
+                          setSelectedOnly(false);
+                        }}
+                      >
+                        清除全部筛选
+                      </button>
+                    ) : (
+                      <button className="button subtle" onClick={() => void open(false, folder)}>
+                        重试扫描
+                      </button>
+                    )}
+                    <button className="button subtle" onClick={() => void open(false)}>
+                      选择其他文件夹
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1649,6 +1836,12 @@ export function App() {
               <div className="selection-bar">
                 <span className="selection-count">{selected.length}</span>
                 <strong>张照片已选择</strong>
+                {hiddenSelected > 0 && (
+                  <span className="hidden-selection">{hiddenSelected} 张不在当前结果中</span>
+                )}
+                <button className="button subtle" onClick={() => setSelectedOnly((v) => !v)}>
+                  {selectedOnly ? '返回筛选结果' : '查看已选'}
+                </button>
                 <div className="selection-rating">
                   <RatingButtons
                     value={selected.length === 1 ? (byId.get(selected[0])?.rating ?? null) : null}
@@ -1661,7 +1854,13 @@ export function App() {
                   比较{selected.length > 8 ? '（最多 8 张）' : ''}
                   <kbd>C</kbd>
                 </button>
-                <IconButton label="取消选择" onClick={() => setSelected([])}>
+                <IconButton
+                  label="取消选择"
+                  onClick={() => {
+                    setSelected([]);
+                    setSelectedOnly(false);
+                  }}
+                >
                   <X size={16} />
                 </IconButton>
               </div>
@@ -1786,14 +1985,25 @@ export function App() {
             </div>
             <div className="review-bottom">
               <div className="review-navigation">
-                <IconButton label="上一张" onClick={() => move(-1)}>
+                <IconButton
+                  label="上一张"
+                  disabled={(mode === 'compare' ? compareIds : reviewQueue).indexOf(active) <= 0}
+                  onClick={() => move(-1)}
+                >
                   <ChevronLeft size={20} />
                 </IconButton>
                 <span>
                   {(mode === 'compare' ? compareIds : reviewQueue).indexOf(active) + 1}
                   <small> / {(mode === 'compare' ? compareIds : reviewQueue).length}</small>
                 </span>
-                <IconButton label="下一张" onClick={() => move(1)}>
+                <IconButton
+                  label="下一张"
+                  disabled={
+                    (mode === 'compare' ? compareIds : reviewQueue).indexOf(active) >=
+                    (mode === 'compare' ? compareIds : reviewQueue).length - 1
+                  }
+                  onClick={() => move(1)}
+                >
                   <ChevronRight size={20} />
                 </IconButton>
               </div>
@@ -1834,7 +2044,7 @@ export function App() {
         {saving && (
           <div className="save-indicator" role="status">
             <LoaderCircle size={12} className="spin" />
-            正在保存评分
+            评分保存中 · 可继续浏览
           </div>
         )}
       </main>
@@ -1854,6 +2064,7 @@ export function App() {
           folder={folder}
           assets={exportAssets}
           scope={exportScope}
+          onSwitch={() => switchExport(false)}
           onClose={() => setWatermarkOpen(false)}
         />
       )}
@@ -1862,6 +2073,7 @@ export function App() {
           folder={folder}
           assets={exportAssets}
           scope={exportScope}
+          onSwitch={() => switchExport(true)}
           onClose={() => setExportOpen(false)}
         />
       )}
@@ -1937,7 +2149,7 @@ export function App() {
           >
             <div className="dialog-heading">
               <Keyboard size={22} />
-              <h2>手不离开键盘，思路不被打断。</h2>
+              <h2>快捷键</h2>
               <IconButton label="关闭快捷键" onClick={() => setHelp(false)}>
                 <X size={18} />
               </IconButton>
@@ -1945,7 +2157,7 @@ export function App() {
             <dl>
               {[
                 ['0', '标记为淘汰候选'],
-                ['1–5', '为当前照片评分'],
+                ['1–5', '为活动照片或已选照片评分'],
                 ['U', '恢复未评分'],
                 ['← / →', '上一张 / 下一张'],
                 ['⌘ / Ctrl + Z', '撤销评分并恢复位置'],
