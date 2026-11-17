@@ -3,6 +3,9 @@ use super::*;
 use std::time::Instant;
 #[path = "benchmarks/batch.rs"]
 mod batch;
+#[cfg(target_os = "macos")]
+#[path = "benchmarks/review_batch.rs"]
+mod review_batch;
 #[path = "benchmarks/trial.rs"]
 mod trial;
 

@@ -68,7 +68,7 @@ import {
   type Sort,
   type SkippedMedia,
 } from './domain';
-import { useMedia } from './media';
+import { useMedia, useReviewPrefetch } from './media';
 import { BackupDialog } from './BackupDialog';
 import { SyncDialog } from './SyncDialog';
 import { RelocationDialog } from './RelocationDialog';
@@ -606,6 +606,22 @@ export function App() {
     [assets, filter, search, sort],
   );
   const byId = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
+  const reviewIndex = reviewQueue.indexOf(active);
+  const followingReviewId = reviewIndex < 0 ? undefined : reviewQueue[reviewIndex + 1];
+  useReviewPrefetch(
+    mode === 'review' &&
+      !detail &&
+      !loading &&
+      !scanning &&
+      !exportOpen &&
+      !watermarkOpen &&
+      !moveOpen &&
+      !relocationOpen &&
+      !syncOpen &&
+      !backupsOpen
+      ? byId.get(followingReviewId ?? '')
+      : undefined,
+  );
   const unreviewed = assets.filter((a) => a.rating === null).length;
   const picks = assets.filter((a) => (a.rating ?? -1) >= 4).length;
   const snapshot = useRef({ active, mode, folder, reviewQueue, autoAdvance });

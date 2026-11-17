@@ -2,42 +2,38 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Asset } from './domain';
 import { mediaSource, native } from './bridge';
 
-type Job = { signal: AbortSignal; run: () => Promise<void>; done: () => void };
-const queue: Job[] = [];
-let running = 0;
-function drain() {
-  while (running < 4 && queue.length) {
-    const job = queue.shift()!;
-    if (job.signal.aborted) {
-      job.done();
-      continue;
-    }
-    running++;
-    void job.run().finally(() => {
-      running--;
-      job.done();
-      drain();
-    });
-  }
+import { createMediaQueue } from './media-queue';
+const scheduled = createMediaQueue();
+
+// Warm only the next screen-sized disk preview. Keep no Blob URL or decoded
+// original; actual viewing still makes its normal grant/identity-checked request.
+export function useReviewPrefetch(asset: Asset | undefined) {
+  const source = asset ? mediaSource(asset, 1600) : '';
+  useEffect(() => {
+    if (!native || !source) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void scheduled(
+        controller.signal,
+        async () => {
+          try {
+            const response = await fetch(source, { signal: controller.signal });
+            if (response.ok) await response.arrayBuffer();
+          } catch {
+            // Speculation never changes visible errors, navigation or ratings.
+            // A real viewing request remains retryable after an offline/bad file.
+          }
+        },
+        'prefetch',
+      );
+    }, 150);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [source]);
 }
-function scheduled(signal: AbortSignal, run: () => Promise<void>) {
-  return new Promise<void>((done) => {
-    const job = { signal, run, done };
-    queue.push(job);
-    signal.addEventListener(
-      'abort',
-      () => {
-        const index = queue.indexOf(job);
-        if (index >= 0) {
-          queue.splice(index, 1);
-          done();
-        }
-      },
-      { once: true },
-    );
-    drain();
-  });
-}
+
 export function useMedia(asset: Asset, size: 480 | 1600 | 8192) {
   const [attempt, setAttempt] = useState(0);
   const source = mediaSource(asset, size, attempt);
