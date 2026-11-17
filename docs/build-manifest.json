@@ -1,75 +1,89 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261116T152832-fba13f5cf3",
-  "sourceCommit": "eb17fd137a655905bd8f737dfd5b1a78bc2f52c1",
+  "buildId": "trial-20261117T091756-4c740254d0",
+  "sourceCommit": "9db27b5aa5d6357d42e45cec442ba89d7a00a554",
   "architecture": "arm64",
-  "sourceDigest": "fba13f5cf341fd5742dcd623e8388f180a8b2446c25e8f2286fdf2a594fa233a",
-  "binarySha256": "6990a98b01ba6f33c79cff5febd5231af741418b31a87880d770eff71089b596",
+  "sourceDigest": "4c740254d007ffc52b64623f7bcbd10a8fa5ff710d075e7ff38ff60b46c0e937",
+  "binarySha256": "5d41d111aff1d3d9698f824c2dfce68f36489ae37b42c0f1ffd731a39b778988",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.7.0-macOS-arm64.zip",
-      "bytes": 5665834,
-      "sha256": "5f45772ad9c5dc206a3c3ae19df15a62aa3117bd6f230c261bd425f8f05a2551"
+      "name": "Moment-Grove-0.8.0-macOS-arm64.zip",
+      "bytes": 5668019,
+      "sha256": "b6657abb8c5dd6f375ac7be8a14d23eee8d973413a40137ee25e3b03885ca8a8"
     },
     {
-      "name": "Moment-Grove-0.7.0-macOS-arm64.dmg",
-      "bytes": 6508952,
-      "sha256": "ce7d32ffabc1a0c8c315593e9c1524693016d8640925173a263c767bcd6c5099"
+      "name": "Moment-Grove-0.8.0-macOS-arm64.dmg",
+      "bytes": 6506391,
+      "sha256": "d6d72baca01d5e29fd19a5a973ef9b1e1732fe9818c3ee7db2c8d7055242f60d"
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
   "status": "PUBLISHED_TECHNICAL_PRERELEASE",
-  "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.7.0",
+  "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.8.0",
   "validation": {
-    "uiPassed": 80,
+    "rustPassed": 131,
+    "rustIgnoredByDefault": 20,
+    "uiPassed": 82,
     "logicPassed": 17,
     "deliveryPassed": 12,
     "websiteViewportPassed": 6,
-    "rustBaseline": {
-      "sourceCommit": "1beccb92",
-      "passed": 122,
-      "ignored": 17,
-      "explicitLicensedTrialsPassed": 3,
-      "finalChangedDecoderRegressionPassed": 6
-    },
     "clippy": "all targets -D warnings passed",
     "archives": {
-      "sourceFiles": 83,
-      "zipPayloadFiles": 12,
-      "dmgPayloadFiles": 12,
+      "payloadFiles": 12,
+      "sourceFiles": 84,
       "readOnlyDmgMount": true,
       "strictAdHocSignature": true
     },
     "native": {
-      "initialBuild": "trial-20261116T150043-93fed0deb0",
-      "finalBuild": "trial-20261116T152832-fba13f5cf3",
-      "inputFiles": 1020,
-      "listed": 1016,
-      "copyOutputs": 5,
-      "watermarkOutputs": 4,
+      "system": "macOS27.2.1 arm64",
+      "firstBuild": "trial-20261117T073658-69a0bda048",
+      "firstBuildUnpublishedSuperseded": true,
+      "finalBuild": "trial-20261117T091756-4c740254d0",
+      "inputFiles": 10008,
+      "listedPhotos": 10006,
+      "generated12MP": 100,
+      "firstNativeCopies": 3,
+      "firstNativeWatermarks": 3,
+      "finalNativeCopy": 1,
       "originalsUnchanged": true,
-      "allLogicalTablesRetainedAfterWorkflow": true,
-      "upgrade": "0.6.0 to0.7.0 same path",
-      "rollback": "0.7.0 data read by0.6.0",
-      "normalQuitSessions": 6,
-      "finalNativeScope": "cold grid resume; select Escape; fresh-path copy1/1/watermark1/1; actual downloaded daily install copy1/1"
+      "remountedAPFSDeviceNumberChanged": true,
+      "stableIdsAndAllBusinessTablesRetained": true,
+      "schema": "2 to3 with coherent automatic backup",
+      "rollback": "independent schema2 backup/settings, original legacy device binding available",
+      "finalNativeScope": "restored 10006-photo catalog position and ratings; licensed phone preview; exact copy1/1; normal quit",
+      "firstNativeMemory": {
+        "samples": 262,
+        "minutes": 21.8689,
+        "peakFootprintMiB": 581.2078,
+        "endFootprintMiB": 265.0203,
+        "scope": "main plus same-coalition WebKit; includes idle automation wait; not an active benchmark"
+      }
     },
-    "uploadedReadback": "full ZIP/DMG/checksum verified; extracted installed payload identical",
+    "air": {
+      "system": "macOS27.2.1 arm64",
+      "finalInstalledBinaryMatches": true,
+      "dailyDataPreserved": true,
+      "frontendReady": true,
+      "fullPhotoWorkflow": "INCOMPLETE_REMOTE_INPUT",
+      "normalQuit": "NOT_ACCEPTED_WATCHDOG_TERMINATION_NO_REMAINING_PIDS"
+    },
+    "uploadReadback": "complete ZIP/DMG/SHA256SUMS hashes and downloaded payload/signature verified; range recovery after timeout",
+    "localDailyInstall": "actual downloaded ZIP; old0.7 App/coherent catalog/settings/logs retained; isolated 10006-photo resume and normal quit; daily business tables/settings/logs unchanged",
     "anonymousAccess": [
       {
-        "name": "Moment-Grove-0.7.0-macOS-arm64.dmg",
+        "name": "Moment-Grove-0.8.0-macOS-arm64.dmg",
         "status": 206,
         "verifiedPrefixBytes": 1024,
-        "totalBytes": 6508952,
-        "range": "bytes 0-1023/6508952"
+        "totalBytes": 6506391,
+        "range": "bytes 0-1023/6506391"
       },
       {
-        "name": "Moment-Grove-0.7.0-macOS-arm64.zip",
+        "name": "Moment-Grove-0.8.0-macOS-arm64.zip",
         "status": 206,
         "verifiedPrefixBytes": 1024,
-        "totalBytes": 5665834,
-        "range": "bytes 0-1023/5665834"
+        "totalBytes": 5668019,
+        "range": "bytes 0-1023/5668019"
       },
       {
         "name": "SHA256SUMS.txt",
@@ -78,33 +92,23 @@
         "totalBytes": 202,
         "range": "bytes 0-201/202"
       }
-    ]
-  },
-  "dailyInstall": {
-    "version": "0.7.0",
-    "previousVersion": "0.6.0",
-    "path": "/Applications/Moment Grove.app",
-    "originalEntryPreserved": true,
-    "coherentBackupAndOldAppRetained": true,
-    "dailyCatalogUnchanged": true,
-    "personalMediaNotOpened": true
+    ],
+    "oldReleasesPreserved": 9
   },
   "website": {
     "url": "https://moment-grove.outerepoch3.chatgpt.site",
-    "status": "DEPLOYED_VERIFIED",
-    "currentVersionNumber": 7,
-    "currentDownloadVersion": "0.7.0",
-    "sourceCommit": "cf4fc9ac3e7a4cf370a55ab33c011457bd3bca51",
-    "deploymentId": "appgdep_6afb8ddba8b08191afd6eeef5d0ffe12",
-    "accessMode": "public",
-    "verification": "Sites deployment succeeded; anonymous HTTP product HTML matches packaged output excluding injected Cloudflare script; all4 static assets match bytes;0.7.0 download links verified",
-    "verificationLimit": "Default Python user agent returned403; explicit release-verifier user agent returned200; no new online browser interaction acceptance"
+    "version": 8,
+    "sourceCommit": "ab363eaa2a0eb3695f5016d774e1cdfb46abb602",
+    "status": "DEPLOYED",
+    "deploymentId": "appgdep_6afc222dc3cc8191a31f6875c5c93bc7",
+    "verification": "native Sites succeeded; anonymous 0.8.0 links; product HTML equal excluding only platform Cloudflare script; four static assets exact; browser interaction incomplete"
   },
-  "knownLimitations": [
-    "ad-hoc; no Developer ID or notarization; browser-quarantine first opening unaccepted",
-    "reused same-version test path system picker disabled; fresh path and actual0.6-to0.7 Applications update passed; root cause unconfirmed",
-    "bundled installation guide retained0.6 version text; online guide/release erratum corrected; immutable assets unchanged",
-    "other OS/architectures and arbitrary real libraries not certified"
-  ],
-  "previousRelease": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.6.0"
+  "remaining": {
+    "browserQuarantineFirstOpen": "NOT_ACCEPTED_BROWSER_HOST_UNAVAILABLE_NATIVE_CONTROL_STALLED",
+    "developerIdNotarization": "NO_VALID_CERTIFICATE_AD_HOC_CHANNEL_APPROVED",
+    "minimumSystem": "declares12.0; only27.2.1 tested",
+    "fullLivePhotoRawVideo": "NOT_SUPPORTED",
+    "nonPersistentVolumeIdentity": "conservative legacy identity; arbitrary reconnection not promised",
+    "legacyJournals": "exact online identity required; unmigrated device-number logs may refuse after remount"
+  }
 }
