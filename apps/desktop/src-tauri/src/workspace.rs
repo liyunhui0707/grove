@@ -129,7 +129,7 @@ pub fn save(state: &AppState, folder_id: Option<i64>, view: View) -> Result<()> 
             if !m.is_dir() || m.file_type().is_symlink() {
                 return Err("目录身份无效".into());
             }
-            imaging::identity_from_metadata(&m)
+            imaging::directory_identity(p)
         })
         .transpose()?;
     if let Some(id) = folder_id
@@ -208,7 +208,10 @@ pub fn resume(state: &AppState) -> Result<Option<Folder>> {
     let meta = fs::symlink_metadata(&path).map_err(|_| unavailable())?;
     if !meta.is_dir()
         || meta.file_type().is_symlink()
-        || Some(imaging::identity_from_metadata(&meta)?) != r.identity
+        || !imaging::matches_directory_identity(
+            &path,
+            r.identity.as_deref().ok_or_else(unavailable)?,
+        )?
     {
         return Err(unavailable());
     }

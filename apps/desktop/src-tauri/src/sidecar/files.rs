@@ -68,7 +68,7 @@ mod platform {
             .map_err(|_| "照片已离线或被替换")?
             .into();
             let meta = original.metadata().map_err(|e| e.to_string())?;
-            if !meta.is_file() || imaging::identity_from_metadata(&meta)? != identity {
+            if !meta.is_file() || !imaging::matches_file_identity(&original, identity)? {
                 return Err("照片身份已变化，请重新打开目录".into());
             }
             Ok(Self { dir, source: name })

@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 pub type Result<T> = std::result::Result<T, String>;
 pub const APPLICATION_ID: i32 = 0x4d475256;
-pub const SCHEMA_VERSION: i32 = 2;
+// v3 changes the identity contract, not the table layout. Older apps must
+// refuse it instead of creating duplicate unrated occurrences after a scan.
+pub const SCHEMA_VERSION: i32 = 3;
 pub(crate) const BASE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS folders(id INTEGER PRIMARY KEY,path TEXT UNIQUE NOT NULL);
           CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY,folder_id INTEGER NOT NULL REFERENCES folders(id),
             path TEXT NOT NULL,identity TEXT NOT NULL,rating INTEGER CHECK(rating BETWEEN 0 AND 5),revision INTEGER NOT NULL DEFAULT 0);
@@ -62,6 +64,15 @@ pub struct Catalog {
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
         let db = Connection::open(path).map_err(|e| e.to_string())?;
+        let version: i32 = db
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        if version == 2 {
+            let old = Self { db };
+            crate::backups::create(&old, &path.parent().ok_or("资料目录无效")?.join("backups"))
+                .map_err(|_| "升级前安全快照未完成，未升级资料库；请检查空间与写入权限")?;
+            return Self::from_connection(old.db);
+        }
         Self::from_connection(db)
     }
     pub fn from_connection(mut db: Connection) -> Result<Self> {
@@ -99,7 +110,7 @@ impl Catalog {
     pub fn expected_schema_for(version: i32) -> Result<Vec<(String, String, String)>> {
         let db = Connection::open_in_memory().map_err(|e| e.to_string())?;
         db.execute_batch(BASE_SCHEMA).map_err(|e| e.to_string())?;
-        if version == 2 {
+        if version >= 2 {
             db.execute_batch(SYNC_SCHEMA).map_err(|e| e.to_string())?;
         }
         Self::schema(&db)
@@ -130,20 +141,38 @@ impl Catalog {
     ) -> Result<(String, Option<i32>, i64)> {
         validate_rating(initial)?;
         let path_text = path.to_str().ok_or("暂不支持非 UTF-8 文件名")?;
-        let existing = self.db.query_row("SELECT id,rating,revision FROM assets WHERE folder_id=?1 AND path=?2 AND identity=?3",
-            params![folder,path_text,identity], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e|e.to_string())?;
+        // An online legacy occurrence can be upgraded only using its exact
+        // current device/inode/birth identity, never its bytes or path alone.
+        let legacy = if identity.starts_with("volume:") {
+            if crate::imaging::identity(path)? != identity {
+                return Err("核对期间照片身份已变化，未关联旧记录".into());
+            }
+            crate::imaging::identity_from_metadata(
+                &std::fs::symlink_metadata(path).map_err(|_| "照片不可读")?,
+            )?
+        } else {
+            identity.into()
+        };
+        let existing = self.db.query_row("SELECT id,rating,revision FROM assets WHERE folder_id=?1 AND path=?2 AND identity IN (?3,?4) ORDER BY identity=?3 DESC LIMIT 1",
+            params![folder,path_text,identity,legacy], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e|e.to_string())?;
         if let Some(found) = existing {
+            self.db
+                .execute(
+                    "UPDATE assets SET identity=?1 WHERE id=?2 AND identity=?3 AND identity<>?1",
+                    params![identity, &found.0, legacy],
+                )
+                .map_err(|e| e.to_string())?;
             return Ok(found);
         }
         // A rename is relinked only when the previous occurrence is missing and unambiguous.
         let mut statement = self
             .db
             .prepare(
-                "SELECT id,path,rating,revision FROM assets WHERE folder_id=?1 AND identity=?2",
+                "SELECT id,path,rating,revision FROM assets WHERE folder_id=?1 AND identity IN (?2,?3)",
             )
             .map_err(|e| e.to_string())?;
         let candidates = statement
-            .query_map(params![folder, identity], |r| {
+            .query_map(params![folder, identity, legacy], |r| {
                 Ok((
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
@@ -162,8 +191,8 @@ impl Catalog {
             let c = missing[0];
             self.db
                 .execute(
-                    "UPDATE assets SET path=?1 WHERE id=?2",
-                    params![path_text, c.0],
+                    "UPDATE assets SET path=?1,identity=?3 WHERE id=?2",
+                    params![path_text, c.0, identity],
                 )
                 .map_err(|e| e.to_string())?;
             return Ok((c.0.clone(), c.2, c.3));
@@ -338,7 +367,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         for (name, sql) in [
             ("foreign", "CREATE TABLE private_notes(value TEXT);"),
-            ("newer", "PRAGMA user_version=3;"),
+            ("newer", "PRAGMA user_version=4;"),
         ] {
             let path = dir.path().join(name);
             let db = Connection::open(&path).unwrap();
@@ -348,6 +377,63 @@ mod tests {
             assert!(Catalog::open(&path).is_err());
             assert_eq!(std::fs::read(&path).unwrap(), before);
         }
+    }
+    #[test]
+    fn v2_upgrade_keeps_a_coherent_old_version_snapshot_before_identity_migration() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("catalog.sqlite");
+        let mut c = Catalog::open(&path).unwrap();
+        let folder = c.folder(dir.path()).unwrap();
+        let id = c
+            .upsert(
+                folder,
+                &dir.path().join("legacy.jpg"),
+                "legacy-test-identity",
+                None,
+            )
+            .unwrap()
+            .0;
+        c.rate(std::slice::from_ref(&id), Some(4)).unwrap();
+        c.db.pragma_update(None, "user_version", 2).unwrap();
+        drop(c);
+        let c = Catalog::open(&path).unwrap();
+        assert_eq!(
+            c.db.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
+                .unwrap(),
+            3
+        );
+        let snapshots = crate::backups::list(&dir.path().join("backups")).unwrap();
+        assert_eq!(snapshots.items.len(), 1);
+        let snapshot = dir
+            .path()
+            .join("backups")
+            .join(format!("{}.sqlite3", snapshots.items[0].id));
+        let old = Connection::open(&snapshot).unwrap();
+        let retained: (String, String, i32, i64) = old
+            .query_row("SELECT id,identity,rating,revision FROM assets", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+            })
+            .unwrap();
+        assert_eq!(retained, (id, "legacy-test-identity".into(), 4, 1));
+        assert_eq!(
+            old.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            old.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
+                .unwrap(),
+            "ok"
+        );
+        drop(c);
+        let _ = Catalog::open(&path).unwrap();
+        assert_eq!(
+            crate::backups::list(&dir.path().join("backups"))
+                .unwrap()
+                .items
+                .len(),
+            1
+        );
     }
     fn asset(c: &Catalog, p: &Path, key: &str) -> String {
         let root = c.folder(p.parent().unwrap()).unwrap();

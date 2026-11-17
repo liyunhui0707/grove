@@ -310,8 +310,7 @@ fn grant(state: &AppState, path: PathBuf) -> Result<Folder> {
         .map_err(|_| "目录忙碌")?
         .folder(&path)?;
     let demo = path == state.data.join("demo");
-    let identity =
-        imaging::identity_from_metadata(&fs::metadata(&path).map_err(|_| "目录不可用")?)?;
+    let identity = imaging::directory_identity(&path)?;
     let name = path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -878,6 +877,28 @@ fn generated_output_directory(name: &str) -> bool {
         && suffix.len() == 8
         && suffix.bytes().all(|b| b.is_ascii_hexdigit())
 }
+// A path is not a volume/directory identity. Reject an unmounted or replaced
+// root throughout a scan, including after the last batch callback.
+fn verify_scan_root(state: &AppState, root: &Path, folder: i64) -> Result<()> {
+    let meta = fs::symlink_metadata(root)
+        .map_err(|_| "文件夹已离线或权限失效，扫描未完成；恢复磁盘后重新扫描或重新授权")?;
+    if !meta.is_dir()
+        || meta.file_type().is_symlink()
+        || root
+            .canonicalize()
+            .map_err(|_| "文件夹已离线，扫描未完成")?
+            != root
+        || state
+            .granted_identities
+            .lock()
+            .map_err(|_| "目录忙碌")?
+            .get(&folder)
+            != Some(&imaging::directory_identity(root)?)
+    {
+        return Err("目录身份已变化，扫描未完成；请通过打开文件夹重新核对授权".into());
+    }
+    Ok(())
+}
 fn scan_directory(
     state: &AppState,
     root: &Path,
@@ -907,6 +928,12 @@ fn scan_directory(
         return Err("原文件夹位置已被其他文件占用，请重新选择文件夹".into());
     }
     fs::read_dir(root).map_err(root_error)?;
+    verify_scan_root(state, root, folder_id)?;
+    if cfg!(target_os = "macos") && !imaging::directory_identity(root)?.starts_with("volume:") {
+        warnings.push(
+            "此磁盘未提供可验证的持久身份；重新连接后可能需要重新选择，暂不保证跨挂载续挑".into(),
+        );
+    }
     let entries = walkdir::WalkDir::new(root)
         .follow_links(false)
         .into_iter()
@@ -927,6 +954,7 @@ fn scan_directory(
             let _ = on_event.send(ScanEvent::Cancelled);
             return Ok(());
         }
+        verify_scan_root(state, root, folder_id)?;
         let entry = match entry {
             Ok(e) => e,
             Err(e) => {
@@ -1056,11 +1084,13 @@ fn scan_directory(
         let _ = on_event.send(ScanEvent::Cancelled);
         return Ok(());
     }
+    verify_scan_root(state, root, folder_id)?;
     if !batch.is_empty() {
         on_event
             .send(ScanEvent::Batch { items: batch })
             .map_err(|e| e.to_string())?;
     }
+    verify_scan_root(state, root, folder_id)?;
     on_event
         .send(ScanEvent::Done {
             count,

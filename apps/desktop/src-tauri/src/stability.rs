@@ -21,6 +21,156 @@ fn events() -> (Channel<ScanEvent>, Arc<Mutex<Vec<serde_json::Value>>>) {
     (channel, values)
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn volume_identity_migrates_legacy_catalog_without_changing_rating_or_id() {
+    let t = tempfile::tempdir().unwrap();
+    let base = t.path().canonicalize().unwrap();
+    let source = base.join("sources");
+    fs::create_dir(&source).unwrap();
+    let file = source.join("legacy.png");
+    image::RgbImage::new(48, 32).save(&file).unwrap();
+    let s = state(&base.join("runtime"));
+    let f = grant(&s, source.clone()).unwrap();
+    let legacy = imaging::identity_from_metadata(&fs::metadata(&file).unwrap()).unwrap();
+    let id = s
+        .catalog
+        .lock()
+        .unwrap()
+        .upsert(f.id, &file, &legacy, None)
+        .unwrap()
+        .0;
+    s.catalog
+        .lock()
+        .unwrap()
+        .rate(std::slice::from_ref(&id), Some(5))
+        .unwrap();
+    let (channel, _) = events();
+    scan_directory(&s, &source, f.id, 0, &channel).unwrap();
+    let c = s.catalog.lock().unwrap();
+    let (new_id, key, rating, revision): (String, String, i32, i64) =
+        c.db.query_row("SELECT id,identity,rating,revision FROM assets", [], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })
+        .unwrap();
+    assert!(
+        key.starts_with("volume:"),
+        "Device number alone is not a persistent volume identity"
+    );
+    assert_eq!((new_id, rating, revision), (id, 5, 1));
+    assert_eq!(
+        c.db.query_row("SELECT count(*) FROM assets", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        c.db.query_row("SELECT count(*) FROM pending_xmp", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn rescan_rejects_replaced_root_without_cataloguing_the_replacement() {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let source = base.join("sources");
+    fs::create_dir(&source).unwrap();
+    image::RgbImage::new(48, 32)
+        .save(source.join("old.png"))
+        .unwrap();
+    let s = state(&base.join("runtime"));
+    let folder = grant(&s, source.clone()).unwrap();
+    let (channel, _) = events();
+    scan_directory(&s, &source, folder.id, 0, &channel).unwrap();
+    fs::rename(&source, base.join("retained-source")).unwrap();
+    fs::create_dir(&source).unwrap();
+    image::RgbImage::new(48, 32)
+        .save(source.join("replacement.png"))
+        .unwrap();
+    let (channel, recorded) = events();
+    assert!(scan_directory(&s, &source, folder.id, 0, &channel).is_err());
+    assert!(recorded.lock().unwrap().is_empty());
+    let count: i64 = s
+        .catalog
+        .lock()
+        .unwrap()
+        .db
+        .query_row("SELECT count(*) FROM assets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 1);
+}
+
+#[test]
+fn root_disconnected_mid_scan_is_incomplete_and_reconnect_retains_ratings() {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let source = base.join("sources");
+    let retained = base.join("retained-source");
+    fs::create_dir(&source).unwrap();
+    for i in 0..130 {
+        image::RgbImage::new(48, 32)
+            .save(source.join(format!("{i:03}.png")))
+            .unwrap();
+    }
+    let s = state(&base.join("runtime"));
+    let folder = grant(&s, source.clone()).unwrap();
+    let disconnected = Arc::new(Mutex::new(false));
+    let observed = disconnected.clone();
+    let old = source.clone();
+    let away = retained.clone();
+    let channel = Channel::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(text) = body {
+            let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            assert_ne!(
+                value["kind"], "done",
+                "Disconnected scan must never announce completion"
+            );
+            if value["kind"] == "batch" && !*observed.lock().unwrap() {
+                fs::rename(&old, &away).unwrap();
+                *observed.lock().unwrap() = true;
+            }
+        }
+        Ok(())
+    });
+    assert!(scan_directory(&s, &source, folder.id, 0, &channel).is_err());
+    assert!(*disconnected.lock().unwrap());
+    let id: String = s
+        .catalog
+        .lock()
+        .unwrap()
+        .db
+        .query_row("SELECT id FROM assets LIMIT 1", [], |r| r.get(0))
+        .unwrap();
+    s.catalog
+        .lock()
+        .unwrap()
+        .rate(std::slice::from_ref(&id), Some(4))
+        .unwrap();
+    fs::rename(&retained, &source).unwrap();
+    let (channel, recorded) = events();
+    scan_directory(&s, &source, folder.id, 0, &channel).unwrap();
+    assert_eq!(
+        recorded
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == "done")
+            .unwrap()["count"],
+        130
+    );
+    let c = s.catalog.lock().unwrap();
+    let rating: i32 =
+        c.db.query_row("SELECT rating FROM assets WHERE id=?1", [&id], |r| r.get(0))
+            .unwrap();
+    assert_eq!(rating, 4);
+    let count: i64 =
+        c.db.query_row("SELECT count(*) FROM assets", [], |r| r.get(0))
+            .unwrap();
+    assert_eq!(count, 130);
+}
+
 #[test]
 fn unavailable_scan_root_is_an_error_not_an_empty_success() {
     let temp = tempfile::tempdir().unwrap();

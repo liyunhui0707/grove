@@ -74,7 +74,7 @@ fn root_key(path: &Path) -> Result<String> {
     {
         return Err("新目录已变化或包含链接，请重新选择".into());
     }
-    imaging::identity_from_metadata(&m)
+    imaging::directory_identity(path)
 }
 fn bindings(
     c: &Catalog,

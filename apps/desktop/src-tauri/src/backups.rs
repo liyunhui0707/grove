@@ -109,7 +109,7 @@ fn validate(db: &Connection) -> Result<(i64, i64, i64)> {
     if invalid {
         return Err("备份评分或修订数据无效".into());
     }
-    if version == 2 {
+    if version >= 2 {
         let invalid:bool=db.query_row("SELECT
           EXISTS(SELECT 1 FROM xmp_state WHERE typeof(baseline) NOT IN ('text','null') OR length(CAST(baseline AS BLOB))>1048576) OR
           EXISTS(SELECT 1 FROM xmp_jobs j JOIN assets a ON a.id=j.asset_id LEFT JOIN pending_xmp p ON p.id=j.asset_id WHERE

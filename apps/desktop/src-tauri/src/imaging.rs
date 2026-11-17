@@ -15,11 +15,111 @@ pub(crate) use macos::{draw_oriented, header, sdr_options, unequal_density};
 use std::io::BufReader;
 
 pub fn identity(path: &Path) -> Result<String> {
-    let meta = fs::symlink_metadata(path).map_err(|_| "照片无法读取")?;
-    if !meta.is_file() || meta.file_type().is_symlink() {
+    let file = identity_open(path)?;
+    if !file.metadata().map_err(|_| "照片无法读取")?.is_file() {
         return Err("不读取符号链接或非普通文件".into());
     }
+    identity_from_file(&file)
+}
+fn identity_open(path: &Path) -> Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(
+            (rustix::fs::OFlags::NOFOLLOW | rustix::fs::OFlags::NONBLOCK).bits() as i32,
+        );
+    }
+    options
+        .open(path)
+        .map_err(|_| "文件或目录已离线、不可读或包含链接".into())
+}
+pub(crate) fn directory_identity(path: &Path) -> Result<String> {
+    let file = identity_open(path)?;
+    if !file.metadata().map_err(|_| "目录不可读")?.is_dir() {
+        return Err("目录身份无效".into());
+    }
+    identity_from_file(&file)
+}
+pub(crate) fn identity_from_file(file: &fs::File) -> Result<String> {
+    let meta = file.metadata().map_err(|_| "无法读取文件身份")?;
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::{fd::AsRawFd, unix::fs::MetadataExt};
+        // Request only the persistent volume UUID from the already pinned fd.
+        // BSD device numbers change when the same disk mounts in another slot.
+        #[repr(C)]
+        struct Attributes {
+            count: u16,
+            reserved: u16,
+            common: u32,
+            volume: u32,
+            directory: u32,
+            file: u32,
+            fork: u32,
+        }
+        #[repr(C)]
+        struct Volume {
+            size: u32,
+            uuid: [u8; 16],
+        }
+        unsafe extern "C" {
+            fn fgetattrlist(
+                fd: i32,
+                attrs: *mut Attributes,
+                output: *mut Volume,
+                size: usize,
+                options: usize,
+            ) -> i32;
+        }
+        let mut attrs = Attributes {
+            count: 5,
+            reserved: 0,
+            common: 0,
+            volume: 0x8004_0000,
+            directory: 0,
+            file: 0,
+            fork: 0,
+        };
+        let mut volume = Volume {
+            size: 0,
+            uuid: [0; 16],
+        };
+        let result = unsafe {
+            fgetattrlist(
+                file.as_raw_fd(),
+                &mut attrs,
+                &mut volume,
+                std::mem::size_of::<Volume>(),
+                0,
+            )
+        };
+        if result == 0
+            && volume.size as usize == std::mem::size_of::<Volume>()
+            && volume.uuid != [0; 16]
+        {
+            return Ok(format!(
+                "volume:{}:{}:{:?}",
+                uuid::Uuid::from_bytes(volume.uuid),
+                meta.ino(),
+                meta.created().ok()
+            ));
+        }
+    }
+    // Unsupported filesystems retain the conservative mount-local identity.
     identity_from_metadata(&meta)
+}
+pub(crate) fn matches_file_identity(file: &fs::File, expected: &str) -> Result<bool> {
+    Ok(identity_from_file(file)? == expected
+        || (!expected.starts_with("volume:")
+            && identity_from_metadata(&file.metadata().map_err(|_| "无法读取文件身份")?)?
+                == expected))
+}
+pub(crate) fn matches_directory_identity(path: &Path, expected: &str) -> Result<bool> {
+    let file = identity_open(path)?;
+    Ok(file.metadata().map_err(|_| "目录不可读")?.is_dir()
+        && matches_file_identity(&file, expected)?)
 }
 pub(crate) fn identity_from_metadata(meta: &fs::Metadata) -> Result<String> {
     #[cfg(unix)]
@@ -66,7 +166,7 @@ pub fn allowed_path(state: &AppState, id: &str) -> Result<PathBuf> {
     let actual = original
         .canonicalize()
         .map_err(|_| "照片已移动或离线，请重新扫描")?;
-    if !actual.starts_with(root) || identity(&original)? != expected {
+    if !actual.starts_with(root) || !matches_file_identity(&identity_open(&original)?, &expected)? {
         return Err("照片身份已变化，请重新扫描".into());
     }
     Ok(actual)

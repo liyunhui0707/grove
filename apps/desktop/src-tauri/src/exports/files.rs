@@ -51,7 +51,7 @@ impl Dir {
         })
     }
     pub fn key(&self) -> Result<String> {
-        imaging::identity_from_metadata(&self.file.metadata().map_err(|e| e.to_string())?)
+        imaging::identity_from_file(&self.file)
     }
     pub fn unchanged(&self) -> Result<()> {
         if Self::open(&self.path)?.key()? != self.key()? {
@@ -228,7 +228,7 @@ pub fn source(root: &Path, path: &Path, key: &str) -> Result<File> {
                 .ok_or("文件名无效")?,
         )?
         .ok_or("照片已离线")?;
-    if imaging::identity_from_metadata(&f.metadata().map_err(|e| e.to_string())?)? != key {
+    if !imaging::matches_file_identity(&f, key)? {
         return Err("照片身份已变化".into());
     }
     Ok(f)

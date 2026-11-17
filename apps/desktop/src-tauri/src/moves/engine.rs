@@ -396,7 +396,7 @@ fn fingerprint(dir: &Dir, name: &str, stage: String, cancel: &AtomicBool) -> Res
     if meta.nlink() != 1 {
         return Err("首版不移动硬链接，请使用独立测试副本".into());
     }
-    let identity = imaging::identity_from_metadata(&meta)?;
+    let identity = imaging::identity_from_file(&file)?;
     let (hash, bytes) = digest(&file, cancel)?;
     let after = file.metadata().map_err(|e| e.to_string())?;
     if meta.modified().ok() != after.modified().ok() || meta.len() != after.len() {
@@ -415,7 +415,7 @@ fn verify(dir: &Dir, name: &str, r: &Resource, cancel: &AtomicBool) -> Result<bo
         return Ok(false);
     };
     let m = f.metadata().map_err(|e| e.to_string())?;
-    if m.nlink() != 1 || imaging::identity_from_metadata(&m)? != r.identity {
+    if m.nlink() != 1 || !imaging::matches_file_identity(&f, &r.identity)? {
         return Err("文件身份已变化，未覆盖或继续移动".into());
     }
     let (h, b) = digest(&f, cancel)?;
