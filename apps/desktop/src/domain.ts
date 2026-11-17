@@ -12,6 +12,14 @@ export interface Asset {
   rating: Rating;
   revision: number;
   format: string;
+  companions?: { videos: number; raw: number; livePhoto: boolean };
+}
+export function companionLabel(asset: Asset): string {
+  const group = asset.companions;
+  if (group?.livePhoto) return 'Live Photo 标识 · 仅静态审片';
+  if (group?.videos) return '同名视频关联 · 仅静态审片';
+  if (group?.raw) return 'RAW 配对 · 仅静态审片';
+  return '';
 }
 export interface Folder {
   id: number;

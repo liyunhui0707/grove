@@ -495,26 +495,7 @@ fn unplanned_xmp(i: &Item, d: &Dir) -> Result<()> {
     Ok(())
 }
 fn paired(p: &Path) -> Result<()> {
-    let stem = p
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_lowercase();
-    for e in fs::read_dir(p.parent().ok_or("源父目录无效")?).map_err(|e| e.to_string())? {
-        let p = e.map_err(|e| e.to_string())?.path();
-        if p.file_stem()
-            .is_some_and(|s| s.to_string_lossy().to_lowercase() == stem)
-            && p.extension().is_some_and(|e| {
-                [
-                    "mov", "mp4", "dng", "cr2", "cr3", "nef", "arw", "raf", "rw2", "orf",
-                ]
-                .contains(&e.to_string_lossy().to_lowercase().as_str())
-            })
-        {
-            return Err("发现同名视频/RAW配对，首版不拆分移动".into());
-        }
-    }
-    Ok(())
+    crate::resources::refuse_incomplete_original_operation(p, "移动")
 }
 fn positions(j: &Job, s: &State, i: &Item) -> Result<(Dir, Option<Dir>, Vec<u8>)> {
     positions_with_cancel(j, s, i, &AtomicBool::new(false))

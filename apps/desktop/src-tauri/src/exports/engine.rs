@@ -126,30 +126,6 @@ fn safe_name(i: usize, path: &Path) -> String {
     }
     format!("{:03}-{}", i + 1, safe.trim_end_matches(['.', ' ']))
 }
-fn paired(path: &Path) -> Result<()> {
-    let stem = path
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_lowercase();
-    for entry in fs::read_dir(path.parent().ok_or("照片路径无效")?).map_err(|e| e.to_string())?
-    {
-        let other = entry.map_err(|e| e.to_string())?.path();
-        if other
-            .file_stem()
-            .is_some_and(|s| s.to_string_lossy().to_lowercase() == stem)
-            && other.extension().is_some_and(|e| {
-                [
-                    "mov", "mp4", "dng", "cr2", "cr3", "nef", "arw", "raf", "rw2", "orf",
-                ]
-                .contains(&e.to_string_lossy().to_lowercase().as_str())
-            })
-        {
-            return Err("发现同名视频/RAW配对资源，首版暂不拆分导出".into());
-        }
-    }
-    Ok(())
-}
 fn current(c: &Catalog, roots: &HashMap<i64, PathBuf>, j: &Job) -> Result<()> {
     current_with_progress(
         c,
@@ -329,7 +305,9 @@ fn prepare_kind(
         }) {
             return Err("此格式暂不支持复制导出".into());
         }
-        paired(&path)?;
+        if options.is_none() {
+            crate::resources::refuse_incomplete_original_operation(&path, "复制导出")?;
+        }
         let (sha256, bytes, info) = if let Some(o) = &options {
             let input = watermark::read_input(source)?;
             let info = watermark::inspect(&input, o)?;
@@ -721,7 +699,9 @@ pub fn run(
             parent.unchanged()?;
             dir.unchanged()?;
             let input = files::source(&p.job.root, &i.path, &i.identity)?;
-            paired(&i.path)?;
+            if p.job.watermark.is_none() {
+                crate::resources::refuse_incomplete_original_operation(&i.path, "复制导出")?;
+            }
             let observation = sidecar::capture(&p.job.root, &i.path, &i.identity);
             if let Some(e) = observation.error {
                 return Err(e);

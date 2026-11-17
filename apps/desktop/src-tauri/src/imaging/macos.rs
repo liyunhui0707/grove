@@ -290,6 +290,45 @@ pub(crate) fn header(path: &Path) -> Result<(u32, u32, Option<String>)> {
     })
 }
 
+pub(crate) fn has_live_photo_marker(path: &Path) -> bool {
+    // Apple MakerNote tag 0x0011 (ImageIO key17) is a resource identifier.
+    // Recognize its presence, even if a paired video was renamed or is absent.
+    // Do not expose it, match files by date, or claim a complete resource group.
+    let read = || -> Option<bool> {
+        let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+        if !["jpg", "jpeg", "heic", "heif"].contains(&ext.as_str()) {
+            return Some(false);
+        }
+        let url = CFURL::from_path(path, false)?;
+        let options = Dict::from_CFType_pairs(&[(
+            key(unsafe { kCGImageSourceShouldCache }),
+            CFBoolean::false_value().as_CFType(),
+        )]);
+        let source = owned(unsafe {
+            CGImageSourceCreateWithURL(url.as_concrete_TypeRef(), options.as_concrete_TypeRef())
+        })
+        .ok()?;
+        let raw =
+            unsafe { CGImageSourceCopyPropertiesAtIndex(source.as_CFTypeRef(), 0, ptr::null()) };
+        if raw.is_null() {
+            return None;
+        }
+        let p = unsafe { Dict::wrap_under_create_rule(raw) };
+        let maker = p
+            .find(CFString::new("{MakerApple}"))?
+            .downcast::<CFDictionary>()?;
+        let maker = unsafe { Dict::wrap_under_get_rule(maker.as_concrete_TypeRef()) };
+        Some(
+            maker
+                .find(CFString::new("17"))?
+                .downcast::<CFString>()?
+                .char_len()
+                > 0,
+        )
+    };
+    read().unwrap_or(false)
+}
+
 pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     let url = CFURL::from_path(path, false).ok_or("照片路径无效")?;
     let options = Dict::from_CFType_pairs(&[(

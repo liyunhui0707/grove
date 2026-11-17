@@ -1,4 +1,4 @@
-# Photo support in 0.7.0
+# Photo support in 0.8.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
@@ -10,7 +10,7 @@ The public prerelease targets Apple Silicon macOS. Runtime evidence is from macO
 | Transparency | Flattened over white for JPEG previews | Flattened over white for JPEG derivatives |
 | Apple gain-map JPEG/HEIC and tested 10-bit PQ HEIC, macOS 14+ | Explicit system SDR decode, then 8-bit sRGB preview; no HDR display | Independent 8-bit sRGB JPEG; HDR effect is not retained |
 | Other high bit depth / multi-frame input, or HDR on systems without SDR decode | Refused with a specific message | Refused; no silent clipping or unsupported conversion |
-| Live Photos / RAW pairs | Full resource-group handling is not implemented | Paired file operations are blocked rather than split |
+| Recognized Live Photo markers / same-name video or RAW companions | Static photo review with a resource label; no motion playback | Independent static watermark JPEG allowed with explicit scope; original copy/move blocked rather than split |
 
 Previews: 128MiB source limit, at most 64MP / 30,000px per source edge; generated preview bitmap at most 24MP. Grid previews use 480px, regular panes 1600px, one requested detail pane up to 8192px. The detail request may be refused when its pixel budget is exceeded. The backend bounds decode workers to two and queue slots to 24; frontend fetch concurrency is four. A failed preview has a retry action and does not prevent reviewing other files.
 
@@ -45,3 +45,14 @@ Mixed-folder completion reports counts for skipped video, RAW and unsupported im
 The same three attributed originals were downloaded again and verified against their recorded SHA-256 identities. The 11-file mobile SDR matrix and six-file camera/conversion trial were rerun on the local Mac; generated HEIC/HDR variants remain derivatives, not original device captures. Corrupt-input isolation, partial permission errors, eight orientations, repeated scans and output recovery remain regression-covered. This does not expand the list of certified devices or operating systems.
 
 When opening a parent folder, standard Moment Grove copy, watermark and move batch subdirectories are excluded, alongside the existing quarantine/hidden exclusions. Opening the output folder itself remains supported. This prevents generated outputs from silently becoming new review candidates; similarly named ordinary albums are retained.
+
+## 0.8.0 original HEIC/HEIF and association scope
+
+Three unmodified files from [ianare/exif-samples](https://github.com/ianare/exif-samples/tree/5332a9cf0220e9c6c93f88a187daa90808051e10/heic/mobile) are tested privately under the repository's [CC BY-SA4.0 user-contribution terms](https://github.com/ianare/exif-samples/blob/5332a9cf0220e9c6c93f88a187daa90808051e10/README.rst). Their bytes and Git blob identities are pinned; they are not distributed in this product.
+
+- `iphone_13_pro_max.HEIC`, contributed by [manand881](https://github.com/ianare/exif-samples/commit/f0462fcc42f7bad484fe637389b734612d97041f): ImageIO reports iPhone13ProMax, orientation6, capture date2022-02-16, displayed3024×4032.
+- `HMD_Nokia_8.3_5G.heif` and `HMD_Nokia_8.3_5G_hdr.heif`, exif-samples contributors: filenames describe the sample source; ImageIO exposes no model or original-date field in these files. Displayed sizes are3456×4608 and4608×3456. The `_hdr` filename alone is not HDR certification.
+
+Six previews, three byte-identical copies, three2048px watermarks, manual fallback for absent dates, restarted ratings and source hashes passed the explicit backend trial on macOS27.2.1. No new device-wide or operating-system certification is implied.
+
+Association detection indexes same-directory basenames without quadratic rescanning, including all video/RAW suffixes reported by the scanner. Apple MakerNote content identifiers are also conservatively recognized using ImageIO's MakerApple17 field ([tag definition](https://exiftool.org/TagNames/Apple.html)); identifier values are not displayed or logged. A generated marker fixture verifies protection even with renamed/absent video; it is not a real captured Live Photo. Original copy/move operations are blocked for recognized groups, while independent static watermark derivatives are allowed with an explicit scope note. Metadata removed or rewritten by other software, arbitrary cross-directory relationships, full motion playback and complete resource-group export remain outside this support scope.

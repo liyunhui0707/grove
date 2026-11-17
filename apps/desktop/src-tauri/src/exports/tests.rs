@@ -36,6 +36,84 @@ fn execute(plan: Plan, data: &Path, cancel: &AtomicBool) -> Report {
 }
 
 #[test]
+fn less_common_raw_companions_are_not_split_by_copy_export() {
+    for ext in ["PEF", "SRW", "RW2"] {
+        let t = tempfile::tempdir().unwrap();
+        let b = t.path().canonicalize().unwrap();
+        let (c, roots, f, targets) = fixture(&b);
+        fs::write(
+            roots[&f].join(format!("generated-0.{ext}")),
+            b"generated RAW marker",
+        )
+        .unwrap();
+        assert!(
+            prepare(
+                &c,
+                &roots,
+                f,
+                &targets[..1],
+                &b.join("output"),
+                &b.join("data")
+            )
+            .is_err(),
+            "{ext} must not be split"
+        );
+        assert_eq!(fs::read_dir(b.join("output")).unwrap().count(), 0);
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn paired_static_watermark_keeps_original_photo_and_video_in_place() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let photo = roots[&f].join("generated-0.jpg");
+    image::RgbImage::new(240, 160).save(&photo).unwrap();
+    let before = fs::read(&photo).unwrap();
+    let video = roots[&f].join("generated-0.MOV");
+    fs::write(
+        &video,
+        b"generated companion marker; not a real Live Photo video",
+    )
+    .unwrap();
+    let options = crate::watermark::Options {
+        fallback_date: Some("2026-11-17".into()),
+        ..Default::default()
+    };
+    assert!(
+        prepare(
+            &c,
+            &roots,
+            f,
+            &targets[..1],
+            &b.join("output"),
+            &b.join("data")
+        )
+        .is_err()
+    );
+    let plan = prepare_watermark(
+        &c,
+        &roots,
+        f,
+        &targets[..1],
+        &b.join("output"),
+        &b.join("data"),
+        &options,
+    )
+    .unwrap();
+    let result = execute(plan, &b.join("data"), &AtomicBool::new(false));
+    assert_eq!((result.status.as_str(), result.verified), ("completed", 1));
+    let generated = fs::read(Path::new(&result.destination).join(&result.items[0].output)).unwrap();
+    assert_eq!(image::load_from_memory(&generated).unwrap().width(), 240);
+    assert_eq!(fs::read(&photo).unwrap(), before);
+    assert_eq!(
+        fs::read(&video).unwrap(),
+        b"generated companion marker; not a real Live Photo video"
+    );
+}
+
+#[test]
 fn seven_states_export_without_touching_originals_or_pending_queue() {
     let t = tempfile::tempdir().unwrap();
     let b = t.path().canonicalize().unwrap();

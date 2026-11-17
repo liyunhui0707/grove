@@ -89,15 +89,26 @@ fn stale_review_changes_and_snapshot_failure_leave_all_files_in_place() {
 #[test]
 fn paired_linked_hardlinked_and_active_xmp_resources_are_rejected() {
     use std::os::unix::fs::symlink;
-    for case in ["pair", "symlink", "hardlink", "active", "destination-link"] {
+    for case in [
+        "pair",
+        "pef",
+        "srw",
+        "symlink",
+        "hardlink",
+        "active",
+        "destination-link",
+    ] {
         let t = tempfile::tempdir().unwrap();
         let b = t.path().canonicalize().unwrap();
         let (c, roots, f, targets) = fixture(&b);
         let source = roots[&f].join("generated-0.jpg");
         let mut parent = b.join("destination");
         match case {
-            "pair" => fs::write(
-                roots[&f].join("generated-0.MOV"),
+            "pair" | "pef" | "srw" => fs::write(
+                roots[&f].join(format!(
+                    "generated-0.{}",
+                    if case == "pair" { "MOV" } else { case }
+                )),
                 b"Generated paired resource",
             )
             .unwrap(),

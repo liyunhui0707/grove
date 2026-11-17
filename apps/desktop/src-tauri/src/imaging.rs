@@ -11,6 +11,17 @@ use std::{
 mod macos;
 #[cfg(target_os = "macos")]
 pub(crate) use macos::{draw_oriented, header, sdr_options, unequal_density};
+pub(crate) fn has_live_photo_marker(path: &Path) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        macos::has_live_photo_marker(path)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        false
+    }
+}
 #[cfg(not(target_os = "macos"))]
 use std::io::BufReader;
 

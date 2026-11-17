@@ -54,6 +54,7 @@ import {
 import { bridge, native } from './bridge';
 import {
   applyChanges,
+  companionLabel,
   filterAssets,
   gridColumns,
   isTyping,
@@ -484,6 +485,7 @@ function PhotoPane({
               ? `${asset.width} × ${asset.height}`
               : asset.format.toUpperCase()}
             {detail ? ' · 细节预览（最长边 8192px）' : ''}
+            {companionLabel(asset) ? ` · ${companionLabel(asset)}` : ''}
           </small>
         </span>
         <RatingButtons value={asset.rating} onRate={onRate} disabled={disabled} />

@@ -17,7 +17,7 @@ import {
   type WatermarkOptions,
   type WatermarkPreview,
 } from './bridge';
-import type { Asset, Folder } from './domain';
+import { companionLabel, type Asset, type Folder } from './domain';
 import {
   defaultWatermarkOptions as defaults,
   loadWatermarkStyle,
@@ -292,6 +292,11 @@ export function WatermarkDialog({
           {resuming ? '继续上次清单 · 参数已固定' : scope} ·{' '}
           {report?.items.length ?? selection.length} 张 · 原件不变
         </p>
+        {!resuming && selection.some((asset) => companionLabel(asset)) && (
+          <p className="batch-review-note" role="note" aria-label="静态导出范围">
+            本次仅生成静态照片的水印 JPEG；关联视频与 RAW 保持原位，不是完整 Live Photo 导出。
+          </p>
+        )}
         <PreparationStatus task={preparation} preparing={busy && !running} />
         {prepared && (
           <p className="batch-review-note">清单已核对，尚未开始本次文件操作。确认后才会执行。</p>

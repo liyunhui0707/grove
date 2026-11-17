@@ -36,6 +36,7 @@ async function mock(
     failRegistration?: boolean;
     failPreview?: boolean;
     previewWarning?: string;
+    companions?: boolean;
   } = {},
 ) {
   await page.addInitScript((config) => {
@@ -69,6 +70,7 @@ async function mock(
       rating: 4,
       revision: 1,
       format: 'jpg',
+      companions: { videos: config.companions ? 1 : 0, raw: 0, livePhoto: false },
     };
     const svg = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"><path fill="#617b68" d="M0 0h48v32H0z"/></svg>')}`;
     const old = {
@@ -199,6 +201,20 @@ async function open(page: Page) {
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   return page.getByRole('dialog', { name: '日期城市水印' });
 }
+
+test('paired still export explains its scope and does not label an unrelated historical batch', async ({
+  page,
+}) => {
+  await mock(page, { companions: true, history: true });
+  const dialog = await open(page);
+  await expect(dialog.getByRole('note', { name: '静态导出范围' })).toContainText(
+    '不是完整 Live Photo 导出',
+  );
+  await dialog.getByLabel('备用日期', { exact: true }).fill('2026-11-17');
+  await expect(dialog.getByRole('button', { name: '选择导出位置', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: '继续核验', exact: true }).click();
+  await expect(dialog.getByRole('note', { name: '静态导出范围' })).toHaveCount(0);
+});
 
 test('normal quit waits for a style write even after closing its dialog', async ({ page }) => {
   await mock(page, { holdSave: true });

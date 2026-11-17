@@ -2,7 +2,7 @@ import { usePreparation, PreparationStatus, BatchOutcome } from './BatchFeedback
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, FolderOpen, LoaderCircle, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { bridge, native, type ExportReport } from './bridge';
-import { ratingLabel, type Asset, type Folder } from './domain';
+import { companionLabel, ratingLabel, type Asset, type Folder } from './domain';
 
 const size = (bytes: number) =>
   bytes >= 1024 * 1024
@@ -191,6 +191,12 @@ export function ExportDialog({
           {resuming ? '上次导出清单' : scope} · {folder.name} ·{' '}
           {report?.items.length ?? selection.length} 张照片
         </p>
+        {!resuming && selection.some((asset) => companionLabel(asset)) && (
+          <p className="batch-review-note" role="note" aria-label="关联资源保护">
+            当前选择含 Live Photo 标识或同名视频/RAW，暂不拆分复制。可改用水印生成静态
+            JPEG；原件与关联资源保持原位。
+          </p>
+        )}
         <PreparationStatus task={preparation} preparing={busy && !running} />
         {prepared && (
           <p className="batch-review-note">清单已核对，尚未开始本次文件操作。确认后才会执行。</p>

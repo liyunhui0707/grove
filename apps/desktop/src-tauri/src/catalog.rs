@@ -35,6 +35,8 @@ pub struct Asset {
     pub rating: Option<i32>,
     pub revision: i64,
     pub format: String,
+    #[serde(default)]
+    pub companions: crate::resources::Companions,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

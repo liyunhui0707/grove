@@ -15,6 +15,7 @@ mod mobile;
 mod moves;
 mod preparation;
 mod relocation;
+mod resources;
 mod sidecar;
 #[cfg(test)]
 mod stability;
@@ -909,6 +910,7 @@ fn scan_directory(
     let _file_access = moves::access(&state.data, false)?;
     let mut count = 0;
     let mut batch = Vec::new();
+    let mut resource_index = HashMap::new();
     let mut warnings = Vec::new();
     let mut skipped = SkippedMedia {
         videos: 0,
@@ -1037,6 +1039,11 @@ fn scan_directory(
             } else {
                 (width, height, captured)
             };
+            let parent = path.parent().ok_or("照片路径无效")?;
+            if !resource_index.contains_key(parent) {
+                resource_index.insert(parent.to_path_buf(), resources::directory(parent)?);
+            }
+            let companions = resources::for_photo(&resource_index[parent], path);
             Ok::<_, String>(Asset {
                 id,
                 folder_id,
@@ -1059,6 +1066,7 @@ fn scan_directory(
                 rating,
                 revision,
                 format,
+                companions,
             })
         })();
         match result {

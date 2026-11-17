@@ -30,7 +30,7 @@ fn mixed_library_scan_restart_and_ratings() {
         .unwrap();
     assert!([3000, 10000].contains(&total));
     let run = std::env::var("MG_LARGE_RUN").unwrap();
-    assert!(["baseline", "optimized", "volume"].contains(&run.as_str()));
+    assert!(["baseline", "optimized", "volume", "phone"].contains(&run.as_str()));
     let sources = root.join("sources");
     let manifest = root.join("sources.json");
     if !sources.exists() {
