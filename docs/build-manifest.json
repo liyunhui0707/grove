@@ -20,7 +20,7 @@
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "ACCEPTED_PENDING_PUBLICATION",
+  "status": "PUBLISHED_TECHNICAL_PRERELEASE",
   "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0",
   "validation": {
     "rustPassed": 132,
@@ -76,5 +76,17 @@
     "Air full interactive workflow not accepted",
     "other OS versions, Intel, Windows and Linux not validated",
     "short isolated checks do not establish long-term real-library reliability"
-  ]
+  ],
+  "tagCommit": "23d9c461339e013a4faf90bf4b4ab9df72859496",
+  "tagSourceEquivalent": true,
+  "sourceCommitRole": "Exact clean build source; release tag adds acceptance documentation only",
+  "website": {
+    "url": "https://moment-grove.outerepoch3.chatgpt.site",
+    "version": 10,
+    "sourceCommit": "8544db39196713929db51d23e4e50405975fa2b0",
+    "status": "DEPLOYED"
+  },
+  "previousReleaseCountPreserved": 10,
+  "uploadedAssetsFullReadback": true,
+  "anonymousAssetPrefixesVerified": 3
 }
