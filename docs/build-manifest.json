@@ -1,114 +1,80 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "channel": "public-prerelease",
-  "buildId": "trial-20261117T091756-4c740254d0",
-  "sourceCommit": "9db27b5aa5d6357d42e45cec442ba89d7a00a554",
+  "buildId": "trial-20261118T083732-4dc03f4c98",
+  "sourceCommit": "524724267583b54c90f53cffef8043944fa18c38",
+  "sourceDirty": false,
   "architecture": "arm64",
-  "sourceDigest": "4c740254d007ffc52b64623f7bcbd10a8fa5ff710d075e7ff38ff60b46c0e937",
-  "binarySha256": "5d41d111aff1d3d9698f824c2dfce68f36489ae37b42c0f1ffd731a39b778988",
+  "sourceDigest": "4dc03f4c98c4b13b4e3b1ec4916d6f740148fc543c70ce7239cce9eb6467f17e",
+  "binarySha256": "3cb74ffaea8b96f05fe6ab329e9501c169f53f197f98fe949e51d2fd8c271f6c",
   "artifacts": [
     {
-      "name": "Moment-Grove-0.8.0-macOS-arm64.zip",
-      "bytes": 5668019,
-      "sha256": "b6657abb8c5dd6f375ac7be8a14d23eee8d973413a40137ee25e3b03885ca8a8"
+      "name": "Moment-Grove-0.9.0-macOS-arm64.zip",
+      "bytes": 5693982,
+      "sha256": "175f9979ca24b159b795889d977d3e24d569b83c43cdc76daeadd454439f95ea"
     },
     {
-      "name": "Moment-Grove-0.8.0-macOS-arm64.dmg",
-      "bytes": 6506391,
-      "sha256": "d6d72baca01d5e29fd19a5a973ef9b1e1732fe9818c3ee7db2c8d7055242f60d"
+      "name": "Moment-Grove-0.9.0-macOS-arm64.dmg",
+      "bytes": 6538253,
+      "sha256": "05b9c1190bcd9c6601aab2ae8e539325f7e4997a89379cbea0d815e1aadd35cf"
     }
   ],
   "signing": "ad-hoc; no Developer ID or notarization",
-  "status": "PUBLISHED_TECHNICAL_PRERELEASE",
-  "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.8.0",
+  "status": "ACCEPTED_PENDING_PUBLICATION",
+  "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0",
   "validation": {
-    "rustPassed": 131,
-    "rustIgnoredByDefault": 20,
-    "uiPassed": 82,
-    "logicPassed": 17,
+    "rustPassed": 132,
+    "rustIgnoredByDefault": 21,
+    "uiPassed": 93,
+    "logicPassed": 20,
     "deliveryPassed": 12,
     "websiteViewportPassed": 6,
     "clippy": "all targets -D warnings passed",
     "archives": {
       "payloadFiles": 12,
-      "sourceFiles": 84,
+      "sourceFiles": 88,
       "readOnlyDmgMount": true,
       "strictAdHocSignature": true
     },
     "native": {
       "system": "macOS27.2.1 arm64",
-      "firstBuild": "trial-20261117T073658-69a0bda048",
-      "firstBuildUnpublishedSuperseded": true,
-      "finalBuild": "trial-20261117T091756-4c740254d0",
-      "inputFiles": 10008,
-      "listedPhotos": 10006,
-      "generated12MP": 100,
-      "firstNativeCopies": 3,
-      "firstNativeWatermarks": 3,
-      "finalNativeCopy": 1,
-      "originalsUnchanged": true,
-      "remountedAPFSDeviceNumberChanged": true,
-      "stableIdsAndAllBusinessTablesRetained": true,
-      "schema": "2 to3 with coherent automatic backup",
-      "rollback": "independent schema2 backup/settings, original legacy device binding available",
-      "finalNativeScope": "restored 10006-photo catalog position and ratings; licensed phone preview; exact copy1/1; normal quit",
-      "firstNativeMemory": {
-        "samples": 262,
-        "minutes": 21.8689,
-        "peakFootprintMiB": 581.2078,
-        "endFootprintMiB": 265.0203,
-        "scope": "main plus same-coalition WebKit; includes idle automation wait; not an active benchmark"
-      }
+      "sourceFilesUnchanged": 506,
+      "listedPhotos": 506,
+      "ratingUndo": true,
+      "copyPhotos": 1,
+      "watermarkPhotos": 1,
+      "installedExactBinary": true,
+      "normalQuit": true,
+      "sameSchemaRollback": "0.9.0 -> 0.8.0 -> 0.9.0; all business tables and workspace unchanged after workflow"
     },
-    "air": {
-      "system": "macOS27.2.1 arm64",
-      "finalInstalledBinaryMatches": true,
-      "dailyDataPreserved": true,
-      "frontendReady": true,
-      "fullPhotoWorkflow": "INCOMPLETE_REMOTE_INPUT",
-      "normalQuit": "NOT_ACCEPTED_WATCHDOG_TERMINATION_NO_REMAINING_PIDS"
-    },
-    "uploadReadback": "complete ZIP/DMG/SHA256SUMS hashes and downloaded payload/signature verified; range recovery after timeout",
-    "localDailyInstall": "actual downloaded ZIP; old0.7 App/coherent catalog/settings/logs retained; isolated 10006-photo resume and normal quit; daily business tables/settings/logs unchanged",
-    "anonymousAccess": [
-      {
-        "name": "Moment-Grove-0.8.0-macOS-arm64.dmg",
-        "status": 206,
-        "verifiedPrefixBytes": 1024,
-        "totalBytes": 6506391,
-        "range": "bytes 0-1023/6506391"
+    "installation": {
+      "local": {
+        "version": "0.9.0",
+        "previousVersion": "0.8.0",
+        "oldAppRetained": true,
+        "coherentCatalogBackup": true,
+        "dailyTablesAndSettingsUnchanged": true,
+        "isolatedNativeResumeNormalQuit": true
       },
-      {
-        "name": "Moment-Grove-0.8.0-macOS-arm64.zip",
-        "status": 206,
-        "verifiedPrefixBytes": 1024,
-        "totalBytes": 5668019,
-        "range": "bytes 0-1023/5668019"
-      },
-      {
-        "name": "SHA256SUMS.txt",
-        "status": 206,
-        "verifiedPrefixBytes": 202,
-        "totalBytes": 202,
-        "range": "bytes 0-201/202"
+      "air": {
+        "version": "0.9.0",
+        "previousVersion": "0.8.0",
+        "sameBinarySha256": true,
+        "oldAppRetained": true,
+        "coherentCatalogBackup": true,
+        "dailyTablesAndSettingsUnchanged": true,
+        "isolatedWindowAndReadyObserved": true,
+        "interactiveAcceptance": "NOT_COMPLETED: remote coordinate control noWindowsAvailable",
+        "exit": "controlled SIGTERM of isolated test; not normal quit"
       }
-    ],
-    "oldReleasesPreserved": 9
+    }
   },
-  "website": {
-    "url": "https://moment-grove.outerepoch3.chatgpt.site",
-    "version": 8,
-    "sourceCommit": "ab363eaa2a0eb3695f5016d774e1cdfb46abb602",
-    "status": "DEPLOYED",
-    "deploymentId": "appgdep_6afc222dc3cc8191a31f6875c5c93bc7",
-    "verification": "native Sites succeeded; anonymous 0.8.0 links; product HTML equal excluding only platform Cloudflare script; four static assets exact; browser interaction incomplete"
-  },
-  "remaining": {
-    "browserQuarantineFirstOpen": "NOT_ACCEPTED_BROWSER_HOST_UNAVAILABLE_NATIVE_CONTROL_STALLED",
-    "developerIdNotarization": "NO_VALID_CERTIFICATE_AD_HOC_CHANNEL_APPROVED",
-    "minimumSystem": "declares12.0; only27.2.1 tested",
-    "fullLivePhotoRawVideo": "NOT_SUPPORTED",
-    "nonPersistentVolumeIdentity": "conservative legacy identity; arbitrary reconnection not promised",
-    "legacyJournals": "exact online identity required; unmigrated device-number logs may refuse after remount"
-  }
+  "limits": [
+    "ad-hoc signed; not Developer ID signed or notarized",
+    "manual replacement updates",
+    "browser quarantine/Gatekeeper first-open not accepted",
+    "Air full interactive workflow not accepted",
+    "other OS versions, Intel, Windows and Linux not validated",
+    "short isolated checks do not establish long-term real-library reliability"
+  ]
 }
