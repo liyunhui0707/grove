@@ -8,6 +8,8 @@
 
 验证：`npm run test:ui` 97通过；`npm run test:rust` 141通过、22显式试验默认忽略；`npm test` 20通过；`npm run build` 和 `npm run check:rust` 通过。新增9项默认Rust安全测试及4项UI流程，另显式运行 `MG_RUN_TRASH_QA=1 node scripts/cargo.mjs test --offline --manifest-path apps/desktop/src-tauri/Cargo.toml trash::engine::tests::native_generated -- --ignored --nocapture`：2张生成照片+2个XMP实际进入系统废纸篓，校验散列后NOREPLACE放回通过。沙箱运行曾正确报权限失败；原生正常权限调用和复核通过。系统返回稳定引用时须转换成真实路径，已实测修正；不把模拟文件重命名测试称为系统废纸篓验收。证据仅含生成素材，保存在忽略的 `.local/trash-native-qa/`。
 
+本功能本地提交 `2151e6f`；独立候选 `trial-20261118T125932-5d38b6c7a5` 从该干净提交构建，92项打包源散列和二进制散列核对通过，App严格签名验证通过，App/ZIP已生成。DMG步骤因沙箱hdiutil设备不可用未产出，不宣称安装包全套完成。原生已观察独立候选启动界面；文件选择器偏离范围后关闭，完整交互因窗口切换保护中止，仅对精确隔离候选进程SIGTERM，不记为正常退出验收。系统废纸篓往返试验与完整UI自动化结果如上，不混作原生端到端；私人验收收据 `.local/trash-native-qa/acceptance.json`。
+
 本功能尚未发布，未改版本号、标签、官网或两台Mac日常安装。公开0.9.0仍以以下记录为准。独立候选桌面体验另行记录，不要求用户执行清单。
 
 ## 当前交付：0.9.0技术测试预发布（2026-11-18已收口）
