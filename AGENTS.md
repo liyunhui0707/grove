@@ -1,4 +1,4 @@
-# Moment Grove — contributor and coding-agent instructions
+# Grove — contributor and coding-agent instructions
 
 ## Read before implementation
 

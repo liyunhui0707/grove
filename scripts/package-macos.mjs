@@ -15,7 +15,7 @@ const { channel } = options;
 process.env.CARGO_ENCODED_RUSTFLAGS = [
   ...(process.env.CARGO_ENCODED_RUSTFLAGS?.split('\x1f') ?? []),
   '--remap-path-prefix',
-  `${root}=moment-grove`,
+  `${root}=grove`,
   '--remap-path-prefix',
   `${root}/.local=build-cache`,
 ].join('\x1f');
@@ -50,7 +50,11 @@ if (options.preflight) {
   );
   process.exit(0);
 }
+const sourceCommit = run('git', ['rev-parse', 'HEAD']).trim();
+const sourceDirty = run('git', ['status', '--porcelain']).trim().length > 0;
 const sourcePaths = [
+  'assets/grove.svg',
+  'public/grove.svg',
   'package.json',
   'package-lock.json',
   'vite.config.ts',
@@ -104,14 +108,13 @@ process.stdout.write(
     '--offline',
   ]),
 );
-const payload = path.join(out, 'Moment Grove');
+const payload = path.join(out, 'Grove');
 fs.mkdirSync(payload, { mode: 0o700 });
-const app = path.join(payload, 'Moment Grove.app');
-fs.cpSync(
-  path.join(root, 'apps/desktop/src-tauri/target/release/bundle/macos/Moment Grove.app'),
-  app,
-  { recursive: true, errorOnExist: true },
-);
+const app = path.join(payload, 'Grove.app');
+fs.cpSync(path.join(root, 'apps/desktop/src-tauri/target/release/bundle/macos/Grove.app'), app, {
+  recursive: true,
+  errorOnExist: true,
+});
 signApp(app, options, run);
 let appNotarization = { status: 'NOT_REQUESTED' };
 if (options.notarize) {
@@ -128,7 +131,7 @@ if (options.notarize) {
 const info = JSON.parse(
   run('/usr/bin/plutil', ['-convert', 'json', '-o', '-', path.join(app, 'Contents/Info.plist')]),
 );
-const binary = path.join(app, 'Contents/MacOS/moment-grove');
+const binary = path.join(app, 'Contents/MacOS/grove');
 if (
   info.CFBundleIdentifier !==
     (channel === 'local-trial' ? 'app.momentgrove.trial' : config.identifier) ||
@@ -164,7 +167,9 @@ for (const [from, to] of [
 ])
   fs.copyFileSync(path.join(root, from), path.join(payload, to));
 const candidate = {
-  product: 'Moment Grove',
+  product: 'Grove',
+  sourceCommit,
+  sourceDirty,
   version: pkg.version,
   channel,
   buildId,
@@ -199,7 +204,7 @@ const dmg = path.join(out, `${archiveStem}.dmg`);
 run('/usr/bin/hdiutil', [
   'create',
   '-volname',
-  channel === 'public-prerelease' ? `Moment Grove ${pkg.version} Preview` : 'Moment Grove Trial',
+  channel === 'public-prerelease' ? `Grove ${pkg.version} Preview` : 'Grove Trial',
   '-srcfolder',
   payload,
   '-format',

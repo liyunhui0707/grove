@@ -481,8 +481,7 @@ fn hundred_watermark_derivatives() {
     assert_eq!((done.status.as_str(), done.verified), ("completed", 100));
     let destination = Path::new(&done.destination);
     let manifest: serde_json::Value =
-        serde_json::from_slice(&fs::read(destination.join("moment-grove-export.json")).unwrap())
-            .unwrap();
+        serde_json::from_slice(&fs::read(destination.join("grove-export.json")).unwrap()).unwrap();
     let files = manifest["files"].as_array().unwrap();
     assert_eq!(files.len(), 100);
     for (n, row) in done.items.iter().enumerate() {

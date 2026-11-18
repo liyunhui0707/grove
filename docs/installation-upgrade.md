@@ -1,6 +1,14 @@
+# Grove 0.10.0：从 Moment Grove 更新
+
+本版为 ad-hoc／未公证的 Apple Silicon 技术测试预发布。日常入口更名为 `/Applications/Grove.app`，沿用 `app.momentgrove.desktop` 的既有资料目录、实例锁和权限身份，不移动或清空评分、审片位置和样式。新版本号不代表已完成 Developer ID 签名或公证。
+
+更新前备份资料库并正常退出旧版，保留旧 App 后再放入 Grove.app，避免两个入口指向不同版本。重新打开后核对原目录和计数。0.10.0 不升级 SQLite schema3；旧导出/移动任务继续使用旧品牌文件名，新任务使用 Grove。回退到0.9.0前须完成或撤回本版新建的导出/移动任务；0.9.0不识别新的 Grove 任务目录。废纸篓中的文件须由 Finder 找回并放回原位；换回旧 App 或恢复资料库都不会搬回照片。
+
+以下为既有升级边界，带旧版号的说明保留其历史范围。
+
 # 安装、升级与回退
 
-适用：Moment Grove 0.9.0 技术测试预发布，Apple Silicon Mac。ad-hoc 签名、未公证；手动替换应用，无自动更新。最低系统声明 macOS 12，实际验收系统与范围见发行证据。无需另装 Node.js 或 Rust。
+适用：Grove 0.9.0 技术测试预发布，Apple Silicon Mac。ad-hoc 签名、未公证；手动替换应用，无自动更新。最低系统声明 macOS 12，实际验收系统与范围见发行证据。无需另装 Node.js 或 Rust。
 
 1. 从本版 GitHub Release 下载确切的 macOS arm64 ZIP 或 DMG 及 SHA256SUMS.txt，核对完整文件校验和后解压或挂载，将 App 放到固定安装位置。
 2. macOS 可能阻止未公证 App 首次打开。仅建议技术试用者使用，遵循系统提供的明确打开操作，无需关闭系统安全保护。浏览器隔离首次打开尚未验收。

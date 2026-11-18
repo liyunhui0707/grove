@@ -175,17 +175,19 @@ fn validate_job(j: &Job, id: &str) -> Result<()> {
         || j.items.len() > LIMIT
         || !j.root.is_absolute()
         || !j.parent.is_absolute()
-        || j.directory
-            != format!(
-                "Moment-Grove-{}-{}-{}",
-                if j.kind == "quarantine" {
-                    "Quarantine"
-                } else {
-                    "Move"
-                },
-                j.created,
-                &j.id[..8]
-            )
+        || !["Grove", "Moment-Grove"].iter().any(|brand| {
+            j.directory
+                == format!(
+                    "{brand}-{}-{}-{}",
+                    if j.kind == "quarantine" {
+                        "Quarantine"
+                    } else {
+                        "Move"
+                    },
+                    j.created,
+                    &j.id[..8]
+                )
+        })
     {
         return Err("安全整理计划无效".into());
     }
@@ -618,7 +620,7 @@ pub fn prepare_with_progress(
         .map_err(|e| e.to_string())?
         .as_secs();
     let directory = format!(
-        "Moment-Grove-{}-{created}-{}",
+        "Grove-{}-{created}-{}",
         if kind == "quarantine" {
             "Quarantine"
         } else {

@@ -878,10 +878,8 @@ p {
   place-items: center;
   width: 35px;
   height: 39px;
-  border: 1px solid var(--accent);
-  border-radius: 14px 14px 14px 3px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 0;
+  border-radius: 10px;
 }
 .brand small {
   display: block;

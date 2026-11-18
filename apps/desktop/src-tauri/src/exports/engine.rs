@@ -259,7 +259,7 @@ fn prepare_kind(
         .map_err(|e| e.to_string())?
         .as_secs();
     let directory = format!(
-        "Moment-Grove-{}{seconds}-{}",
+        "Grove-{}{seconds}-{}",
         if options.is_some() { "Watermark-" } else { "" },
         &id[..8]
     );
@@ -519,7 +519,7 @@ fn load(data: &Path, id: &str) -> Result<Job> {
                 .file_name()
                 .unwrap_or_default()
                 .to_string_lossy()
-        || !j.directory.starts_with("Moment-Grove-")
+        || !(j.directory.starts_with("Grove-") || j.directory.starts_with("Moment-Grove-"))
     {
         return Err("导出记录无效".into());
     }
@@ -787,7 +787,8 @@ pub fn run(
     }
     .into();
     if p.job.status == "completed" {
-        let mut portable = serde_json::json!({"app":"Moment Grove","format":1,"files":p.job.items.iter().map(|i|serde_json::json!({"sourceRelative":i.relative,"name":i.output,"rating":i.rating,"bytes":i.derivative.as_ref().map(|d|d.bytes).unwrap_or(i.bytes),"sha256":i.derivative.as_ref().map(|d|d.sha256.as_str()).unwrap_or(&i.sha256),"sidecarSha256":hash_bytes(i.xml.as_bytes())})).collect::<Vec<_>>()});
+        let current_brand = p.job.directory.starts_with("Grove-");
+        let mut portable = serde_json::json!({"app":if current_brand {"Grove"} else {"Moment Grove"},"format":1,"files":p.job.items.iter().map(|i|serde_json::json!({"sourceRelative":i.relative,"name":i.output,"rating":i.rating,"bytes":i.derivative.as_ref().map(|d|d.bytes).unwrap_or(i.bytes),"sha256":i.derivative.as_ref().map(|d|d.sha256.as_str()).unwrap_or(&i.sha256),"sidecarSha256":hash_bytes(i.xml.as_bytes())})).collect::<Vec<_>>()});
         if let Some(options) = &p.job.watermark {
             portable["watermark"] = serde_json::to_value(options).map_err(|e| e.to_string())?;
             portable["rendered"] = serde_json::to_value(
@@ -800,7 +801,14 @@ pub fn run(
             .map_err(|e| e.to_string())?;
         }
         let bytes = serde_json::to_vec_pretty(&portable).map_err(|e| e.to_string())?;
-        if let Err(e) = dir.write_record("moment-grove-export.json", &bytes) {
+        if let Err(e) = dir.write_record(
+            if current_brand {
+                "grove-export.json"
+            } else {
+                "moment-grove-export.json"
+            },
+            &bytes,
+        ) {
             p.job.status = "partial".into();
             p.job.message = Some(e);
         }

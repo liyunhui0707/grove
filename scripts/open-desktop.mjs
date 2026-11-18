@@ -23,9 +23,13 @@ if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === imp
   const args = process.argv.slice(2);
   if (args.length > 1 || args.some((a) => a !== '--info')) throw Error('Only --info is supported');
   const payload = fs.realpathSync(path.join(root, '.local/current-trial'));
-  const app = path.join(payload, 'Moment Grove.app');
+  const app = path.join(
+    payload,
+    fs.existsSync(path.join(payload, 'Grove.app')) ? 'Grove.app' : 'Moment Grove.app',
+  );
   const candidate = JSON.parse(fs.readFileSync(path.join(payload, 'candidate.json'), 'utf8'));
-  fs.accessSync(path.join(app, 'Contents/MacOS/moment-grove'), fs.constants.X_OK);
+  const binary = candidate.product === 'Grove' ? 'grove' : 'moment-grove';
+  fs.accessSync(path.join(app, 'Contents/MacOS', binary), fs.constants.X_OK);
   const launchArgs = trialLaunchArguments(app, candidate.channel, os.homedir());
   console.log(
     JSON.stringify(

@@ -1,8 +1,8 @@
-# Moment Grove
+# Grove
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.9.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.10.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -19,7 +19,7 @@
 - See explicit counts for skipped video, RAW and unsupported images in mixed folders. Recognized Live Photo markers and same-name video/RAW companions are labeled for static review; original copy/move operations refuse incomplete resource groups, while watermark exports can create independent static JPEGs.
 - Read orientation-correct JPEG/HEIC dimensions and EXIF capture dates; rebuild previews with a corrected source profile for affected phone HEIC thumbnails.
 - Reuse the natural-name sorter for large photo batches; distinct occurrences and rating targets remain separate.
-- Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file. The unreleased development branch adds an explicit macOS “Move to Trash” action for selected zero-rated photos (1–100 per batch), with confirmation and existing XMP handling. No permanent deletion or automatic retry; Finder restoration is separate from rating undo.
+- Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file. Use the explicit macOS “Move to Trash” action for selected zero-rated photos (1–100 per batch), with confirmation and existing XMP handling. No permanent deletion or automatic retry; Finder restoration is separate from rating undo.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
 - Export separate sRGB JPEGs with a date and optional manually entered city inside the photo. Choose original size or a 2048/4096-pixel long edge, and JPEG quality 80/92/98; smaller images are never enlarged.
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.9.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.10.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.10.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -35,7 +35,7 @@ shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
 
 Keep the checksum file and the chosen ZIP or DMG in the same folder. Require `OK` and a successful exit; if no file is verified or a checksum fails, stop without extracting or running it. Checksums detect changes; they are not an independent developer signature.
 
-Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP and copy the app. Quit any older copy before replacing it.
+Open the DMG and drag **Grove.app** to Applications, or extract the ZIP and copy the app. Quit any older copy before replacing it.
 
 **Signing:** ad-hoc signed, without Developer ID or Apple notarization. macOS may block the first opening. Follow [Apple's instructions for opening software from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) only if you trust the source. No security-disabling commands are required. A browser-download Gatekeeper flow has not been accepted as part of this prerelease.
 
@@ -61,7 +61,7 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 The accepted isolated candidate is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its version/build and independent data scope. Opening the public app directly uses its daily catalog instead.
 
-Version 0.9.0 adds explicit hidden-selection counts, **查看已选**, a unified **导出照片** panel, completed-export folder actions, readable recovery prompts and native macOS task menus. Includes next-photo preview preparation from the preceding local stage. See [stage evidence](docs/experience-remediation-stage.md).
+Version 0.10.0 adds explicit hidden-selection counts, **查看已选**, a unified **导出照片** panel, completed-export folder actions, readable recovery prompts and native macOS task menus. Includes next-photo preview preparation from the preceding local stage. See [stage evidence](docs/experience-remediation-stage.md).
 
 Version **0.8.0** adds persistent volume identities and static-photo exports for recognized associated resources. It upgrades the catalog to schema3, creating a coherent schema2 snapshot first. Older versions refuse schema3; rollback requires the pre-upgrade catalog and settings rather than directly sharing the upgraded data. Finish or withdraw older file-operation jobs before updating. See the [upgrade limits](docs/installation-upgrade.md).
 
@@ -99,7 +99,7 @@ Packaging writes to ignored `.local/deliveries/`, uses an offline Cargo build af
 
 ## Feedback and license
 
-Report reproducible problems in [Issues](https://github.com/liyunhui0707/moment-grove/issues). Include the app version, macOS version and steps. Remove private paths, photo metadata and personal images before sharing logs or screenshots. See [security reporting](SECURITY.md) for sensitive reports.
+Report reproducible problems in [Issues](https://github.com/liyunhui0707/grove/issues). Include the app version, macOS version and steps. Remove private paths, photo metadata and personal images before sharing logs or screenshots. See [security reporting](SECURITY.md) for sensitive reports.
 
 Project code is [Apache-2.0](LICENSE). Dependencies retain their own licenses; full texts and source links are in [third-party notices](THIRD-PARTY-NOTICES.txt). macOS system frameworks and fonts are not bundled. No libheif, FFmpeg, cloud service or AI model is shipped.
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { trialLaunchArguments } from '../open-desktop.mjs';
 
 test('public download and local trial use the same independent catalog', () => {
-  const app = '/test/install/Moment Grove.app';
+  const app = '/test/install/Grove.app';
   const home = '/test/user with spaces';
   // A running daily app with the same bundle ID must not swallow the override.
   const expected = [

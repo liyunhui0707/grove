@@ -69,7 +69,7 @@ fn style_exit_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<ta
             &MenuItem::with_id(
                 app,
                 "save-style-and-quit",
-                "Quit Moment Grove",
+                "Quit Grove",
                 true,
                 Some("CmdOrCtrl+Q"),
             )?,
@@ -223,7 +223,7 @@ fn guard_style_exit(app: &tauri::AppHandle) -> bool {
                 let _ = state.gate.resolve(token, false);
                 app.dialog()
                     .message("无法确认退出前的数据保存状态，已保留窗口。请稍后重试；强制退出可能丢失最近的评分、审片位置或样式修改。")
-                    .title("Moment Grove 保存保护")
+                    .title("Grove 保存保护")
                     .show(|_| {});
             }
             true
@@ -1065,7 +1065,10 @@ async fn scan_folder(
 // Skip our generated batches when browsing a parent folder. An explicit
 // open of the output itself still works; similarly named personal albums stay.
 fn generated_output_directory(name: &str) -> bool {
-    let Some(rest) = name.strip_prefix("Moment-Grove-") else {
+    let Some(rest) = name
+        .strip_prefix("Grove-")
+        .or_else(|| name.strip_prefix("Moment-Grove-"))
+    else {
         return false;
     };
     let rest = rest
@@ -1147,6 +1150,7 @@ fn scan_directory(
                 let name = e.file_name().to_string_lossy();
                 !name.starts_with('.')
                     && !name.starts_with("Moment-Grove-Quarantine-")
+                    && !name.starts_with("Grove-Quarantine-")
                     && !(e.file_type().is_dir() && generated_output_directory(&name))
                     && !matches!(
                         name.as_ref(),
@@ -1512,7 +1516,7 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         instance::Claim::Owner(owner) => owner,
         instance::Claim::Forwarded => {
             eprintln!(
-                "Moment Grove: 已请求唤回此资料库的现有窗口；版本以该窗口为准。更新前请先退出旧版。"
+                "Grove: 已请求唤回此资料库的现有窗口；版本以该窗口为准。更新前请先退出旧版。"
             );
             std::process::exit(0);
         }
@@ -1551,7 +1555,7 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     startup.record(startup::Stage::BackendReady);
     if let Some(window) = app.get_webview_window("main") {
         window.set_title(&format!(
-            "Moment Grove {} · {}",
+            "Grove {} · {}",
             env!("CARGO_PKG_VERSION"),
             if isolated() {
                 "独立测试"
@@ -1572,7 +1576,7 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
             let _=startup_handle.clone().run_on_main_thread(move || {
                 if !startup.summary().ready {
                     startup_handle.dialog().message("界面打开时间较长。若窗口仍为空白，请退出后重新打开。现有资料会保留。诊断代码：MG-START-UI。")
-                        .title("Moment Grove 启动提示").show(|_| {});
+                        .title("Grove 启动提示").show(|_| {});
                 }
             });
         }
@@ -1624,8 +1628,8 @@ fn main() {
             if let Err(error) = setup_app(app) {
                 if let Some(session)=app.try_state::<Arc<startup::Session>>() { session.record(startup::Stage::BackendFailed); }
                 let handle = app.handle().clone();
-                app.dialog().message(format!("无法打开 Moment Grove：{error}\n请先退出旧版，再重新打开。保留现有资料；若仍失败，请附此提示联系支持。"))
-                    .title("Moment Grove 启动失败")
+                app.dialog().message(format!("无法打开 Grove：{error}\n请先退出旧版，再重新打开。保留现有资料；若仍失败，请附此提示联系支持。"))
+                    .title("Grove 启动失败")
                     .show(move |_| handle.exit(1));
             }
             Ok(())
@@ -1736,7 +1740,7 @@ fn main() {
             cancel_move
         ])
         .build(tauri::generate_context!())
-        .expect("Moment Grove failed to start")
+        .expect("Grove failed to start")
         .run(|_app, _event| {
             if let tauri::RunEvent::ExitRequested { code: None, api, .. } = &_event
                 && guard_style_exit(_app)

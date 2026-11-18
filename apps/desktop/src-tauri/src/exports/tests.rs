@@ -278,8 +278,7 @@ fn seven_states_export_without_touching_originals_or_pending_queue() {
             .unwrap();
     assert_eq!(pending, 7);
     let manifest =
-        fs::read_to_string(Path::new(&report.destination).join("moment-grove-export.json"))
-            .unwrap();
+        fs::read_to_string(Path::new(&report.destination).join("grove-export.json")).unwrap();
     assert!(!manifest.contains(b.to_str().unwrap()));
     assert!(manifest.contains("sha256"));
 }
@@ -788,7 +787,7 @@ fn sharing_crash_recovery_keeps_output_options_and_published_photo() {
         (2048, 1365)
     );
     let manifest: serde_json::Value = serde_json::from_slice(
-        &fs::read(Path::new(&result.destination).join("moment-grove-export.json")).unwrap(),
+        &fs::read(Path::new(&result.destination).join("grove-export.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(manifest["watermark"]["outputMaxEdge"], 2048);
@@ -1054,7 +1053,7 @@ fn sharing_plan_preview_and_resume_preserve_dimensions_quality_and_sources() {
         (1365, 2048)
     );
     let manifest: serde_json::Value = serde_json::from_slice(
-        &fs::read(Path::new(&result.destination).join("moment-grove-export.json")).unwrap(),
+        &fs::read(Path::new(&result.destination).join("grove-export.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(manifest["watermark"]["outputMaxEdge"], 2048);
@@ -1117,4 +1116,45 @@ fn legacy_watermark_plan_without_output_options_resumes_unchanged() {
         image::load_from_memory(&bytes).unwrap().dimensions(),
         (480, 640)
     );
+}
+
+#[test]
+fn grove_resumes_a_legacy_named_export_without_renaming_its_manifest() {
+    let t = tempfile::tempdir().unwrap();
+    let base = t.path().canonicalize().unwrap();
+    let (c, roots, folder, targets) = fixture(&base);
+    let data = base.join("data");
+    let plan = prepare(&c, &roots, folder, &targets, &base.join("output"), &data).unwrap();
+    let cancel = AtomicBool::new(false);
+    let first = run(
+        plan,
+        &data,
+        &cancel,
+        |r| {
+            if r.verified == 1 {
+                cancel.store(true, Ordering::SeqCst);
+            }
+        },
+        || Ok(()),
+    )
+    .unwrap();
+    let output = std::path::PathBuf::from(&first.destination);
+    let legacy = output.with_file_name(output.file_name().unwrap().to_str().unwrap().replacen(
+        "Grove-",
+        "Moment-Grove-",
+        1,
+    ));
+    fs::rename(&output, &legacy).unwrap();
+    let job_path = data.join("exports").join(&first.id).join("plan.json");
+    let mut job: serde_json::Value = serde_json::from_slice(&fs::read(&job_path).unwrap()).unwrap();
+    job["directory"] = legacy.file_name().unwrap().to_str().unwrap().into();
+    fs::write(&job_path, serde_json::to_vec(&job).unwrap()).unwrap();
+    let plan = resume(&c, &roots, folder, &first.id, &base.join("output"), &data).unwrap();
+    let done = execute(plan, &data, &AtomicBool::new(false));
+    assert_eq!(done.status, "completed");
+    let portable: serde_json::Value =
+        serde_json::from_slice(&fs::read(legacy.join("moment-grove-export.json")).unwrap())
+            .unwrap();
+    assert_eq!(portable["app"], "Moment Grove");
+    assert!(!legacy.join("grove-export.json").exists());
 }

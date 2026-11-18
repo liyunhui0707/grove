@@ -20,7 +20,7 @@ for (const theme of ['light', 'dark'] as const) {
       blocked ? route.abort() : route.continue(),
     );
     await page.goto('/');
-    const startup = page.getByRole('region', { name: 'Moment Grove 启动状态' });
+    const startup = page.getByRole('region', { name: 'Grove 启动状态' });
     await expect(startup).toContainText('MG-START-MODULE');
     const retry = startup.getByRole('button', { name: '重新载入界面', exact: true });
     await expect(retry).toBeInViewport({ ratio: 1 });
@@ -46,7 +46,7 @@ test('initial render failure shows a fixed code without exception text', async (
     }),
   );
   await page.goto('/');
-  const startup = page.getByRole('region', { name: 'Moment Grove 启动状态' });
+  const startup = page.getByRole('region', { name: 'Grove 启动状态' });
   await expect(startup).toContainText('MG-START-RENDER');
   await expect(startup).not.toContainText('photo-name');
   await expect(startup).not.toContainText('sensitive-test-value');
@@ -69,7 +69,7 @@ test('a slow initial render can become ready without an automatic reload', async
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.clock.fastForward(16000);
-  const startup = page.getByRole('region', { name: 'Moment Grove 启动状态' });
+  const startup = page.getByRole('region', { name: 'Grove 启动状态' });
   await expect(startup).toContainText('MG-START-WAIT');
   release();
   await expect(page.getByRole('button', { name: '体验示例图库', exact: true })).toBeVisible();

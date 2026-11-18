@@ -1094,3 +1094,56 @@ fn cancelled_resume_review_retains_paused_checkpoint_and_can_be_reviewed_again()
     .unwrap();
     assert_eq!(execute(&mut c, p, &b).status, "completed");
 }
+
+#[test]
+fn grove_withdraws_legacy_named_batches_without_changing_their_record_protocol() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (mut c, roots, f, targets) = fixture(&b);
+    let data = b.join("data");
+    let plan = prepare(
+        &c,
+        &roots,
+        f,
+        &targets[..2],
+        &b.join("destination"),
+        &data,
+        "move",
+    )
+    .unwrap();
+    let done = execute(&mut c, plan, &b);
+    assert_eq!(done.status, "completed");
+    let output = PathBuf::from(&done.destination);
+    let legacy = output.with_file_name(output.file_name().unwrap().to_str().unwrap().replacen(
+        "Grove-",
+        "Moment-Grove-",
+        1,
+    ));
+    fs::rename(&output, &legacy).unwrap();
+    c.db.execute(
+        "UPDATE assets SET path=replace(path,?1,?2) WHERE path LIKE ?3",
+        rusqlite::params![
+            output.to_str(),
+            legacy.to_str(),
+            format!("{}%", output.display())
+        ],
+    )
+    .unwrap();
+    c.db.execute(
+        "UPDATE folders SET path=?2 WHERE path=?1",
+        rusqlite::params![output.to_str(), legacy.to_str()],
+    )
+    .unwrap();
+    let record = data.join("moves").join(&done.id).join("plan.json");
+    let mut job: serde_json::Value = serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
+    job["directory"] = legacy.file_name().unwrap().to_str().unwrap().into();
+    fs::write(record, serde_json::to_vec(&job).unwrap()).unwrap();
+    let plan = resume(&c, &data, &done.id, true).unwrap();
+    let restored = execute(&mut c, plan, &b);
+    assert_eq!(
+        (restored.status.as_str(), restored.verified),
+        ("restored", 2)
+    );
+    assert!(b.join("sources/generated-0.jpg").is_file());
+    assert!(b.join("sources/generated-1.jpg").is_file());
+}

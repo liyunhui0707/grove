@@ -64,8 +64,7 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
         </div>
         <div className="guide-body">
           <p className="dialog-intro">
-            Moment Grove{info ? ` · ${info.version} · ${info.buildId || 'development'}` : ''} ·
-            技术试用版
+            Grove{info ? ` · ${info.version} · ${info.buildId || 'development'}` : ''} · 技术试用版
           </p>
           <h3>先从测试副本开始</h3>
           <p>

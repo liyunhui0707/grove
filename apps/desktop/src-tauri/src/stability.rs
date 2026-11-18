@@ -485,6 +485,10 @@ fn generated_outputs_are_skipped_under_parent_but_can_be_opened_explicitly() {
         "Moment-Grove-Watermark-1794835283-f5daaad7",
         "Moment-Grove-Move-1794835283-aabbccdd",
         "Moment-Grove-Quarantine-1794835283-01020304",
+        "Grove-1794834919-d42deae3",
+        "Grove-Watermark-1794835283-f5daaad7",
+        "Grove-Move-1794835283-aabbccdd",
+        "Grove-Quarantine-1794835283-01020304",
     ];
     for name in outputs
         .iter()

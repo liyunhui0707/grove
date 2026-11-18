@@ -4,7 +4,7 @@ export function releaseVersion({ pkg, lock, tauri, cargoToml, cargoLock }) {
   const cargoVersion = cargo?.match(/^version\s*=\s*"([^"]+)"\s*$/m)?.[1];
   const locked = cargoLock
     .split(/^\[\[package\]\]\s*$/m)
-    .find((section) => /^name\s*=\s*"moment-grove"\s*$/m.test(section));
+    .find((section) => /^name\s*=\s*"grove"\s*$/m.test(section));
   const versions = [
     pkg.version,
     lock.version,
@@ -19,11 +19,11 @@ export function releaseVersion({ pkg, lock, tauri, cargoToml, cargoLock }) {
   ) {
     throw Error('Release version mismatch across npm, Cargo and Tauri manifests');
   }
-  if (pkg.name !== 'moment-grove' || tauri.identifier !== 'app.momentgrove.desktop')
+  if (pkg.name !== 'grove' || tauri.identifier !== 'app.momentgrove.desktop')
     throw Error('Release product identity mismatch');
   return pkg.version;
 }
 
 export function releaseArchiveStem(version, buildId, channel) {
-  return `Moment-Grove-${version}${channel === 'local-trial' ? `-${buildId}` : ''}-macOS-arm64`;
+  return `Grove-${version}${channel === 'local-trial' ? `-${buildId}` : ''}-macOS-arm64`;
 }

@@ -66,7 +66,7 @@ async function workspaceMock(page: Page) {
               channel: 'local-trial',
               dataDirectory: '/owned/runtime',
               isolated: true,
-              executable: '/owned/installed/Moment Grove.app/Contents/MacOS/moment-grove',
+              executable: '/owned/installed/Grove.app/Contents/MacOS/moment-grove',
             };
           throw Error(`Unhandled ${cmd}`);
         },
@@ -89,7 +89,7 @@ test('visible application identity opens exact app and catalog locations in a sm
   const guide = page.getByRole('dialog', { name: '使用说明与资料' });
   await expect(guide).toContainText('/owned/runtime');
   await expect(guide).toContainText(
-    '/owned/installed/Moment Grove.app/Contents/MacOS/moment-grove',
+    '/owned/installed/Grove.app/Contents/MacOS/moment-grove',
   );
   await expect(guide).toContainText('同一资料目录重复打开会唤回已有窗口');
   await page.getByRole('button', { name: '关闭使用说明' }).click();

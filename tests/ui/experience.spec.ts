@@ -145,7 +145,7 @@ async function scene(page: Page) {
               buildId: 'qa-owned',
               isolated: true,
               dataDirectory: '/generated/runtime',
-              executable: '/generated/Moment Grove.app',
+              executable: '/generated/Grove.app',
             };
           throw Error(cmd);
         },

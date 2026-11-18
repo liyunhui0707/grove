@@ -88,7 +88,7 @@ export function exportHistoryLabel(path: string, kind: string, count: number) {
   const time = path
     .split(/[\\/]/)
     .at(-1)
-    ?.match(/^Moment-Grove-(?:Watermark-)?(\d{10})-/)?.[1];
+    ?.match(/^(?:Grove|Moment-Grove)-(?:Watermark-)?(\d{10})-/)?.[1];
   return `${kind === 'watermark' ? '水印照片' : '原格式副本'} · ${count} 张${time ? ` · ${new Date(Number(time) * 1000).toLocaleString('zh-CN')}` : ''}`;
 }
 

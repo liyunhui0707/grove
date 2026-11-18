@@ -1143,6 +1143,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "grove"
+version = "0.10.0"
+dependencies = [
+ "base64 0.23.1",
+ "core-foundation",
+ "core-graphics",
+ "foreign-types",
+ "image",
+ "kamadak-exif",
+ "objc2",
+ "objc2-foundation",
+ "roxmltree",
+ "rusqlite",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tempfile",
+ "tokio",
+ "uuid",
+ "walkdir",
+]
+
+[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1881,33 +1908,6 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "moment-grove"
-version = "0.9.0"
-dependencies = [
- "base64 0.23.1",
- "core-foundation",
- "core-graphics",
- "foreign-types",
- "image",
- "kamadak-exif",
- "objc2",
- "objc2-foundation",
- "roxmltree",
- "rusqlite",
- "rustix",
- "serde",
- "serde_json",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tempfile",
- "tokio",
- "uuid",
- "walkdir",
 ]
 
 [[package]]

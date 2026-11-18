@@ -44,7 +44,7 @@ Mixed-folder completion reports counts for skipped video, RAW and unsupported im
 
 The same three attributed originals were downloaded again and verified against their recorded SHA-256 identities. The 11-file mobile SDR matrix and six-file camera/conversion trial were rerun on the local Mac; generated HEIC/HDR variants remain derivatives, not original device captures. Corrupt-input isolation, partial permission errors, eight orientations, repeated scans and output recovery remain regression-covered. This does not expand the list of certified devices or operating systems.
 
-When opening a parent folder, standard Moment Grove copy, watermark and move batch subdirectories are excluded, alongside the existing quarantine/hidden exclusions. Opening the output folder itself remains supported. This prevents generated outputs from silently becoming new review candidates; similarly named ordinary albums are retained.
+When opening a parent folder, standard Grove copy, watermark and move batch subdirectories are excluded, alongside the existing quarantine/hidden exclusions. Opening the output folder itself remains supported. This prevents generated outputs from silently becoming new review candidates; similarly named ordinary albums are retained.
 
 ## 0.8.0 original HEIC/HEIF and association scope
 

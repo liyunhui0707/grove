@@ -326,3 +326,67 @@ fn native_generated_photo_and_xmp_go_to_trash_and_restore_without_overwrite() {
         assert!(Path::new(&path).exists());
     }
 }
+
+#[test]
+#[ignore = "Create only a named, empty generated native-GUI fixture directory"]
+fn prepare_grove_native_fixture() {
+    use crate::{safety_tests::state, workspace};
+    let root = PathBuf::from(std::env::var("GROVE_NATIVE_QA_ROOT").unwrap());
+    assert!(root.starts_with("/private/tmp"));
+    assert!(
+        root.file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("grove-native-qa-")
+    );
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+    let source = root.join("generated-photos");
+    fs::create_dir(&source).unwrap();
+    for n in 0..4 {
+        image::RgbImage::from_fn(160, 120, |x, y| {
+            image::Rgb([((x + n * 40) % 255) as u8, ((y + 80) % 255) as u8, 140])
+        })
+        .save(source.join(format!("generated-{n}.png")))
+        .unwrap();
+    }
+    fs::write(source.join("generated-0.xmp"),"<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'/></x:xmpmeta>").unwrap();
+    let s = state(&root.join("runtime"));
+    let folder = crate::grant(&s, source.clone()).unwrap();
+    let mut hashes = Vec::new();
+    for (n, rating) in [Some(0), Some(0), Some(4), None].into_iter().enumerate() {
+        let p = source.join(format!("generated-{n}.png"));
+        let key = imaging::identity(&p).unwrap();
+        let mut c = s.catalog.lock().unwrap();
+        let id = c.upsert(folder.id, &p, &key, None).unwrap().0;
+        sidecar::remember(&c, &id, &sidecar::capture(&source, &p, &key)).unwrap();
+        if rating.is_some() {
+            c.rate(&[id], rating).unwrap();
+        }
+        hashes.push(serde_json::json!({"name":p.file_name().unwrap().to_str().unwrap(),"identity":key,"sha256":files::hash_bytes(&fs::read(&p).unwrap())}));
+    }
+    workspace::save(
+        &s,
+        Some(folder.id),
+        workspace::View {
+            mode: "grid".into(),
+            active: "".into(),
+            filter: "reject".into(),
+            sort: "name".into(),
+            search: "".into(),
+            size: 270,
+            auto_advance: true,
+            theme: "light".into(),
+            offset: 0.0,
+        },
+    )
+    .unwrap();
+    fs::write(
+        root.join("fixture.json"),
+        serde_json::to_vec_pretty(
+            &serde_json::json!({"source":source,"data":root.join("runtime"),"files":hashes}),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+}

@@ -82,7 +82,7 @@ fn validate(db: &Connection) -> Result<(i64, i64, i64)> {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(|e| e.to_string())?;
     if app_id != APPLICATION_ID || !(1..=SCHEMA_VERSION).contains(&version) {
-        return Err("不是兼容的 Moment Grove 资料库快照".into());
+        return Err("不是兼容的 Grove 资料库快照".into());
     }
     // Reject triggers/views/altered constraints before reading data from the snapshot.
     if Catalog::schema(db)? != Catalog::expected_schema_for(version)? {

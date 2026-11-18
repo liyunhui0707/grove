@@ -37,7 +37,6 @@ import {
   ImageOff,
   Keyboard,
   BookOpen,
-  Leaf,
   Link2,
   LoaderCircle,
   Maximize2,
@@ -1269,10 +1268,10 @@ export function App() {
       >
         <div className="brand">
           <span className="brand-mark">
-            <Leaf size={22} />
+            <img src="/grove.svg" width="36" height="36" alt="" />
           </span>
           <div>
-            Moment Grove<small>留住值得的时刻</small>
+            Grove<small>留住值得的时刻</small>
             <ApplicationBadge
               onOpen={(button) => {
                 guideOrigin.current = button;
@@ -1402,9 +1401,7 @@ export function App() {
           <div className="breadcrumb">
             <span>资料库</span>
             <ChevronRight size={13} />
-            <strong>
-              {folder ? (folder.demo ? '山海之间' : folder.name) : '欢迎来到 Moment Grove'}
-            </strong>
+            <strong>{folder ? (folder.demo ? '山海之间' : folder.name) : '欢迎来到 Grove'}</strong>
             {folder?.demo && <span className="demo-tag">生成示例</span>}
           </div>
           <div className="top-actions">
