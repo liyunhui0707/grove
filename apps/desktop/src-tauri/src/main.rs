@@ -22,6 +22,7 @@ mod stability;
 mod startup;
 #[cfg(test)]
 mod sustainable;
+mod trash;
 #[cfg(all(test, target_os = "macos"))]
 mod trial_workflow;
 mod watermark;
@@ -174,6 +175,14 @@ fn resolve_style_exit(
     if window.label() != "main" {
         return Err("退出保护仅适用于主窗口".into());
     }
+    if proceed
+        && window
+            .state::<Arc<AppState>>()
+            .trash_busy
+            .load(Ordering::SeqCst)
+    {
+        return Err("正在移到废纸篓，请等待当前照片处理完成后再退出".into());
+    }
     state
         .lock()
         .map_err(|_| "退出保护忙碌")?
@@ -186,6 +195,17 @@ fn resolve_style_exit(
 }
 
 fn guard_style_exit(app: &tauri::AppHandle) -> bool {
+    if app
+        .state::<Arc<AppState>>()
+        .trash_busy
+        .load(Ordering::SeqCst)
+    {
+        app.dialog()
+            .message("正在移到废纸篓。请先在操作窗口停止并等待当前照片处理完成，再退出应用。")
+            .title("文件操作进行中")
+            .show(|_| {});
+        return true;
+    }
     let state = app.state::<Mutex<StyleExitState>>();
     let mut state = match state.lock() {
         Ok(state) => state,
@@ -227,6 +247,9 @@ pub struct AppState {
     move_plan: Mutex<Option<moves::Plan>>,
     move_busy: AtomicBool,
     move_cancel: AtomicBool,
+    trash_plan: Mutex<Option<trash::Plan>>,
+    trash_busy: AtomicBool,
+    trash_cancel: AtomicBool,
 }
 struct ExportBusy<'a>(&'a AtomicBool);
 impl Drop for ExportBusy<'_> {
@@ -591,6 +614,75 @@ fn cancel_move_state(state: &AppState) -> Result<()> {
     state.move_cancel.store(true, Ordering::SeqCst);
     *state.move_plan.lock().map_err(|_| "整理忙碌")? = None;
     Ok(())
+}
+#[tauri::command]
+async fn prepare_trash(
+    folder_id: i64,
+    targets: Vec<trash::Target>,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<trash::Review> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _busy = ExportBusy::take(&state.move_busy)?;
+        let _files = moves::access(&state.data, false)?;
+        *state.trash_plan.lock().map_err(|_| "核对忙碌")? = None;
+        state.trash_cancel.store(false, Ordering::SeqCst);
+        let roots = state.allowed.lock().map_err(|_| "目录忙碌")?.clone();
+        let c = state.catalog.lock().map_err(|_| "资料库忙碌")?;
+        let plan = trash::prepare(&c, &roots, folder_id, &targets, &state.trash_cancel)?;
+        let review = trash::review(&plan);
+        *state.trash_plan.lock().map_err(|_| "核对忙碌")? = Some(plan);
+        Ok(review)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn confirm_trash(
+    token: String,
+    on_event: Channel<trash::Report>,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<trash::Report> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _busy = ExportBusy::take(&state.move_busy)?;
+        let _files = moves::access(&state.data, false)?;
+        let _trash_busy = ExportBusy::take(&state.trash_busy)?;
+        let plan = {
+            let mut slot = state.trash_plan.lock().map_err(|_| "核对忙碌")?;
+            if slot
+                .as_ref()
+                .is_none_or(|p| trash::review(p).token != token)
+            {
+                return Err("确认已过期，请重新选择照片并核对".into());
+            }
+            slot.take().ok_or("确认已过期")?
+        };
+        let roots = state.allowed.lock().map_err(|_| "目录忙碌")?.clone();
+        state.generation.fetch_add(1, Ordering::SeqCst);
+        let c = state.catalog.lock().map_err(|_| "资料库忙碌")?;
+        trash::run(&c, &roots, plan, &state.data, &state.trash_cancel, |r| {
+            let _ = on_event.send(r);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+fn cancel_trash(state: tauri::State<'_, Arc<AppState>>) -> Result<()> {
+    state.trash_cancel.store(true, Ordering::SeqCst);
+    *state.trash_plan.lock().map_err(|_| "核对忙碌")? = None;
+    Ok(())
+}
+#[tauri::command]
+async fn trash_history(state: tauri::State<'_, Arc<AppState>>) -> Result<Vec<trash::Report>> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _busy = ExportBusy::take(&state.move_busy)?;
+        trash::history(&state.data)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[tauri::command]
 async fn confirm_move(
@@ -1451,6 +1543,9 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         move_plan: Mutex::new(None),
         move_busy: AtomicBool::new(false),
         move_cancel: AtomicBool::new(false),
+        trash_plan: Mutex::new(None),
+        trash_busy: AtomicBool::new(false),
+        trash_cancel: AtomicBool::new(false),
     });
     app.manage(state);
     startup.record(startup::Stage::BackendReady);
@@ -1632,6 +1727,10 @@ fn main() {
             cancel_export,
             watermark_preview,
             move_history,
+            prepare_trash,
+            confirm_trash,
+            cancel_trash,
+            trash_history,
             choose_move_folder,
             confirm_move,
             cancel_move
@@ -1672,6 +1771,9 @@ mod safety_tests {
             move_plan: Mutex::new(None),
             move_busy: AtomicBool::new(false),
             move_cancel: AtomicBool::new(false),
+            trash_plan: Mutex::new(None),
+            trash_busy: AtomicBool::new(false),
+            trash_cancel: AtomicBool::new(false),
         }
     }
     pub(super) fn register(s: &AppState, path: &Path) -> (i64, String) {

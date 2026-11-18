@@ -43,6 +43,21 @@ export type SyncReport = {
   items: SyncRow[];
 };
 export type SyncOutcome = { completed: number; failed: number; report: SyncReport };
+export type TrashReport = {
+  id: string;
+  created: number;
+  sourceFolder: number;
+  source: string;
+  status: 'ready' | 'running' | 'completed' | 'stopped' | 'interrupted';
+  completed: number;
+  items: {
+    name: string;
+    status: string;
+    resources: { name: string; status: string; destination: string | null }[];
+  }[];
+  message: string | null;
+};
+export type TrashReview = { token: string; report: TrashReport };
 export type MoveReport = {
   id: string;
   reviewToken: string | null;
@@ -154,6 +169,18 @@ export const bridge = {
       executable: string;
       startup?: { ready: boolean; stage: string; recorded: boolean } | null;
     }>('application_info'),
+  prepareTrash: (folderId: number, assets: Asset[]) =>
+    invoke<TrashReview>('prepare_trash', {
+      folderId,
+      targets: assets.map(({ id, revision }) => ({ id, revision })),
+    }),
+  async confirmTrash(token: string, onEvent: (report: TrashReport) => void) {
+    const channel = new Channel<TrashReport>();
+    channel.onmessage = onEvent;
+    return invoke<TrashReport>('confirm_trash', { token, onEvent: channel });
+  },
+  cancelTrash: () => invoke<void>('cancel_trash'),
+  trashHistory: () => invoke<TrashReport[]>('trash_history'),
   moveHistory: () => invoke<MoveReport[]>('move_history'),
   chooseMove: (
     folderId: number | null,

@@ -46,6 +46,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Trash2,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -78,6 +79,7 @@ import { RelocationDialog } from './RelocationDialog';
 import { ExportDialog } from './ExportDialog';
 import { WatermarkDialog } from './WatermarkDialog';
 import { MoveDialog } from './MoveDialog';
+import { TrashDialog } from './TrashDialog';
 
 type Mode = 'grid' | 'review' | 'compare';
 type Viewport = { scale: number; x: number; y: number };
@@ -578,6 +580,9 @@ export function App() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [relocationOpen, setRelocationOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [trashSelection, setTrashSelection] = useState<Asset[] | null>(null);
+  const trashReturnFocus = useRef<HTMLButtonElement>(null);
+  useDialogReturn(trashSelection !== null, trashReturnFocus);
   const moveReturnFocus = useRef<HTMLButtonElement>(null);
   useDialogReturn(moveOpen, moveReturnFocus);
   const [watermarkOpen, setWatermarkOpen] = useState(false);
@@ -627,6 +632,7 @@ export function App() {
       !exportOpen &&
       !watermarkOpen &&
       !moveOpen &&
+      trashSelection === null &&
       !relocationOpen &&
       !syncOpen &&
       !backupsOpen
@@ -1043,7 +1049,8 @@ export function App() {
         relocationOpen ||
         exportOpen ||
         watermarkOpen ||
-        moveOpen
+        moveOpen ||
+        trashSelection !== null
       )
         return;
       if (help) {
@@ -1117,6 +1124,7 @@ export function App() {
       relocationOpen ||
       exportOpen ||
       watermarkOpen ||
+      trashSelection !== null ||
       moveOpen ||
       document.querySelector('dialog[open]')
     )
@@ -1255,7 +1263,8 @@ export function App() {
           relocationOpen ||
           exportOpen ||
           watermarkOpen ||
-          moveOpen
+          moveOpen ||
+          trashSelection !== null
         }
       >
         <div className="brand">
@@ -1385,7 +1394,8 @@ export function App() {
           relocationOpen ||
           exportOpen ||
           watermarkOpen ||
-          moveOpen
+          moveOpen ||
+          trashSelection !== null
         }
       >
         <header className="topbar">
@@ -1661,6 +1671,52 @@ export function App() {
                 </button>
               )}
             </div>
+            {filter === 'reject' && !selectedOnly && (
+              <div className="reject-actions" aria-label="淘汰候选操作">
+                <button
+                  className="button subtle"
+                  disabled={!visible.length || saving || scanning}
+                  onClick={() =>
+                    setSelected(visible.filter((a) => a.rating === 0).map((a) => a.id))
+                  }
+                >
+                  全选当前结果
+                </button>
+                <button
+                  className="button subtle trash-trigger"
+                  ref={trashReturnFocus}
+                  disabled={
+                    !native ||
+                    folder.demo ||
+                    !orderedSelection.length ||
+                    hiddenSelected > 0 ||
+                    orderedSelection.some((a) => a.rating !== 0) ||
+                    saving ||
+                    scanning ||
+                    Boolean(reviewFailure)
+                  }
+                  onClick={(e) => {
+                    trashReturnFocus.current = e.currentTarget;
+                    setTrashSelection(orderedSelection);
+                  }}
+                >
+                  <Trash2 size={16} />
+                  移到废纸篓{selected.length ? ` · 已选 ${selected.length} 张` : ''}
+                </button>
+                <button
+                  className="button subtle"
+                  disabled={!native || folder.demo || saving || scanning}
+                  onClick={(e) => {
+                    trashReturnFocus.current = e.currentTarget;
+                    setTrashSelection([]);
+                  }}
+                >
+                  操作记录
+                </button>
+                {hiddenSelected > 0 && <span>请取消隐藏选择，或重新全选当前结果后再处理。</span>}
+                {!selected.length && <span>勾选照片后可移到系统废纸篓。</span>}
+              </div>
+            )}
             <div className="gallery-toolbar">
               <label className="search-field">
                 <Search size={16} />
@@ -2048,6 +2104,27 @@ export function App() {
           </div>
         )}
       </main>
+      {trashSelection !== null && folder && (
+        <TrashDialog
+          folder={folder}
+          assets={trashSelection}
+          onClose={(changed) => {
+            setTrashSelection(null);
+            if (changed)
+              void open(false, folder, {
+                mode: 'grid',
+                active: '',
+                filter: 'reject',
+                sort,
+                search,
+                size,
+                autoAdvance,
+                theme,
+                offset: 0,
+              });
+          }}
+        />
+      )}
       {moveOpen && (
         <MoveDialog
           folder={folder}

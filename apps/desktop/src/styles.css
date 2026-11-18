@@ -2416,3 +2416,85 @@ select {
   font-size: 12px;
   line-height: 1.6;
 }
+
+.reject-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 34px 18px;
+}
+.reject-actions > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.trash-trigger,
+.button.trash-action {
+  color: var(--danger);
+}
+.button.trash-action {
+  border: 1px solid currentColor;
+}
+.trash-dialog {
+  width: min(720px, calc(100vw - 40px));
+}
+.trash-dialog .dialog-heading h2 {
+  margin: 0;
+  flex: 1;
+}
+.trash-files {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.trash-files > li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.trash-files > li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+.trash-files strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.trash-files span,
+.trash-files small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.trash-files span {
+  flex-shrink: 0;
+}
+.trash-files code {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  margin: 5px 0;
+}
+.trash-files details,
+.trash-history {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.trash-history > details {
+  padding: 12px 0;
+}
+.trash-recovery {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.trash-recovery svg {
+  vertical-align: middle;
+  margin-right: 5px;
+}
+.trash-warning {
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

@@ -19,7 +19,7 @@
 - See explicit counts for skipped video, RAW and unsupported images in mixed folders. Recognized Live Photo markers and same-name video/RAW companions are labeled for static review; original copy/move operations refuse incomplete resource groups, while watermark exports can create independent static JPEGs.
 - Read orientation-correct JPEG/HEIC dimensions and EXIF capture dates; rebuild previews with a corrected source profile for affected phone HEIC thumbnails.
 - Reuse the natural-name sorter for large photo batches; distinct occurrences and rating targets remain separate.
-- Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file.
+- Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file. The unreleased development branch adds an explicit macOS “Move to Trash” action for selected zero-rated photos (1–100 per batch), with confirmation and existing XMP handling. No permanent deletion or automatic retry; Finder restoration is separate from rating undo.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
 - Export separate sRGB JPEGs with a date and optional manually entered city inside the photo. Choose original size or a 2048/4096-pixel long edge, and JPEG quality 80/92/98; smaller images are never enlarged.

@@ -95,6 +95,9 @@ fn high_resolution(soak: bool) {
         move_plan: std::sync::Mutex::new(None),
         move_busy: std::sync::atomic::AtomicBool::new(false),
         move_cancel: std::sync::atomic::AtomicBool::new(false),
+        trash_plan: Mutex::new(None),
+        trash_busy: std::sync::atomic::AtomicBool::new(false),
+        trash_cancel: std::sync::atomic::AtomicBool::new(false),
     };
     let folder = grant(&state, media.clone()).unwrap();
     scan_directory(&state, &media, folder.id, 0, &Channel::new(|_| Ok(()))).unwrap();
@@ -220,6 +223,9 @@ fn generated_library_scan_and_warm_cache() {
         move_plan: std::sync::Mutex::new(None),
         move_busy: std::sync::atomic::AtomicBool::new(false),
         move_cancel: std::sync::atomic::AtomicBool::new(false),
+        trash_plan: Mutex::new(None),
+        trash_busy: std::sync::atomic::AtomicBool::new(false),
+        trash_cancel: std::sync::atomic::AtomicBool::new(false),
     };
     let folder = grant(&state, media).unwrap();
     let first_batch = Arc::new(Mutex::new(None));

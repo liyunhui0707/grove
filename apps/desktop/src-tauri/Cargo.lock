@@ -1893,6 +1893,8 @@ dependencies = [
  "foreign-types",
  "image",
  "kamadak-exif",
+ "objc2",
+ "objc2-foundation",
  "roxmltree",
  "rusqlite",
  "rustix",

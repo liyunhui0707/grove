@@ -26,6 +26,8 @@
 | core-foundation（macOS） | 0.10.1 | MIT OR Apache-2.0 |
 | core-graphics（macOS） | 0.25.0 | MIT OR Apache-2.0 |
 | foreign-types（macOS对象所有权） | 0.5.0 | MIT/Apache-2.0 |
+| objc2（macOS对象调用） | 0.6.5 | MIT |
+| objc2-foundation（macOS系统废纸篓/稳定文件引用） | 0.3.2 | MIT |
 
 tauri-build 2.7.4：Apache-2.0 OR MIT；Rust 测试依赖 tempfile 3.27.0：MIT OR Apache-2.0。
 SQLite 通过 bundled 功能构建，其声明随完整第三方 notices 一起提供。MPL-2.0 依赖保持未修改，notice 提供对应版本源码地址；项目 Apache-2.0 不覆盖第三方组件自身许可。

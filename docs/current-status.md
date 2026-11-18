@@ -1,5 +1,15 @@
 # 当前状态
 
+## 未发布开发：淘汰候选移到系统废纸篓（2026-11-18）
+
+从干净 `751c38c` 建立 `work/reject-trash`。淘汰候选增加全选当前结果、明确的已选数量、移到废纸篓和操作记录；隐藏选择或非 0 分不能带入。确认窗口列出照片与 XMP，只有一次显式确认才调用 macOS Foundation；每批 1–100 张，无永久删除或清空入口，不因打 0 分自动删除。
+
+后端冻结并重查目录、文件身份/散列、评分修订和 XMP 基线，拒绝链接、冲突同步与未支持关联资源，使用稳定文件引用避免同路径替换误处理。保持既有文件操作锁，未完成的移动整理须先恢复。逐资源持久化系统调用前后状态；停止完成当前照片/XMP 组后生效，失败/崩溃不自动重试或假报全组成功。照片和 XMP 不是原子事务。保留评分行；完成后重新扫描、清空选择/撤销栈、保留淘汰筛选并更新计数。恢复须通过 Finder 把照片和 XMP 放回原位后扫描；⌘Z/资料库快照都不能搬回文件。
+
+验证：`npm run test:ui` 97通过；`npm run test:rust` 141通过、22显式试验默认忽略；`npm test` 20通过；`npm run build` 和 `npm run check:rust` 通过。新增9项默认Rust安全测试及4项UI流程，另显式运行 `MG_RUN_TRASH_QA=1 node scripts/cargo.mjs test --offline --manifest-path apps/desktop/src-tauri/Cargo.toml trash::engine::tests::native_generated -- --ignored --nocapture`：2张生成照片+2个XMP实际进入系统废纸篓，校验散列后NOREPLACE放回通过。沙箱运行曾正确报权限失败；原生正常权限调用和复核通过。系统返回稳定引用时须转换成真实路径，已实测修正；不把模拟文件重命名测试称为系统废纸篓验收。证据仅含生成素材，保存在忽略的 `.local/trash-native-qa/`。
+
+本功能尚未发布，未改版本号、标签、官网或两台Mac日常安装。公开0.9.0仍以以下记录为准。独立候选桌面体验另行记录，不要求用户执行清单。
+
 ## 当前交付：0.9.0技术测试预发布（2026-11-18已收口）
 
 三个整改工作包和上一轮审片预热已统一合并main并公开至[0.9.0发行](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0)，原[官网](https://moment-grove.outerepoch3.chatgpt.site)更新至第10版，下载指向同一发行。沿用Apache-2.0、ad-hoc未公证与手动更新渠道；旧10个发行及资产名称/大小/散列保持。
