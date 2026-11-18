@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.8.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.9.0 targets technical trial users on Apple Silicon Macs.** [Website](https://moment-grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/moment-grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.8.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.8.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.9.0 test prerelease](https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
@@ -47,7 +47,7 @@ Open the DMG and drag **Moment Grove.app** to Applications, or extract the ZIP a
 
 Choose **体验示例图库** for generated demo photos, or open a folder of disposable test copies. This is an early prerelease: keep independent media backups and use test copies for file operations.
 
-Use 0–5 to rate, U to clear, ⌘Z to undo, and C to compare a selection. Ratings save to the local catalog; **评分同步** explicitly writes XMP. **导出副本** preserves original bytes and metadata. Watermark exports omit the source EXIF/GPS. Review every file-operation plan before confirming.
+Use 0–5 to rate, U to clear, ⌘Z to undo, and C to compare a selection. Ratings save to the local catalog; **评分同步** explicitly writes XMP. **导出照片 → 原格式副本** preserves original bytes and metadata. Watermark exports omit the source EXIF/GPS. Review every file-operation plan before confirming.
 
 See [installation, upgrade and rollback](docs/installation-upgrade.md), the [user guide](docs/user-guide.md), [format support](docs/format-support.md), and [release notes](docs/release-notes.md).
 
@@ -61,7 +61,7 @@ Update manually: create a catalog snapshot, quit the app, keep the old app, and 
 
 The accepted isolated candidate is opened with `npm run desktop:open`; `npm run desktop:open -- --info` reports its version/build and independent data scope. Opening the public app directly uses its daily catalog instead.
 
-The local experience-remediation candidate adds explicit hidden-selection counts, **查看已选**, a unified **导出照片** panel, completed-export folder actions, readable recovery prompts and native macOS task menus. These changes are local development work; the public 0.8.0 download and daily installation do not yet contain them. See [local stage evidence](docs/experience-remediation-stage.md).
+Version 0.9.0 adds explicit hidden-selection counts, **查看已选**, a unified **导出照片** panel, completed-export folder actions, readable recovery prompts and native macOS task menus. Includes next-photo preview preparation from the preceding local stage. See [stage evidence](docs/experience-remediation-stage.md).
 
 Version **0.8.0** adds persistent volume identities and static-photo exports for recognized associated resources. It upgrades the catalog to schema3, creating a coherent schema2 snapshot first. Older versions refuse schema3; rollback requires the pre-upgrade catalog and settings rather than directly sharing the upgraded data. Finish or withdraw older file-operation jobs before updating. See the [upgrade limits](docs/installation-upgrade.md).
 
