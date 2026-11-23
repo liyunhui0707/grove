@@ -9,7 +9,10 @@ fn prepare_local_trial_fixture() {
     let root = PathBuf::from(std::env::var("MG_LOCAL_TRIAL_ROOT").unwrap());
     assert_eq!(root.canonicalize().unwrap(), root);
     let name = root.file_name().unwrap().to_str().unwrap();
-    let suffix = name.strip_prefix("moment-grove-native-trial-").unwrap();
+    let suffix = name
+        .strip_prefix("grove-native-trial-")
+        .or_else(|| name.strip_prefix("moment-grove-native-trial-"))
+        .unwrap();
     let (date, nonce) = suffix.split_once('-').unwrap();
     assert!(date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()));
     assert!(nonce.len() == 8 && nonce.bytes().all(|b| b.is_ascii_hexdigit()));

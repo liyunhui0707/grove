@@ -1,4 +1,5 @@
 // Private, user-operated native QA session. Never grants permissions or drives other apps.
+import { batchLayout } from './candidate-layout.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
@@ -23,7 +24,7 @@ const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
 if (
   process.platform !== 'darwin' ||
   process.arch !== 'arm64' ||
-  !root.split(sep).at(-1).startsWith('moment-grove-native-')
+  !/^(?:moment-grove|grove)-native-/.test(root.split(sep).at(-1))
 )
   throw new Error('Run only from a prepared macOS arm64 QA batch');
 const directory = lstatSync(root);
@@ -39,6 +40,7 @@ const raw = readFileSync(join(input, 'manifest.json'));
 if (!/^[a-f0-9]{64}$/.test(expected) || sha(raw) !== expected)
   throw new Error('Independent input manifest mismatch');
 const manifest = JSON.parse(raw);
+const layout = batchLayout(manifest);
 for (const f of manifest.files) {
   const path = resolve(input, f.path),
     m = lstatSync(path);
@@ -85,7 +87,7 @@ function verify() {
             plan.id !== id ||
             plan.root !== sources ||
             plan.parent !== join(root, 'exports-parent') ||
-            !/^Moment-Grove-(Move|Quarantine)-\d+-[a-f0-9]{8}$/.test(plan.directory)
+            !/^(?:Grove|Moment-Grove)-(Move|Quarantine)-\d+-[a-f0-9]{8}$/.test(plan.directory)
           )
             throw new Error('Move outside this QA batch');
           for (const item of plan.items)
@@ -230,7 +232,13 @@ async function launch() {
   const session = randomUUID(),
     started = Date.now(),
     reportPath = join(logs, `${session}.json`);
-  const executable = join(input, 'Moment Grove QA.app/Contents/MacOS/moment-grove');
+  const options = [layout.app, layout.product + ' QA.app'].map(
+    (name) => name + '/Contents/MacOS/' + layout.binary,
+  );
+  const entries = manifest.files.filter((f) => options.includes(f.path));
+  if (entries.length !== 1 || entries[0].sha256 !== manifest.binarySha256)
+    throw Error('Expected one hash-verified QA executable');
+  const executable = join(input, entries[0].path);
   const out = openSync(join(logs, `${session}.stdout.log`), 'wx', 0o600),
     err = openSync(join(logs, `${session}.stderr.log`), 'wx', 0o600);
   const child = spawn(executable, [], {

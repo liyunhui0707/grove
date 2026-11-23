@@ -1,4 +1,5 @@
 // One interactive, generated-data-only installation/replacement acceptance session.
+import { batchLayout, candidateLayout, exportLayout } from './candidate-layout.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -16,7 +17,7 @@ if (
   !['prepare', 'start', 'verify', 'inspect'].includes(mode) ||
   process.platform !== 'darwin' ||
   process.arch !== 'arm64' ||
-  !/^moment-grove-native-trial-\d{8}-[a-f0-9]{8}$/.test(path.basename(root))
+  !/^(?:moment-grove|grove)-native-trial-\d{8}-[a-f0-9]{8}$/.test(path.basename(root))
 )
   throw Error('Wrong trial scope');
 const meta = fs.lstatSync(root);
@@ -39,10 +40,19 @@ for (const f of manifest.files) {
 const data = root + '/runtime',
   sources = root + '/sources',
   target = root + '/exports-parent';
-const installed = root + '/Applications/Moment Grove.app';
-const candidate = root + '/candidate/Moment Grove.app';
-const previous = root + '/previous/Moment Grove.app';
-const binary = (app) => app + '/Contents/MacOS/moment-grove';
+const layout = batchLayout(manifest);
+const prior = candidateLayout(manifest.previousProduct ?? layout.product);
+const candidate = path.join(root, 'candidate', layout.app);
+const previous = path.join(root, 'previous', prior.app);
+const previousInstall = path.join(root, 'Applications', prior.app);
+const currentInstall = path.join(root, 'Applications', layout.app);
+let installed = fs.existsSync(currentInstall) ? currentInstall : previousInstall;
+function binary(app) {
+  const name = path.basename(app);
+  const identity = [layout, prior].find((entry) => entry.app === name);
+  if (!identity) throw Error('Unexpected installed bundle name');
+  return path.join(app, 'Contents/MacOS', identity.binary);
+}
 function write(name, value) {
   fs.writeFileSync(root + '/' + name, JSON.stringify(value, null, 2), { mode: 0o600 });
 }
@@ -56,7 +66,9 @@ function bundle(app, expectedBinary, allFiles = false) {
   );
   if (
     info.CFBundleIdentifier !== 'app.momentgrove.desktop' ||
-    info.CFBundleShortVersionString !== '0.1.0' ||
+    info.CFBundleExecutable !== path.basename(binary(app)) ||
+    info.CFBundleShortVersionString !==
+      (allFiles ? manifest.appVersion : (manifest.previousVersion ?? manifest.appVersion)) ||
     run('/usr/bin/lipo', ['-archs', binary(app)]).trim() !== 'arm64'
   )
     throw Error('Wrong bundle metadata');
@@ -95,7 +107,7 @@ function originals() {
       if (
         job.root !== sources ||
         job.parent !== target ||
-        !/^Moment-Grove-(Move|Quarantine)-\d+-[a-f0-9]{8}$/.test(job.directory)
+        !/^(?:Grove|Moment-Grove)-(Move|Quarantine)-\d+-[a-f0-9]{8}$/.test(job.directory)
       )
         throw Error('Move record outside trial scope');
       for (const item of job.items)
@@ -135,9 +147,18 @@ function snapshots() {
       ])
         .trim()
         .split('\n');
-      if (JSON.stringify(lines) !== JSON.stringify(['ok', String(0x4d475256), '2', '8']))
+      if (
+        JSON.stringify(lines) !==
+        JSON.stringify(['ok', String(0x4d475256), String(manifest.catalogSchema ?? 2), '8'])
+      )
         throw Error('Snapshot integrity or schema mismatch');
-      return { name, sha256: sha(fs.readFileSync(file)), integrity: 'ok', schema: 2, photos: 8 };
+      return {
+        name,
+        sha256: sha(fs.readFileSync(file)),
+        integrity: 'ok',
+        schema: Number(lines[2]),
+        photos: 8,
+      };
     });
 }
 function verifyOutputs() {
@@ -147,17 +168,17 @@ function verifyOutputs() {
   );
   const directories = fs
     .readdirSync(target)
-    .filter((n) => /^Moment-Grove-(?:Watermark-)?\d+-[a-f0-9]{8}$/.test(n));
+    .filter((n) => exportLayout(n)?.product === layout.product);
   if (directories.length !== 2 || directories.filter((n) => n.includes('Watermark')).length !== 1)
     throw Error('Expected one two-photo copy and one watermark export');
   const verified = directories.sort().map((name) => {
     const dir = target + '/' + name;
     if (!fs.lstatSync(dir).isDirectory() || fs.lstatSync(dir).isSymbolicLink())
       throw Error('Invalid output directory');
-    const portable = JSON.parse(fs.readFileSync(dir + '/moment-grove-export.json'));
+    const portable = JSON.parse(fs.readFileSync(path.join(dir, layout.portable)));
     const watermark = name.includes('Watermark');
     if (
-      portable.app !== 'Moment Grove' ||
+      portable.app !== layout.product ||
       portable.format !== 1 ||
       portable.files.length !== 2 ||
       fs.readdirSync(dir).length !== 5 ||
@@ -210,7 +231,7 @@ function verifyOutputs() {
       name,
       kind: watermark ? 'watermark' : 'copy',
       verified: 2,
-      manifestSha256: sha(fs.readFileSync(dir + '/moment-grove-export.json')),
+      manifestSha256: sha(fs.readFileSync(path.join(dir, layout.portable))),
     };
   });
   const rows = catalog();
@@ -321,19 +342,19 @@ if (mode === 'prepare') {
       input + '/' + manifest.dmg,
     ]);
     mounted = true;
-    run('/usr/bin/ditto', [root + '/mount/Moment Grove.app', candidate]);
+    run('/usr/bin/ditto', [path.join(root, 'mount', layout.app), candidate]);
     bundle(candidate, manifest.binarySha256, true);
   } finally {
     if (mounted) run('/usr/bin/hdiutil', ['detach', root + '/mount']);
   }
   fs.mkdirSync(root + '/zip-check', { mode: 0o700 });
   run('/usr/bin/ditto', ['-x', '-k', input + '/' + manifest.zip, root + '/zip-check']);
-  bundle(root + '/zip-check/Moment Grove/Moment Grove.app', manifest.binarySha256, true);
+  bundle(path.join(root, 'zip-check', layout.product, layout.app), manifest.binarySha256, true);
   fs.mkdirSync(root + '/previous', { mode: 0o700 });
   run('/usr/bin/ditto', ['-x', '-k', input + '/previous-app.zip', root + '/previous']);
   bundle(previous, manifest.previousBinarySha256);
   fs.mkdirSync(root + '/Applications', { mode: 0o700 });
-  fs.cpSync(previous, installed, { recursive: true, errorOnExist: true });
+  fs.cpSync(previous, previousInstall, { recursive: true, force: false, errorOnExist: true });
   if (pids().length) throw Error('Trial app unexpectedly running during preparation');
   const ready = {
     status: 'INSTALLED_NOT_LAUNCHED',
@@ -361,6 +382,7 @@ if (mode === 'prepare') {
     }),
   );
 } else {
+  installed = previousInstall;
   if (!process.stdin.isTTY) throw Error('请从Air桌面终端双击Start Trial QA.command启动。');
   if (pids().length) throw Error('本批应用仍在运行，请用⌘Q退出后再启动。');
   if (fs.existsSync(root + '/session-started.json'))
@@ -506,11 +528,14 @@ if (mode === 'prepare') {
     )
       throw Error('Expected old-candidate rating and pending state');
     fs.mkdirSync(root + '/saved-previous', { mode: 0o700 });
-    fs.renameSync(installed, root + '/saved-previous/Moment Grove.app');
-    fs.cpSync(candidate, installed, { recursive: true, errorOnExist: true });
+    fs.renameSync(installed, path.join(root, 'saved-previous', prior.app));
+    installed = currentInstall;
+    fs.cpSync(candidate, installed, { recursive: true, force: false, errorOnExist: true });
     await launch(
       'candidate',
-      '第二段：新候选。\n1. 打开sources，确认8张及07=3；左下“使用说明与资料”应显示0.1.0和独立测试目录。\n2. 比较03/04，试评分并撤销；最终03=4、04=5、07=3。\n3. 评分同步本页5项，应待同步0。\n4. “家庭精选”应2张，导出副本到本批exports-parent，完成2/2。再用“水印”填温州、备用日期2026-11-10，同一父目录导出2/2。\n5. 回所有照片，安全整理选低分隔离0–1，只含01/02；核对并确认2/2后⌘Q。',
+      '第二段：新候选。\n1. 打开sources，确认8张及07=3；左下“使用说明与资料”应显示' +
+        manifest.appVersion +
+        '和独立测试目录。\n2. 比较03/04，试评分并撤销；最终03=4、04=5、07=3。\n3. 评分同步本页5项，应待同步0。\n4. “家庭精选”应2张，导出副本到本批exports-parent，完成2/2。再用“水印”填温州、备用日期2026-11-10，同一父目录导出2/2。\n5. 回所有照片，安全整理选低分隔离0–1，只含01/02；核对并确认2/2后⌘Q。',
       manifest.binarySha256,
     );
     const moved = observe('candidate-before-restart');
@@ -531,8 +556,9 @@ if (mode === 'prepare') {
     if (restored.catalog.some((r) => !r.path.startsWith(sources + '/') || r.pending !== null))
       throw Error('Expected all photos restored and no pending sync');
     fs.mkdirSync(root + '/saved-candidate', { mode: 0o700 });
-    fs.renameSync(installed, root + '/saved-candidate/Moment Grove.app');
-    fs.renameSync(root + '/saved-previous/Moment Grove.app', installed);
+    fs.renameSync(installed, path.join(root, 'saved-candidate', layout.app));
+    installed = previousInstall;
+    fs.renameSync(path.join(root, 'saved-previous', prior.app), installed);
     await launch(
       'rollback',
       '第四段：回退旧候选。只打开sources核对8张、01=0、02=1、03=4、04=5、07=3，以及待同步0。不要再评分或移动，确认后⌘Q。',
@@ -542,8 +568,9 @@ if (mode === 'prepare') {
     if (JSON.stringify(rollback.catalog) !== JSON.stringify(restored.catalog))
       throw Error('Rollback changed catalog bindings, ratings or pending state');
     fs.mkdirSync(root + '/rollback-observed', { mode: 0o700 });
-    fs.renameSync(installed, root + '/rollback-observed/Moment Grove.app');
-    fs.renameSync(root + '/saved-candidate/Moment Grove.app', installed);
+    fs.renameSync(installed, path.join(root, 'rollback-observed', prior.app));
+    installed = currentInstall;
+    fs.renameSync(path.join(root, 'saved-candidate', layout.app), installed);
     write('trial-session-complete.json', {
       status: 'MANUAL_FEEDBACK_REQUIRED',
       sessions,
