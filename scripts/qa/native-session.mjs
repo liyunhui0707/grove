@@ -1,5 +1,5 @@
 // Private, user-operated native QA session. Never grants permissions or drives other apps.
-import { batchLayout } from './candidate-layout.mjs';
+import { batchLayout, candidateBinarySha256 } from './candidate-layout.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
@@ -236,7 +236,7 @@ async function launch() {
     (name) => name + '/Contents/MacOS/' + layout.binary,
   );
   const entries = manifest.files.filter((f) => options.includes(f.path));
-  if (entries.length !== 1 || entries[0].sha256 !== manifest.binarySha256)
+  if (entries.length !== 1 || entries[0].sha256 !== candidateBinarySha256(manifest))
     throw Error('Expected one hash-verified QA executable');
   const executable = join(input, entries[0].path);
   const out = openSync(join(logs, `${session}.stdout.log`), 'wx', 0o600),

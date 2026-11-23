@@ -17,6 +17,12 @@ export function candidateLayout(product) {
   throw Error('Unknown candidate product');
 }
 
+export function candidateBinarySha256(manifest) {
+  if (manifest.binarySha256 !== undefined) return manifest.binarySha256;
+  if (manifest.appVersion === '0.1.0' && !manifest.product)
+    return manifest.sourceAppExecutableSha256;
+}
+
 export function batchLayout(manifest) {
   // Prepared 0.1.0 batches predate the product field. Require their original executable fingerprint.
   const legacyBinary = [...(manifest.appFiles ?? []), ...(manifest.files ?? [])].some(
@@ -25,7 +31,7 @@ export function batchLayout(manifest) {
         f.path,
       ) &&
       /^[a-f0-9]{64}$/.test(f.sha256) &&
-      f.sha256 === manifest.binarySha256,
+      f.sha256 === candidateBinarySha256(manifest),
   );
   return candidateLayout(
     manifest.product ??

@@ -34,3 +34,15 @@ test('implicit legacy identity requires the fingerprint of the listed executable
     assert.throws(() => batchLayout({ ...manifest, product: 'other' }));
   }
 });
+
+test('the first native QA manifest uses the source executable fingerprint', () => {
+  const sha = 'd'.repeat(64);
+  const manifest = {
+    appVersion: '0.1.0',
+    sourceAppExecutableSha256: sha,
+    files: [{ path: 'Moment Grove QA.app/Contents/MacOS/moment-grove', sha256: sha }],
+  };
+  assert.equal(batchLayout(manifest).product, 'Moment Grove');
+  assert.throws(() => batchLayout({ ...manifest, binarySha256: 'a'.repeat(64) }));
+  assert.throws(() => batchLayout({ ...manifest, sourceAppExecutableSha256: 'b'.repeat(64) }));
+});
