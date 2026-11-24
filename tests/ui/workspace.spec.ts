@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { savedView } from './saved-view';
 
 async function workspaceMock(page: Page) {
   await page.addInitScript(() => {
@@ -107,7 +108,9 @@ test('relaunch resumes exact photo and preferences after rating', async ({ page 
   await page.locator('.pane-name').click();
   await page.keyboard.press('4');
   await expect(page.locator('.photo-pane')).toContainText('photo-2.jpg');
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => savedView(page))
+    .toMatchObject({ mode: 'review', active: 'photo-2', autoAdvance: false });
   await page.reload();
   await expect(page.locator('.photo-pane')).toContainText('photo-2.jpg');
   await expect(page.getByRole('checkbox', { name: '评分后下一张' })).not.toBeChecked();
@@ -130,7 +133,9 @@ test('filtered review resumes after active photo no longer matches live filter',
   await page.getByRole('checkbox', { name: '评分后下一张' }).uncheck();
   await page.locator('.pane-name').click();
   await page.keyboard.press('5');
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => savedView(page))
+    .toMatchObject({ mode: 'review', active: 'photo-2', autoAdvance: false });
   await page.reload();
   await expect(page.locator('.photo-pane')).toContainText('photo-2.jpg');
   await page.getByRole('button', { name: '下一张', exact: true }).click();
@@ -147,7 +152,7 @@ test('offline folder and missing photo never silently resume another occurrence'
     .getByRole('button', { name: '打开照片文件夹', exact: true })
     .click();
   await page.getByRole('button', { name: '查看 photo-2.jpg', exact: true }).dblclick();
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect.poll(() => savedView(page)).toMatchObject({ mode: 'review', active: 'photo-2' });
   await page.evaluate(() => localStorage.setItem('offline', 'true'));
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('重新选择文件夹');
@@ -176,7 +181,7 @@ test('workspace write failure is visible and does not claim saved', async ({ pag
   await page.evaluate(() => localStorage.removeItem('save-fails'));
   await page.getByRole('button', { name: '重试保存位置' }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect.poll(() => savedView(page)).toMatchObject({ mode: 'grid' });
 });
 
 test('grid search sort density and theme persist across relaunch', async ({ page }) => {
@@ -190,14 +195,16 @@ test('grid search sort density and theme persist across relaunch', async ({ page
   await page.getByRole('combobox', { name: '排序方式' }).selectOption('date');
   await page.getByRole('slider', { name: '缩略图大小' }).fill('340');
   await page.getByRole('button', { name: '切换暗色主题' }).click();
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => savedView(page))
+    .toMatchObject({ theme: 'dark', size: 340, sort: 'date', search: 'photo-' });
   await page.reload();
   await expect(page.getByRole('textbox', { name: '搜索照片' })).toHaveValue('photo-');
   await expect(page.getByRole('combobox', { name: '排序方式' })).toHaveValue('date');
   await expect(page.getByRole('slider', { name: '缩略图大小' })).toHaveValue('340');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.setViewportSize({ width: 960, height: 640 });
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeInViewport();
+  await expect(page.getByLabel('照片网格')).toBeInViewport();
   await page.screenshot({ path: 'test-results/workspace-grid-dark-small.png' });
 });
 

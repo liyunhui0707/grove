@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { savedView } from './saved-view';
 
 for (const total of [3000, 10000])
   test(`${total} photos virtualize and resume the exact rated occurrence`, async ({ page }) => {
@@ -93,7 +94,9 @@ for (const total of [3000, 10000])
     await page.getByRole('checkbox', { name: '评分后下一张' }).uncheck();
     await page.locator('.pane-name').click();
     await page.keyboard.press('5');
-    await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+    await expect
+      .poll(() => savedView(page))
+      .toMatchObject({ mode: 'review', active: `photo-${total - 1}`, autoAdvance: false });
     expect(await page.evaluate(() => localStorage.getItem('rated-ids'))).toBe(
       JSON.stringify([`photo-${total - 1}`]),
     );

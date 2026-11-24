@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { savedView } from './saved-view';
 
 async function scene(page: Page) {
   await page.addInitScript(() => {
@@ -127,9 +128,40 @@ async function scene(page: Page) {
     .getByRole('button', { name: '打开照片文件夹', exact: true })
     .click();
   await page.getByRole('button', { name: '查看 photo-0.jpg', exact: true }).dblclick();
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect.poll(() => savedView(page)).toMatchObject({ mode: 'review', active: 'photo-0' });
 }
 const resolutions = (page: Page) => page.evaluate(() => (window as any).__reviewExit.resolutions);
+
+test('arrow navigation silently saves the last photo during a slow checkpoint', async ({
+  page,
+}) => {
+  await scene(page);
+  const initialWrites = await page.evaluate(() => {
+    const controls = (window as any).__reviewExit;
+    controls.holdWorkspace = true;
+    return controls.workspaceStarted;
+  });
+  const feedback = page.getByText(/^(正在保存审片位置…|审片位置已保存)$/);
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__reviewExit.workspaceStarted))
+    .toBeGreaterThan(initialWrites);
+  await expect(page.locator('.photo-pane')).toContainText('photo-1.jpg');
+  await expect(feedback).toHaveCount(0);
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.photo-pane')).toContainText('photo-2.jpg');
+  await page.keyboard.press('ArrowLeft');
+  await page.evaluate(() => {
+    const controls = (window as any).__reviewExit;
+    controls.holdWorkspace = false;
+    controls.releaseWorkspace();
+  });
+  await page.evaluate(() => (window as any).__reviewExit.requestExit(1));
+  await expect.poll(() => resolutions(page)).toEqual([{ token: 1, proceed: true }]);
+  await expect(feedback).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.photo-pane')).toContainText('photo-1.jpg');
+});
 
 for (const theme of ['light', 'dark']) {
   test(`rating recovery remains accessible in a small ${theme} window`, async ({ page }) => {
@@ -191,7 +223,7 @@ test('return while a rating is pending cancels exit and late completion cannot q
   await page.evaluate(() => (window as any).__reviewExit.requestExit(4));
   await page.getByRole('dialog').getByRole('button', { name: '返回应用' }).click();
   await page.evaluate(() => (window as any).__reviewExit.releaseMutation());
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect.poll(() => savedView(page)).toMatchObject({ mode: 'review', active: 'photo-1' });
   expect(await resolutions(page)).toEqual([{ token: 4, proceed: false }]);
   await page.evaluate(() => (window as any).__reviewExit.requestExit(5));
   await expect

@@ -565,7 +565,6 @@ export function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(native);
   const [workspaceReady, setWorkspaceReady] = useState(!native);
-  const [workspaceStatus, setWorkspaceStatus] = useState('');
   const [workspaceError, setWorkspaceError] = useState('');
   const [gridOffset, setGridOffset] = useState(0);
   const [gridRestorePosition, setGridRestorePosition] = useState<{
@@ -719,7 +718,6 @@ export function App() {
       scrollOffset.current = 0;
       setGridOffset(0);
       setGridRestorePosition(null);
-      setWorkspaceStatus('');
       const scanned: Asset[] = [];
       let scanCompleted = false;
       setScanning(true);
@@ -855,18 +853,15 @@ export function App() {
         offset: gridOffset,
       },
     };
-    setWorkspaceStatus('正在保存审片位置…');
     const ticket = ++workspaceRevision.current;
     void workspaceWrites.current
       .save(checkpoint)
       .then(() => {
         if (ticket !== workspaceRevision.current) return;
-        setWorkspaceStatus('审片位置已保存');
         setWorkspaceError('');
       })
       .catch((e) => {
         if (ticket !== workspaceRevision.current) return;
-        setWorkspaceStatus('审片位置未保存');
         setWorkspaceError(String(e));
       });
   }, [
@@ -918,7 +913,6 @@ export function App() {
     try {
       await workspaceWrites.current.flush(retry);
       if (retry && workspaceRevision.current > 0) {
-        setWorkspaceStatus('审片位置已保存');
         setWorkspaceError('');
       }
     } catch (e) {
@@ -1936,7 +1930,6 @@ export function App() {
                 </details>
               )}
               {!native && <span className="preview-badge">浏览器交互预览 · 评分不存盘</span>}
-              {workspaceStatus && <span aria-live="polite">{workspaceStatus}</span>}
             </footer>
             {selected.length > 0 && (
               <div className="selection-bar">
@@ -2130,11 +2123,6 @@ export function App() {
               )}
             </div>
           </section>
-        )}
-        {!isGallery && workspaceStatus && (
-          <div className="workspace-status" aria-live="polite">
-            {workspaceStatus}
-          </div>
         )}
         {reviewInputHint && (
           <div className="toast review-input-hint" role="status">

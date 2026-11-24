@@ -1,14 +1,6 @@
 /* Keep distributable CSS independent of private docs and dependency notices. */
 @import 'tailwindcss' source('.');
 
-.workspace-status {
-  flex: 0 0 auto;
-  padding: 4px 24px;
-  font-size: 11px;
-  color: var(--muted);
-  text-align: right;
-}
-
 .sync-dialog {
   width: min(720px, calc(100vw - 80px));
 }
@@ -2343,7 +2335,6 @@ kbd {
 .sync-message,
 .sync-ratings,
 .sync-footnote,
-.workspace-status,
 .move-review-note,
 .move-filter-note,
 .move-scope > span,

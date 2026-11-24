@@ -294,7 +294,13 @@ test('already saved quit is quiet while a slow checkpoint shows progress and rem
   page,
 }) => {
   await scene(page);
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).qa.calls.some((call: { cmd: string }) => call.cmd === 'save_workspace'),
+      ),
+    )
+    .toBe(true);
   await page.evaluate(() => (window as any).qa.exit(1));
   await expect
     .poll(() =>

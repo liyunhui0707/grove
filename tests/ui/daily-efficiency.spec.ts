@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { savedView } from './saved-view';
 
 async function installLibrary(page: Page) {
   await page.route('http://grove.localhost/**', (route) =>
@@ -130,7 +131,9 @@ test('return task locates the last reviewed occurrence before comparison and pic
   await page.getByRole('checkbox', { name: '评分后下一张' }).uncheck();
   await page.locator('.pane-name').click();
   await page.keyboard.press('4');
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => savedView(page))
+    .toMatchObject({ mode: 'review', active: 'photo-40', autoAdvance: false });
   await page.reload();
   await expect(page.locator('.photo-pane')).toContainText(name(40));
   await page.keyboard.press('Escape');
@@ -150,7 +153,7 @@ test('return task locates the last reviewed occurrence before comparison and pic
   }
   await expect.poll(() => visibleTogether(page, [40, 41])).toBe(true);
   await expect(page.locator('.photo-card.focused')).toContainText(name(40));
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect.poll(() => savedView(page)).toMatchObject({ mode: 'grid', active: 'photo-40' });
   await page.reload();
   await expect.poll(() => visibleTogether(page, [40, 41])).toBe(true);
   expect(await page.locator('.photo-card').count()).toBeLessThan(60);
@@ -212,7 +215,9 @@ test('return never clears a filter to reveal a photo that just left it', async (
   await page.getByRole('checkbox', { name: '评分后下一张' }).uncheck();
   await page.locator('.pane-name').click();
   await page.keyboard.press('0');
-  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => savedView(page))
+    .toMatchObject({ mode: 'review', active: 'photo-0', autoAdvance: false });
   await page.keyboard.press('Escape');
   await expect(page.getByLabel('评分筛选')).toHaveValue('unreviewed');
   await expect(openPhoto(page, 0)).toHaveCount(0);
