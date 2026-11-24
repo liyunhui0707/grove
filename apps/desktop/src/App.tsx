@@ -340,7 +340,10 @@ function Gallery({
     <div
       className="gallery-viewport"
       ref={parent}
-      onScroll={(e) => onOffset(e.currentTarget.scrollTop)}
+      onScroll={({ currentTarget: grid }) => {
+        // WebKit exposes positions outside the scroll range during elastic scrolling.
+        onOffset(Math.max(0, Math.min(grid.scrollTop, grid.scrollHeight - grid.clientHeight)));
+      }}
       aria-label="照片网格"
     >
       <div style={{ height: totalSize, position: 'relative' }}>
@@ -853,7 +856,6 @@ export function App() {
       },
     };
     setWorkspaceStatus('正在保存审片位置…');
-    setWorkspaceError('');
     const ticket = ++workspaceRevision.current;
     void workspaceWrites.current
       .save(checkpoint)
@@ -865,7 +867,7 @@ export function App() {
       .catch((e) => {
         if (ticket !== workspaceRevision.current) return;
         setWorkspaceStatus('审片位置未保存');
-        setWorkspaceError(`审片位置未保存：${String(e)}。评分保存独立处理。`);
+        setWorkspaceError(String(e));
       });
   }, [
     workspaceReady,
@@ -1683,18 +1685,19 @@ export function App() {
           />
         )}
         {workspaceError && (
-          <TaskError
-            error={workspaceError}
-            title="审片位置未保存，评分独立保存"
-            action={
-              <button
-                className="button subtle"
-                onClick={() => void flushReview(true).catch(() => {})}
-              >
-                重试保存位置
-              </button>
-            }
-          />
+          <div className="workspace-warning" role="alert">
+            <strong>审片位置未保存，评分独立保存</strong>
+            <button
+              className="button subtle"
+              onClick={() => void flushReview(true).catch(() => {})}
+            >
+              重试保存位置
+            </button>
+            <details>
+              <summary>详细信息</summary>
+              <p>重新打开时可能会回到上次保存的位置。{workspaceError}</p>
+            </details>
+          </div>
         )}
         {warnings.length > 0 && (
           <details className="warning-banner">

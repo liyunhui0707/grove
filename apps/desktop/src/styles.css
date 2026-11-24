@@ -2482,3 +2482,23 @@ select {
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+
+.workspace-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  padding: 0.35rem 1rem;
+  border-inline-start: 3px solid var(--danger);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+.workspace-warning strong {
+  color: var(--danger);
+}
+.workspace-warning details[open] {
+  flex-basis: 100%;
+}
+.workspace-warning p {
+  overflow-wrap: anywhere;
+}

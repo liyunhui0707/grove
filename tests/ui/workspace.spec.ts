@@ -88,9 +88,7 @@ test('visible application identity opens exact app and catalog locations in a sm
   await badge.click();
   const guide = page.getByRole('dialog', { name: '使用说明与资料' });
   await expect(guide).toContainText('/owned/runtime');
-  await expect(guide).toContainText(
-    '/owned/installed/Grove.app/Contents/MacOS/moment-grove',
-  );
+  await expect(guide).toContainText('/owned/installed/Grove.app/Contents/MacOS/moment-grove');
   await expect(guide).toContainText('同一资料目录重复打开会唤回已有窗口');
   await page.getByRole('button', { name: '关闭使用说明' }).click();
   await expect(badge).toBeFocused();
@@ -175,6 +173,10 @@ test('workspace write failure is visible and does not claim saved', async ({ pag
   await expect(page.getByRole('alert')).toContainText('审片位置');
   await expect(page.getByText('审片位置已保存', { exact: true })).toHaveCount(0);
   await expect(page.locator('.photo-card')).toHaveCount(6);
+  await page.evaluate(() => localStorage.removeItem('save-fails'));
+  await page.getByRole('button', { name: '重试保存位置' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByText('审片位置已保存', { exact: true })).toBeVisible();
 });
 
 test('grid search sort density and theme persist across relaunch', async ({ page }) => {
@@ -197,4 +199,36 @@ test('grid search sort density and theme persist across relaunch', async ({ page
   await page.setViewportSize({ width: 960, height: 640 });
   await expect(page.getByText('审片位置已保存', { exact: true })).toBeInViewport();
   await page.screenshot({ path: 'test-results/workspace-grid-dark-small.png' });
+});
+
+test('elastic scrolling saves only real positions and resumes at the edge', async ({ page }) => {
+  await workspaceMock(page);
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.goto('/');
+  await page
+    .locator('.welcome')
+    .getByRole('button', { name: '打开照片文件夹', exact: true })
+    .click();
+  const grid = page.getByLabel('照片网格');
+  await grid.evaluate((el) => {
+    Object.defineProperty(el, 'scrollTop', { configurable: true, get: () => 42.5 });
+    el.dispatchEvent(new Event('scroll'));
+  });
+  const savedOffset = () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('workspace') || '{}').view?.offset);
+  await expect.poll(savedOffset).toBe(42.5);
+  for (const outside of [-40, 10000]) {
+    const expected = await grid.evaluate((el, n) => {
+      Object.defineProperty(el, 'scrollTop', { configurable: true, get: () => n });
+      el.dispatchEvent(new Event('scroll'));
+      return n < 0 ? 0 : el.scrollHeight - el.clientHeight;
+    }, outside);
+    await expect.poll(savedOffset).toBe(expected);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  }
+  await page.reload();
+  await expect(grid).toBeVisible();
+  await expect
+    .poll(() => grid.evaluate((el) => Math.abs(el.scrollTop - (el.scrollHeight - el.clientHeight))))
+    .toBeLessThan(2);
 });
