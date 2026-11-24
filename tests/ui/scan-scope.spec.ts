@@ -87,10 +87,19 @@ test('compact toolbar fits a narrow gallery while searching and exposes scan det
   await page.getByLabel('搜索照片', { exact: true }).fill('nothing');
   const header = page.locator('.topbar');
   const reset = page.getByRole('button', { name: '清除筛选', exact: true });
-  const search = page.locator('.search-field');
-  expect((await reset.boundingBox())!.x + (await reset.boundingBox())!.width).toBeLessThanOrEqual(
-    (await search.boundingBox())!.x,
-  );
+  // React updates the count and reset button as the focused search field expands.
+  // Compare both edges from the same rendered layout.
+  await expect
+    .poll(() =>
+      header.evaluate((bar) => {
+        const reset = bar.querySelector('.reset-view');
+        const search = bar.querySelector('.search-field');
+        return reset && search
+          ? search.getBoundingClientRect().left - reset.getBoundingClientRect().right
+          : -1;
+      }),
+    )
+    .toBeGreaterThanOrEqual(0);
   await expect(header.getByLabel('导出照片副本')).toBeInViewport({ ratio: 1 });
   await reset.click();
   await expect(page.getByRole('heading', { name: '所有照片 2', exact: true })).toBeVisible();
