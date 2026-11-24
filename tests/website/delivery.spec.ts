@@ -43,7 +43,7 @@ for (const width of [360, 390, 768, 900, 901, 1440]) {
     for (const ext of ['dmg', 'zip'])
       await expect(page.locator(`[data-download="${ext}"]`)).toHaveAttribute(
         'href',
-        `https://github.com/liyunhui0707/grove/releases/download/v0.12.0/Grove-0.12.0-macOS-arm64.${ext}`,
+        `https://github.com/liyunhui0707/grove/releases/download/v0.12.1/Grove-0.12.1-macOS-arm64.${ext}`,
       );
     await expect(page.locator('#download')).toContainText('未完成 Developer ID');
     const summary = page.locator('details summary').first();
