@@ -1,3 +1,7 @@
+# Grove 0.11.0 手动更新
+
+从 0.10.0 更新前备份资料库，正常退出后替换应用。资料库沿用 schema3。含动态资源的导出清单使用新版本格式，降级前请完成该批次。旧版无法续传新格式。
+
 # Grove 0.10.0：从 Moment Grove 更新
 
 本版为 ad-hoc／未公证的 Apple Silicon 技术测试预发布。日常入口更名为 `/Applications/Grove.app`，沿用 `app.momentgrove.desktop` 的既有资料目录、实例锁和权限身份，不移动或清空评分、审片位置和样式。新版本号不代表已完成 Developer ID 签名或公证。

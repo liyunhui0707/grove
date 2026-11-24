@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.10.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.11.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -16,7 +16,7 @@
 - Remember six watermark appearance settings. Each new batch clears city and fallback date; historical batches retain their original parameters.
 - Keep comparison references visible while replacing only the active candidate with `[` / `]`, including while an earlier rating saves. Pending writes keep their original target; extra rating/undo input is explicitly reported as unexecuted, not queued.
 - On macOS 14+, view tested Apple gain-map JPEG/HEIC and 10-bit PQ HEIC as SDR and export independent sRGB watermark JPEGs. HDR appearance is not retained.
-- See explicit counts for skipped video, RAW and unsupported images in mixed folders. Recognized Live Photo markers and same-name video/RAW companions are labeled for static review; original copy/move operations refuse incomplete resource groups, while watermark exports can create independent static JPEGs.
+- See explicit counts for skipped video, RAW and unsupported images in mixed folders. Recognized Live Photo markers and same-name video/RAW companions are labeled for static review; original export copies a unique same-name still and MOV with matching Apple content identifiers and verifies both files; ambiguous groups are refused, while watermark exports can create independent static JPEGs.
 - Read orientation-correct JPEG/HEIC dimensions and EXIF capture dates; rebuild previews with a corrected source profile for affected phone HEIC thumbnails.
 - Reuse the natural-name sorter for large photo batches; distinct occurrences and rating targets remain separate.
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file. Use the explicit macOS “Move to Trash” action for selected zero-rated photos (1–100 per batch), with confirmation and existing XMP handling. No permanent deletion or automatic retry; Finder restoration is separate from rating undo.
@@ -27,7 +27,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.10.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.10.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.11.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.11.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt

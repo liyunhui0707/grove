@@ -80,6 +80,7 @@ export type MoveReport = {
   message: string | null;
 };
 export type ExportRow = {
+  motionOutput?: string | null;
   name: string;
   output: string;
   rating: Rating;

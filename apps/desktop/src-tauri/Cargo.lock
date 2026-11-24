@@ -1144,9 +1144,10 @@ dependencies = [
 
 [[package]]
 name = "grove"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "base64 0.23.1",
+ "cc",
  "core-foundation",
  "core-graphics",
  "foreign-types",

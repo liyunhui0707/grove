@@ -98,7 +98,8 @@ async function scene(page: Page) {
               watermark: args.watermark,
               items: args.targets.map((t: any) => ({
                 name: assets.find((a) => a.id === t.id)!.name,
-                output: '',
+                output: '001-photo.jpg',
+                motionOutput: args.watermark ? null : '001-photo.mov',
                 rating: null,
                 bytes: 100,
                 status: 'pending',
@@ -202,6 +203,8 @@ test('export offers both modes, retains exact scope, opens the recorded destinat
   await page.getByRole('tab', { name: '原格式副本', exact: true }).click();
   await page.getByRole('button', { name: '选择导出位置', exact: true }).click();
   await expect(page.getByRole('button', { name: '开始导出', exact: true })).toBeEnabled();
+  await expect(page.getByRole('dialog')).toContainText('1 张照片 · 2 个媒体文件 · 1 个评分 XMP');
+  await expect(page.locator('.export-file')).toContainText('001-photo.mov');
   await expect(page.locator('.directory-path > strong')).toHaveText('Long folder name 中文');
   await expect(page.locator('.directory-path code')).toBeHidden();
   await page.getByRole('button', { name: '开始导出', exact: true }).click();
@@ -340,7 +343,13 @@ test('informational text tokens keep normal-text contrast in both themes', async
       const css = getComputedStyle(document.documentElement);
       const lum = (hex: string) => {
         const normalized = hex.trim().slice(1);
-        const expanded = normalized.length === 3 ? normalized.split('').map(c => c + c).join('') : normalized;
+        const expanded =
+          normalized.length === 3
+            ? normalized
+                .split('')
+                .map((c) => c + c)
+                .join('')
+            : normalized;
         const rgb = expanded
           .match(/../g)!
           .map((c) => parseInt(c, 16) / 255)

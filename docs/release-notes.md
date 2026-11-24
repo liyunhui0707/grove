@@ -1,3 +1,7 @@
+# 0.11.0 — 实况照片原格式导出与 Finder 找回
+
+可导出具有相同 Apple 配对标识的同名 JPEG/HEIC 与 MOV，附评分 XMP 和逐文件摘要。支持中断后重新核验。找回指引说明同名冲突、评分及缺失 XMP。Apple Silicon 技术预发布，ad-hoc 签名、未公证。
+
 # 0.10.0 — Grove：统一品牌与淘汰照片整理
 
 技术测试预发布，Apple Silicon macOS；ad-hoc 签名、未公证、手动更新。

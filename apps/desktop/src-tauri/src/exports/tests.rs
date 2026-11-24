@@ -1158,3 +1158,116 @@ fn grove_resumes_a_legacy_named_export_without_renaming_its_manifest() {
     assert_eq!(portable["app"], "Moment Grove");
     assert!(!legacy.join("grove-export.json").exists());
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+#[ignore = "Generated local fixtures; requires the Swift toolchain and ffmpeg"]
+fn identified_pair_round_trip_and_conflicts() {
+    use std::process::Command;
+    let t = tempfile::tempdir().unwrap();
+    let base = t.path().canonicalize().unwrap();
+    let (c, roots, folder, _) = fixture(&base);
+    let source = &roots[&folder];
+    let png = base.join("seed.png");
+    image::RgbImage::new(64, 64).save(&png).unwrap();
+    let still = source.join("live.jpg");
+    let movie = source.join("LIVE.MOV");
+    let id = uuid::Uuid::new_v4().to_string();
+    let script =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts/qa/live-photo-still.swift");
+    assert!(
+        Command::new("swift")
+            .arg(script)
+            .arg(&png)
+            .arg(&still)
+            .arg(&id)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let seed = base.join("seed.mov");
+    assert!(
+        Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=size=64x64:duration=0.2",
+                "-c:v",
+                "mpeg4"
+            ])
+            .arg(&seed)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let make_movie = |path: &Path, value: &str| {
+        let script = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../scripts/qa/live-photo-movie.swift");
+        assert!(
+            Command::new("swift")
+                .arg("-suppress-warnings")
+                .arg(script)
+                .arg(&seed)
+                .arg(path)
+                .arg(value)
+                .status()
+                .unwrap()
+                .success()
+        );
+    };
+    make_movie(&movie, &id);
+    let asset = c
+        .upsert(folder, &still, &imaging::identity(&still).unwrap(), None)
+        .unwrap()
+        .0;
+    let targets = [Target {
+        id: asset,
+        revision: 0,
+    }];
+    let data = base.join("data");
+    let parent = base.join("output");
+    let plan = || prepare(&c, &roots, folder, &targets, &parent, &data);
+    let first = plan().unwrap();
+    let row = &review(&first).items[0];
+    assert_eq!(row.motion_output.as_deref(), Some("001-live.mov"));
+    // A different video with the same name must block the already reviewed job.
+    let retained = base.join("retained.mov");
+    fs::rename(&movie, &retained).unwrap();
+    make_movie(&movie, &uuid::Uuid::new_v4().to_string());
+    assert!(plan().is_err());
+    let partial = execute(first, &data, &AtomicBool::new(false));
+    assert_eq!(partial.verified, 0);
+    assert!(!Path::new(&partial.destination).join(&row.output).exists());
+    fs::rename(&movie, base.join("wrong.mov")).unwrap();
+    assert!(plan().is_err());
+    fs::rename(&retained, &movie).unwrap();
+    let second = execute(
+        resume(&c, &roots, folder, &partial.id, &parent, &data).unwrap(),
+        &data,
+        &AtomicBool::new(false),
+    );
+    assert_eq!((second.status.as_str(), second.verified), ("completed", 1));
+    let dest = Path::new(&second.destination);
+    assert_eq!(
+        fs::read(dest.join(&row.output)).unwrap(),
+        fs::read(&still).unwrap()
+    );
+    assert_eq!(
+        fs::read(dest.join("001-live.mov")).unwrap(),
+        fs::read(&movie).unwrap()
+    );
+    assert!(dest.join("001-live.jpg.xmp").is_file());
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(dest.join("grove-export.json")).unwrap()).unwrap();
+    assert_eq!(
+        manifest["files"][0]["motion"]["sha256"],
+        files::hash_bytes(&fs::read(&movie).unwrap())
+    );
+    assert!(crate::resources::refuse_incomplete_original_operation(&still, "移动").is_err());
+    fs::copy(&still, source.join("live.heic")).unwrap();
+    assert!(plan().is_err());
+}

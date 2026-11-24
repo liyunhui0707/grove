@@ -136,6 +136,7 @@ export function ExportDialog({
     selection.map((a) => ({
       name: a.relative,
       output: '',
+      motionOutput: null,
       rating: a.rating,
       bytes: a.bytes,
       status: 'pending',
@@ -201,8 +202,8 @@ export function ExportDialog({
         </p>
         {!resuming && selection.some((asset) => companionLabel(asset)) && (
           <p className="batch-review-note" role="note" aria-label="关联资源保护">
-            当前选择含 Live Photo 标识或同名视频/RAW，暂不拆分复制。可改用水印生成静态
-            JPEG；原件与关联资源保持原位。
+            同目录同名且标识一致的 Live Photo 将连同 MOV 复制。缺件、配对不明或含 RAW
+            时会提示核对；也可选择静态水印 JPEG。
           </p>
         )}
         <PreparationStatus task={preparation} preparing={busy && !running} />
@@ -238,7 +239,10 @@ export function ExportDialog({
                   : '这次带走的照片'}
             </strong>
             <span>
-              {rows.length} 张 · {size(report?.bytes ?? selection.reduce((n, a) => n + a.bytes, 0))}
+              {report && rows.some((r) => r.motionOutput)
+                ? `${rows.length} 张照片 · ${rows.length + rows.filter((r) => r.motionOutput).length} 个媒体文件 · ${rows.length} 个评分 XMP`
+                : `${rows.length} 张`}{' '}
+              · {size(report?.bytes ?? selection.reduce((n, a) => n + a.bytes, 0))}
             </span>
           </div>
           <div className="export-file-list" aria-label="导出清单">
@@ -259,6 +263,7 @@ export function ExportDialog({
                     <strong>{row.name}</strong>
                     <small>
                       {row.output ? `→ ${row.output}` : size(row.bytes)}
+                      {row.motionOutput && ` + ${row.motionOutput}`}
                       {row.error ? ` · ${row.error}` : ''}
                     </small>
                   </div>

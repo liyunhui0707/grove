@@ -36,8 +36,37 @@ struct Item {
     error: Option<String>,
     #[serde(default)]
     info: Option<watermark::Info>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    motion: Option<Motion>,
     #[serde(skip)]
     derivative: Option<Derivative>,
+}
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct Motion {
+    path: PathBuf,
+    identity: String,
+    sha256: String,
+    bytes: u64,
+}
+fn capture_motion(root: &Path, photo: &Path, cancel: &AtomicBool) -> Result<Option<Motion>> {
+    crate::resources::export_motion(photo)?
+        .map(|path| {
+            let identity = crate::imaging::identity(&path)?;
+            let (sha256, bytes) = digest(files::source(root, &path, &identity)?, cancel)?;
+            Ok(Motion {
+                path,
+                identity,
+                sha256,
+                bytes,
+            })
+        })
+        .transpose()
+}
+fn movie_name(photo_output: &str) -> String {
+    Path::new(photo_output)
+        .with_extension("mov")
+        .to_string_lossy()
+        .into_owned()
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Derivative {
@@ -85,7 +114,11 @@ fn report(j: &Job) -> Report {
         id: j.id.clone(),
         destination: j.parent.join(&j.directory).to_string_lossy().into(),
         status: j.status.clone(),
-        bytes: j.items.iter().map(|i| i.bytes + i.xml.len() as u64).sum(),
+        bytes: j
+            .items
+            .iter()
+            .map(|i| i.bytes + i.xml.len() as u64 + i.motion.as_ref().map_or(0, |m| m.bytes))
+            .sum(),
         verified: j.items.iter().filter(|i| i.status == "verified").count(),
         message: j.message.clone(),
         kind: if j.watermark.is_some() {
@@ -101,6 +134,7 @@ fn report(j: &Job) -> Report {
             .map(|i| Row {
                 name: i.relative.clone(),
                 output: i.output.clone(),
+                motion_output: i.motion.as_ref().map(|_| movie_name(&i.output)),
                 rating: i.rating,
                 bytes: i.derivative.as_ref().map(|d| d.bytes).unwrap_or(i.bytes),
                 status: i.status.clone(),
@@ -309,8 +343,13 @@ fn prepare_kind(
         }) {
             return Err("此格式暂不支持复制导出".into());
         }
-        if options.is_none() {
-            crate::resources::refuse_incomplete_original_operation(&path, "复制导出")?;
+        let motion = if options.is_none() {
+            capture_motion(&root, &path, review.cancel)?
+        } else {
+            None
+        };
+        if motion.is_some() && Path::new(&safe_name(index, &path)).extension() != path.extension() {
+            return Err("配对照片文件名过长，无法保留原扩展名".into());
         }
         let (sha256, bytes, info) = if let Some(o) = &options {
             let input = watermark::read_input(source)?;
@@ -373,6 +412,7 @@ fn prepare_kind(
             status: "pending".into(),
             error: None,
             info,
+            motion,
             derivative: None,
         });
         review.done()?;
@@ -381,7 +421,9 @@ fn prepare_kind(
     let job = Job {
         // Older apps must reject a resized/different-quality plan rather than
         // silently regenerate it using their fixed original-size settings.
-        format: if options
+        format: if items.iter().any(|i| i.motion.is_some()) {
+            3
+        } else if options
             .as_ref()
             .is_some_and(|o| o.output_max_edge.is_some() || o.jpeg_quality != 92)
         {
@@ -510,7 +552,9 @@ fn load(data: &Path, id: &str) -> Result<Job> {
             item.derivative = d;
         }
     }
-    if ![1, 2].contains(&j.format)
+    if ![1, 2, 3].contains(&j.format)
+        || (j.format == 3) != j.items.iter().any(|i| i.motion.is_some())
+        || (j.format == 3 && j.watermark.is_some())
         || j.id != id
         || j.items.is_empty()
         || j.items.len() > LIMIT
@@ -524,6 +568,18 @@ fn load(data: &Path, id: &str) -> Result<Job> {
         return Err("导出记录无效".into());
     }
     for (n, i) in j.items.iter().enumerate() {
+        if i.motion.as_ref().is_some_and(|m| {
+            m.path.parent() != i.path.parent()
+                || m.path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .is_none_or(|e| !e.eq_ignore_ascii_case("mov"))
+                || m.sha256.len() != 64
+                || !m.sha256.bytes().all(|b| b.is_ascii_hexdigit())
+                || m.bytes > 1_099_511_627_776
+        }) {
+            return Err("动态资源记录无效".into());
+        }
         if i.output
             != safe_name(
                 n,
@@ -722,7 +778,15 @@ pub fn run(
             dir.unchanged()?;
             let input = files::source(&p.job.root, &i.path, &i.identity)?;
             if p.job.watermark.is_none() {
-                crate::resources::refuse_incomplete_original_operation(&i.path, "复制导出")?;
+                if capture_motion(&p.job.root, &i.path, cancel)? != i.motion {
+                    return Err("动态资源已变化，请重新核对导出".into());
+                }
+                if i.motion.is_some()
+                    && digest(files::source(&p.job.root, &i.path, &i.identity)?, cancel)?.0
+                        != i.sha256
+                {
+                    return Err("配对照片已变化，请重新核对导出".into());
+                }
             }
             let observation = sidecar::capture(&p.job.root, &i.path, &i.identity);
             if let Some(e) = observation.error {
@@ -746,11 +810,19 @@ pub fn run(
                 if p.job.watermark.is_some() {
                     watermark::MAX_INPUT_BYTES
                 } else {
-                    i.bytes
+                    i.bytes + i.motion.as_ref().map_or(0, |m| m.bytes)
                 } + i.xml.len() as u64,
             )?;
             publish_photo(&mut p.job, n, input, &dir, &journal, cancel)?;
             after_photo()?;
+            if let Some(m) = &i.motion {
+                dir.publish(
+                    &movie_name(&i.output),
+                    files::source(&p.job.root, &m.path, &m.identity)?,
+                    &m.sha256,
+                    cancel,
+                )?;
+            }
             dir.publish(
                 &format!("{}.xmp", i.output),
                 i.xml.as_bytes(),
@@ -789,6 +861,19 @@ pub fn run(
     if p.job.status == "completed" {
         let current_brand = p.job.directory.starts_with("Grove-");
         let mut portable = serde_json::json!({"app":if current_brand {"Grove"} else {"Moment Grove"},"format":1,"files":p.job.items.iter().map(|i|serde_json::json!({"sourceRelative":i.relative,"name":i.output,"rating":i.rating,"bytes":i.derivative.as_ref().map(|d|d.bytes).unwrap_or(i.bytes),"sha256":i.derivative.as_ref().map(|d|d.sha256.as_str()).unwrap_or(&i.sha256),"sidecarSha256":hash_bytes(i.xml.as_bytes())})).collect::<Vec<_>>()});
+        if p.job.format == 3 {
+            portable["format"] = 2.into();
+            for (row, item) in portable["files"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .zip(&p.job.items)
+            {
+                if let Some(m) = &item.motion {
+                    row["motion"] = serde_json::json!({"name":movie_name(&item.output),"bytes":m.bytes,"sha256":m.sha256});
+                }
+            }
+        }
         if let Some(options) = &p.job.watermark {
             portable["watermark"] = serde_json::to_value(options).map_err(|e| e.to_string())?;
             portable["rendered"] = serde_json::to_value(

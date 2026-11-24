@@ -4,6 +4,8 @@
 
 独立 Grove 窗口只选择一张 0 分 PNG，系统废纸篓操作报告照片和 XMP 完成 1/1。账户废纸篓的同名样本得到带后缀的名称，Finder 的脚本放回遇到权限错误。在另建的 APFS 卷上运行 `finder_restores_generated_pair_and_catalog_occurrence` 通过，Grove 实际废纸篓回执逐项交给 Finder，先还原照片、后还原 XMP。重新登记照片得到同一资产 ID 及 0 分，两份文件 SHA-256 均与操作前一致。此项使用 Finder Apple Events，未模拟点击“放回原处”菜单。
 
+原格式导出支持唯一同名 JPEG/HEIC 和 MOV 的 Apple 双端内容标识匹配，照片、MOV 及评分 XMP 完成后才计一张。清单记录动态文件散列、大小和身份，恢复时重新核对。原生成素材使用 ImageIO、AVFoundation 与 FFmpeg，显式 `identified_pair_round_trip_and_conflicts` 通过（成功、缺件、错配、重复照片、中断后恢复及清单回读）。没有使用家庭照片或将生成样本认定为实拍设备覆盖。
+
 ## 2026-11-23 更名收尾
 
 日常入口和独立测试入口采用 Grove。原生 QA 驱动按候选身份选择程序和导出协议。已检查两种历史摘要字段，用 15 份原生测试和安装测试批次清单验证旧身份识别。交付测试 15 项通过。本机个人应用程序的 Finder 替身与 Dock 保存的目标均已打开，实测同一 Grove 进程持有日常资料库。GitHub About 已填写官网，v0.10.0 发行说明已追加第三方声明标题勘误，三项已发布附件的 ID 与摘要复核一致。修正后的许可标题随下次发行交付。兼容项见 [更名决策](decisions.md)。

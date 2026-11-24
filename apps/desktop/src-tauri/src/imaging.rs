@@ -11,15 +11,15 @@ use std::{
 mod macos;
 #[cfg(target_os = "macos")]
 pub(crate) use macos::{draw_oriented, header, sdr_options, unequal_density};
-pub(crate) fn has_live_photo_marker(path: &Path) -> bool {
+pub(crate) fn live_photo_identifier(path: &Path) -> Option<String> {
     #[cfg(target_os = "macos")]
     {
-        macos::has_live_photo_marker(path)
+        macos::live_photo_identifier(path)
     }
     #[cfg(not(target_os = "macos"))]
     {
         let _ = path;
-        false
+        None
     }
 }
 #[cfg(not(target_os = "macos"))]

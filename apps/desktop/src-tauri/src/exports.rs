@@ -11,6 +11,7 @@ pub struct Target {
 pub struct Row {
     pub name: String,
     pub output: String,
+    pub motion_output: Option<String>,
     pub rating: Option<i32>,
     pub bytes: u64,
     pub status: String,

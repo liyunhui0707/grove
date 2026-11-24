@@ -53,9 +53,84 @@ pub fn directory(path: &Path) -> Result<HashMap<String, Companions>> {
 }
 pub fn for_photo(index: &HashMap<String, Companions>, path: &Path) -> Companions {
     let mut group = index.get(&stem(path)).cloned().unwrap_or_default();
-    group.live_photo = crate::imaging::has_live_photo_marker(path);
+    group.live_photo = crate::imaging::live_photo_identifier(path).is_some();
     group
 }
+/// Accept only a unique still and MOV whose embedded Apple asset IDs agree.
+pub fn export_motion(photo: &Path) -> Result<Option<std::path::PathBuf>> {
+    let parent = photo.parent().ok_or("照片路径无效")?;
+    let index = directory(parent)?;
+    let siblings = index.get(&stem(photo)).cloned().unwrap_or_default();
+    let marker = crate::imaging::live_photo_identifier(photo);
+    if !siblings.any() && marker.is_none() {
+        return Ok(None);
+    }
+    let ambiguous = "未能确认唯一的 Live Photo 配对，暂不拆分复制；请核对同名照片、MOV 和 RAW，也可导出静态水印副本";
+    let id = marker
+        .and_then(|s| uuid::Uuid::parse_str(&s).ok())
+        .ok_or(ambiguous)?;
+    if siblings.raw != 0 || siblings.videos != 1 {
+        return Err(ambiguous.into());
+    }
+    let mut movie = None;
+    for entry in fs::read_dir(parent).map_err(|_| ambiguous)? {
+        let entry = entry.map_err(|_| ambiguous)?;
+        let path = entry.path();
+        if stem(&path) != stem(photo) {
+            continue;
+        }
+        match path
+            .extension()
+            .and_then(|v| v.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "jpg" | "jpeg" | "heic" | "heif" | "png" | "webp" if path != photo => {
+                return Err(ambiguous.into());
+            }
+            "mov" if entry.file_type().is_ok_and(|t| t.is_file()) => movie = Some(path),
+            _ => {}
+        }
+    }
+    let movie = movie.ok_or(ambiguous)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        for path in [photo, movie.as_path()] {
+            let metadata = fs::symlink_metadata(path).map_err(|_| ambiguous)?;
+            if !metadata.is_file() || metadata.nlink() != 1 {
+                return Err(ambiguous.into());
+            }
+        }
+    }
+    if movie_matches(&movie, id) {
+        Ok(Some(movie))
+    } else {
+        Err(ambiguous.into())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn movie_matches(path: &Path, identifier: uuid::Uuid) -> bool {
+    use std::{
+        ffi::{CString, c_char},
+        os::unix::ffi::OsStrExt,
+    };
+    unsafe extern "C" {
+        fn grove_movie_matches(path: *const c_char, identifier: *const c_char) -> bool;
+    }
+    let Ok(path) = CString::new(path.as_os_str().as_bytes()) else {
+        return false;
+    };
+    let id = CString::new(identifier.to_string()).expect("UUID has no NUL");
+    unsafe { grove_movie_matches(path.as_ptr(), id.as_ptr()) }
+}
+#[cfg(not(target_os = "macos"))]
+fn movie_matches(_: &Path, _: uuid::Uuid) -> bool {
+    false
+}
+
 pub fn refuse_incomplete_original_operation(path: &Path, action: &str) -> Result<()> {
     let group = for_photo(&directory(path.parent().ok_or("照片路径无效")?)?, path);
     if group.any() {
