@@ -42,6 +42,7 @@ import {
   Maximize2,
   Minus,
   Moon,
+  PanelLeft,
   Plus,
   RotateCcw,
   Search,
@@ -213,7 +214,9 @@ function Thumbnail({ asset }: { asset: Asset }) {
     <span className="skeleton" />
   );
 }
+type GridAnchor = { id: string; top: number; width: number };
 function Gallery({
+  layoutAnchor,
   assets,
   selected,
   active,
@@ -227,6 +230,7 @@ function Gallery({
   onSelect,
   onOpen,
 }: {
+  layoutAnchor: RefObject<GridAnchor | null>;
   assets: Asset[];
   selected: string[];
   active: string;
@@ -324,6 +328,14 @@ function Gallery({
     pendingReveal.current = null;
     onRevealed();
   }, [assets, columns, measuredWidth, onRevealed, rowHeight, virtual]);
+  useLayoutEffect(() => {
+    const anchor = layoutAnchor.current;
+    if (!anchor || !measuredWidth || Math.abs(anchor.width - measuredWidth) < 1) return;
+    if (Math.abs(totalSize - Math.ceil(assets.length / columns) * rowHeight) > 1) return;
+    layoutAnchor.current = null;
+    const index = assets.findIndex((asset) => asset.id === anchor.id);
+    if (index >= 0) virtual.scrollToOffset(Math.floor(index / columns) * rowHeight - anchor.top);
+  }, [layoutAnchor, assets, columns, measuredWidth, rowHeight, totalSize, virtual]);
   return (
     <div
       className="gallery-viewport"
@@ -344,6 +356,7 @@ function Gallery({
             {assets.slice(row.index * columns, (row.index + 1) * columns).map((asset) => (
               <article
                 key={asset.id}
+                data-asset-id={asset.id}
                 className={`photo-card ${selected.includes(asset.id) ? 'selected' : ''} ${active === asset.id ? 'focused' : ''}`}
               >
                 <button
@@ -521,6 +534,30 @@ export function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('moment-grove-theme', theme);
   }, [theme]);
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => localStorage.getItem('grove-sidebar-hidden') === 'true',
+  );
+  const layoutAnchor = useRef<GridAnchor | null>(null);
+  const toggleSidebar = () => {
+    const grid = document.querySelector<HTMLElement>('.gallery-viewport');
+    layoutAnchor.current = null;
+    if (grid) {
+      const bounds = grid.getBoundingClientRect();
+      const cards = Array.from(grid.querySelectorAll<HTMLElement>('.photo-card')).filter((card) => {
+        const rect = card.getBoundingClientRect();
+        return rect.bottom > bounds.top && rect.top < bounds.bottom;
+      });
+      const card = cards.find((item) => item.classList.contains('focused')) ?? cards[0];
+      if (card?.dataset.assetId)
+        layoutAnchor.current = {
+          id: card.dataset.assetId,
+          top: card.getBoundingClientRect().top - bounds.top,
+          width: grid.clientWidth,
+        };
+    }
+    localStorage.setItem('grove-sidebar-hidden', String(!sidebarHidden));
+    setSidebarHidden(!sidebarHidden);
+  };
   const [folder, setFolder] = useState<Folder | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(native);
@@ -1042,6 +1079,12 @@ export function App() {
     const handler = (e: KeyboardEvent) => {
       if (e.isComposing || isTyping(e.target)) return;
       if (
+        ['Enter', ' '].includes(e.key) &&
+        e.target instanceof HTMLElement &&
+        e.target.closest('.topbar button, .topbar summary, .statusbar summary')
+      )
+        return;
+      if (
         guideOpen ||
         backupsOpen ||
         syncOpen ||
@@ -1239,21 +1282,29 @@ export function App() {
       : mode === 'compare' && !detail
         ? '这组比较照片'
         : '当前审片照片';
+  const isGallery = folder && mode === 'grid';
+  const filtered = selectedOnly || Boolean(search) || filter !== 'all';
   const title = selectedOnly
     ? '已选照片'
-    : filter === 'unreviewed'
-      ? '还未评分的时刻'
-      : filter === 'picks'
-        ? '值得珍藏的时刻'
-        : filter === 'reject'
-          ? '再看一眼，再决定'
-          : '所有照片';
-
+    : {
+        all: '所有照片',
+        unreviewed: '未评分',
+        picks: '精选照片',
+        reject: '淘汰候选',
+        '0': '淘汰候选',
+        '1': '1 星',
+        '2': '2 星',
+        '3': '3 星',
+        '4': '4 星',
+        '5': '5 星',
+      }[filter];
   return (
     <div className="app-shell">
       <ExitSaveGuard flushReview={flushReview} />
       <aside
+        id="library-sidebar"
         className="sidebar"
+        hidden={sidebarHidden}
         inert={
           guideOpen ||
           help ||
@@ -1271,7 +1322,7 @@ export function App() {
             <img src="/grove.svg" width="36" height="36" alt="" />
           </span>
           <div>
-            Grove<small>留住值得的时刻</small>
+            Grove
             <ApplicationBadge
               onOpen={(button) => {
                 guideOrigin.current = button;
@@ -1346,14 +1397,6 @@ export function App() {
         ) : (
           <p className="sidebar-empty">从一个本地文件夹开始</p>
         )}
-        <div className="sidebar-note">
-          <span className="note-line" />
-          <p>
-            慢慢挑选，
-            <br />
-            让美好的回忆留下来。
-          </p>
-        </div>
         <div className="sidebar-bottom">
           <div className="local-badge">
             <ShieldCheck size={15} />
@@ -1398,14 +1441,127 @@ export function App() {
         }
       >
         <header className="topbar">
+          <button
+            type="button"
+            className="icon-button"
+            aria-controls="library-sidebar"
+            aria-expanded={!sidebarHidden}
+            aria-label={sidebarHidden ? '显示侧栏' : '隐藏侧栏'}
+            title={sidebarHidden ? '显示侧栏' : '隐藏侧栏'}
+            onClick={toggleSidebar}
+          >
+            <PanelLeft size={18} />
+          </button>
           <div className="breadcrumb">
-            <span>资料库</span>
-            <ChevronRight size={13} />
-            <strong>{folder ? (folder.demo ? '山海之间' : folder.name) : '欢迎来到 Grove'}</strong>
+            <strong title={folder?.name}>
+              {folder ? (folder.demo ? '山海之间' : folder.name) : 'Grove'}
+            </strong>
+            {isGallery && (
+              <>
+                <ChevronRight size={13} />
+                <h1
+                  title={
+                    filter === 'picks' ? '4–5 星自动归入精选照片，不额外占用照片空间。' : undefined
+                  }
+                >
+                  {title}{' '}
+                  <span>
+                    {visible.length}
+                    {filtered && ` / ${assets.length}`}
+                  </span>
+                </h1>
+                {filtered && (
+                  <button
+                    className="reset-view"
+                    onClick={() => {
+                      if (!selectedOnly) {
+                        setSearch('');
+                        setFilter('all');
+                      }
+                      setSelectedOnly(false);
+                    }}
+                  >
+                    {selectedOnly ? '返回筛选结果' : '清除筛选'}
+                  </button>
+                )}
+              </>
+            )}
             {folder?.demo && <span className="demo-tag">生成示例</span>}
           </div>
+          {isGallery && (
+            <div className="gallery-toolbar">
+              <label className={`search-field${search ? ' has-query' : ''}`} title="搜索照片（⌘F）">
+                <Search size={16} />
+                <input
+                  aria-label="搜索照片"
+                  placeholder="搜索照片名称…"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSelectedOnly(false);
+                  }}
+                />
+                {search && (
+                  <button
+                    className="icon-button"
+                    aria-label="清除搜索"
+                    onClick={() => setSearch('')}
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </label>
+              <div className="toolbar-right">
+                <label className="select-field" title={`评分筛选 · ${title}`}>
+                  <SlidersHorizontal size={15} />
+                  <select
+                    aria-label="评分筛选"
+                    value={filter === 'reject' ? '0' : filter}
+                    onChange={(e) => {
+                      setFilter(e.target.value as Filter);
+                      setSelectedOnly(false);
+                    }}
+                  >
+                    <option value="all">全部评分</option>
+                    <option value="unreviewed">未评分</option>
+                    <option value="picks">4–5 星精选</option>
+                    <option value="0">0 · 淘汰候选</option>
+                    {[1, 2, 3, 4, 5].map((r) => (
+                      <option key={r} value={r}>
+                        {r} 星
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="select-field"
+                  title={`排序方式 · ${{ name: '名称', date: '时间', rating: '评分' }[sort]}`}
+                >
+                  <ArrowDownWideNarrow size={15} />
+                  <select
+                    aria-label="排序方式"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as Sort)}
+                  >
+                    <option value="name">名称</option>
+                    <option value="date">时间</option>
+                    <option value="rating">评分</option>
+                  </select>
+                </label>
+                <span className="toolbar-divider" />
+                <input
+                  className="density-slider"
+                  aria-label="缩略图大小"
+                  type="range"
+                  min="200"
+                  max="380"
+                  value={size}
+                  onChange={(e) => setSize(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
           <div className="top-actions">
-            {!native && <span className="preview-badge">浏览器交互预览 · 评分不存盘</span>}
             <button
               className="button subtle"
               aria-label="导出照片副本"
@@ -1414,7 +1570,7 @@ export function App() {
               onClick={() => setExportOpen(true)}
             >
               <Copy size={15} />
-              导出照片
+              导出
             </button>
             <ToolsMenu>
               <IconButton
@@ -1466,12 +1622,14 @@ export function App() {
               <Undo2 size={17} />
             </IconButton>
             <button
-              className="button subtle"
+              className="button subtle open-folder"
+              aria-label="打开文件夹"
+              title="打开文件夹"
               onClick={() => void open(false)}
               disabled={!native || loading || saving || Boolean(reviewFailure)}
             >
               <FolderOpen size={15} />
-              打开文件夹
+              <span>打开文件夹</span>
             </button>
             {folder && (
               <IconButton
@@ -1537,22 +1695,6 @@ export function App() {
               </button>
             }
           />
-        )}
-        {scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
-          <div className="scan-scope" role="note" aria-label="扫描范围">
-            <p>
-              已载入 {scanSummary.count} 张照片；
-              {[
-                scanSummary.skipped.videos ? `视频 ${scanSummary.skipped.videos} 个` : '',
-                scanSummary.skipped.raw ? `RAW ${scanSummary.skipped.raw} 个` : '',
-                scanSummary.skipped.images ? `不支持的图片 ${scanSummary.skipped.images} 张` : '',
-              ]
-                .filter(Boolean)
-                .join('、')}{' '}
-              未载入。
-            </p>
-            <small>当前只审阅支持的静态照片，跳过的文件保留原位。</small>
-          </div>
         )}
         {warnings.length > 0 && (
           <details className="warning-banner">
@@ -1620,54 +1762,6 @@ export function App() {
           </section>
         ) : mode === 'grid' ? (
           <>
-            <section className="collection-heading">
-              <div>
-                <span className="eyebrow">YOUR MOMENTS, AT YOUR PACE</span>
-                <h1>
-                  {title}
-                  <span>{visible.length.toLocaleString()}</span>
-                </h1>
-                <p>
-                  {filter === 'picks'
-                    ? '4–5 星自动归入精选照片，不额外占用照片空间。需要时再导出副本。'
-                    : folder.demo
-                      ? '用一组生成的山海影像，熟悉你的筛片节奏。'
-                      : '每一张照片，都值得从容地看一眼。'}
-                </p>
-              </div>
-              <div className="review-progress">
-                <span>
-                  {assets.length
-                    ? Math.round(((assets.length - unreviewed) / assets.length) * 100)
-                    : 0}
-                  <small>%</small>
-                </span>
-                <div>
-                  已完成评分
-                  <div className="progress-track">
-                    <i
-                      style={{
-                        width: `${assets.length ? ((assets.length - unreviewed) / assets.length) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
-            <div className="scope-summary" role="status">
-              显示 {visible.length} / 共 {assets.length} 张
-              {selectedOnly && <button onClick={() => setSelectedOnly(false)}>返回筛选结果</button>}
-              {!selectedOnly && (search || filter !== 'all') && (
-                <button
-                  onClick={() => {
-                    setSearch('');
-                    setFilter('all');
-                  }}
-                >
-                  清除筛选
-                </button>
-              )}
-            </div>
             {filter === 'reject' && !selectedOnly && (
               <div className="reject-actions" aria-label="淘汰候选操作">
                 <button
@@ -1714,77 +1808,10 @@ export function App() {
                 {!selected.length && <span>勾选照片后可移到系统废纸篓。</span>}
               </div>
             )}
-            <div className="gallery-toolbar">
-              <label className="search-field">
-                <Search size={16} />
-                <input
-                  aria-label="搜索照片"
-                  placeholder="搜索照片名称…"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setSelectedOnly(false);
-                  }}
-                />
-                {search && (
-                  <button
-                    className="icon-button"
-                    aria-label="清除搜索"
-                    onClick={() => setSearch('')}
-                  >
-                    <X size={15} />
-                  </button>
-                )}
-              </label>
-              <div className="toolbar-right">
-                <label className="select-field">
-                  <SlidersHorizontal size={15} />
-                  <select
-                    aria-label="评分筛选"
-                    value={filter}
-                    onChange={(e) => {
-                      setFilter(e.target.value as Filter);
-                      setSelectedOnly(false);
-                    }}
-                  >
-                    <option value="all">全部评分</option>
-                    <option value="unreviewed">未评分</option>
-                    <option value="picks">4–5 星精选</option>
-                    <option value="0">0 · 淘汰候选</option>
-                    {[1, 2, 3, 4, 5].map((r) => (
-                      <option key={r} value={r}>
-                        {r} 星
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="select-field">
-                  <ArrowDownWideNarrow size={15} />
-                  <select
-                    aria-label="排序方式"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value as Sort)}
-                  >
-                    <option value="name">名称</option>
-                    <option value="date">时间</option>
-                    <option value="rating">评分</option>
-                  </select>
-                </label>
-                <span className="toolbar-divider" />
-                <input
-                  className="density-slider"
-                  aria-label="缩略图大小"
-                  type="range"
-                  min="200"
-                  max="380"
-                  value={size}
-                  onChange={(e) => setSize(Number(e.target.value))}
-                />
-              </div>
-            </div>
             <div className="gallery-container">
               {visible.length ? (
                 <Gallery
+                  layoutAnchor={layoutAnchor}
                   assets={visible}
                   selected={selected}
                   active={active}
@@ -1873,17 +1900,40 @@ export function App() {
                       : scanOutcome === 'failed'
                         ? '扫描未完成 · '
                         : ''}
-                    {visible.length} 张照片
+                    已评分 {assets.length - unreviewed} / {assets.length}
                     {selected.length ? ` · 已选择 ${selected.length} 张` : ''}
                   </>
                 )}
               </span>
-              <span>
-                双击审片
-                <span className="status-separator" />
-                0–5 评分
-                <span className="status-separator" />C 比较
-              </span>
+              {scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
+                <details className="scan-details">
+                  <summary>
+                    {scanSummary.skipped.videos &&
+                    !scanSummary.skipped.raw &&
+                    !scanSummary.skipped.images
+                      ? `已跳过 ${scanSummary.skipped.videos} 个视频`
+                      : `已跳过 ${Object.values(scanSummary.skipped).reduce((a, b) => a + b, 0)} 个文件`}
+                  </summary>
+                  <div className="scan-scope" role="note" aria-label="扫描范围">
+                    <p>
+                      已载入 {scanSummary.count} 张照片；
+                      {[
+                        scanSummary.skipped.videos ? `视频 ${scanSummary.skipped.videos} 个` : '',
+                        scanSummary.skipped.raw ? `RAW ${scanSummary.skipped.raw} 个` : '',
+                        scanSummary.skipped.images
+                          ? `不支持的图片 ${scanSummary.skipped.images} 张`
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join('、')}{' '}
+                      未载入。
+                    </p>
+                    <small>当前只审阅支持的静态照片，跳过的文件保留原位。</small>
+                  </div>
+                </details>
+              )}
+              {!native && <span className="preview-badge">浏览器交互预览 · 评分不存盘</span>}
+              {workspaceStatus && <span aria-live="polite">{workspaceStatus}</span>}
             </footer>
             {selected.length > 0 && (
               <div className="selection-bar">
@@ -2078,7 +2128,7 @@ export function App() {
             </div>
           </section>
         )}
-        {workspaceStatus && (
+        {!isGallery && workspaceStatus && (
           <div className="workspace-status" aria-live="polite">
             {workspaceStatus}
           </div>

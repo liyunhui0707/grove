@@ -739,7 +739,10 @@ test('logical picks export fixes the visible batch and isolates shortcuts in bot
   await page.getByLabel('取消选择').click();
   await page.getByRole('button', { name: /精选照片/ }).click();
   await expect(page.locator('.photo-card')).toHaveCount(2);
-  await expect(page.locator('.collection-heading')).toContainText('不额外占用照片空间');
+  await expect(page.getByRole('heading', { name: /^精选照片 2 \/ / })).toHaveAttribute(
+    'title',
+    /不额外占用照片空间/,
+  );
   const trigger = page.getByRole('button', { name: '导出照片副本', exact: true });
   if (!(await trigger.isVisible()))
     await page.getByRole('button', { name: '资料库工具', exact: true }).click();
@@ -899,6 +902,7 @@ test('seven-state review, stable advance, undo, comparison, and input safety', a
 test('grid is virtualized and empty search and shortcuts remain usable', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '体验示例图库' }).click();
+  await page.setViewportSize({ width: 960, height: 640 });
   await expect(page.locator('.photo-card')).not.toHaveCount(24);
   await page.getByLabel('搜索照片').fill('不存在');
   await expect(page.getByRole('heading', { name: '没有符合条件的照片' })).toBeVisible();

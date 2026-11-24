@@ -401,3 +401,45 @@ test('an empty restored search does not leave a scroll request for a later filte
   await expect(openPhoto(page, 0)).toBeInViewport();
   await expect.poll(() => page.getByLabel('照片网格').evaluate((el) => el.scrollTop)).toBe(0);
 });
+
+test('sidebar reflow keeps the visible selection and remembers its setting', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await begin(page);
+  const grid = page.getByLabel('照片网格');
+  const expanded = (await grid.boundingBox())!;
+  expect(expanded.y).toBeLessThan(90);
+  const columns = () => page.locator('.photo-row').first().locator('.photo-card').count();
+  const before = await columns();
+  await grid.evaluate((el) => {
+    el.scrollTop = 40000;
+  });
+  const target = grid.locator('.photo-open').filter({ visible: true });
+  await expect
+    .poll(async () => await target.first().getAttribute('aria-label'))
+    .not.toBe('查看 照片_00000.jpg');
+  const inView = await grid.evaluate((el) => {
+    const bounds = el.getBoundingClientRect();
+    return Array.from(el.querySelectorAll<HTMLButtonElement>('.photo-open'))
+      .find((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+      })
+      ?.getAttribute('aria-label');
+  });
+  expect(inView).toBeTruthy();
+  const chosen = page.getByRole('button', { name: inView!, exact: true });
+  await chosen.click();
+  await page.getByRole('button', { name: '隐藏侧栏' }).press('Enter');
+  await expect(page.getByRole('button', { name: '显示侧栏' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect.poll(columns).toBeGreaterThan(before);
+  await expect(chosen).toBeInViewport({ ratio: 0.98 });
+  await expect(chosen.locator('..')).toHaveClass(/selected/);
+  await page.reload();
+  await expect(page.getByRole('button', { name: '显示侧栏' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: '资料库' })).toBeHidden();
+  await page.getByRole('button', { name: '显示侧栏' }).click();
+  await expect(page.getByRole('navigation', { name: '资料库' })).toBeVisible();
+});
