@@ -1,10 +1,14 @@
 # 当前状态
 
-## 本地开发 · 安静保存审片位置
+## 当前交付 · Grove 0.12.1（2026-11-24）
 
-图库、单图和比较视图在切图或滚动时后台保存位置。写入失败时继续显示详情与重试入口。用慢写入模拟连续向右、向左切换，验证保存过程中及完成后均无常规提示，正常退出重开后回到最后一张。生产构建、20 项逻辑测试及最终 102 项浏览器界面测试通过。首次全套运行出现一次窄窗口搜索布局断言失败，完整复跑通过。
+[GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.12.1) 与[原官网](https://grove.outerepoch3.chatgpt.site)第 14 版已公开。切图、滚动时后台保存位置，失败时可查看详情并重试。从发布 ZIP 启动，使用四张生成照片执行前后切图，正常退出重开后回到最后查看的照片，四张评分及修订一致。已备份本机日常资料和 0.12.0，替换为 0.12.1 后核对数据库和设置一致，并从安装位置用独立资料库验证启动。
 
-## 当前交付 · Grove 0.12.0（2026-11-24）
+构建源码和标签为 `a394a64`。ZIP 和只读 DMG 的载荷及签名通过核验，GitHub 三项附件和 Chrome 从官网下载的 ZIP 回读一致。[构建记录](build-manifest.json)
+
+`npm run build`、`npm test`、`npm run test:delivery`、`npm run test:ui`、`npm run test:website`、`npm run test:rust` 与 `npm run check:rust` 通过。窄窗口布局测试改为在同一帧读取两个控件边界，连续运行 15 次通过，最终界面回归 102 项通过。
+
+## 历史交付 · Grove 0.12.0（2026-11-24）
 
 [GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.12.0) 和[官网](https://grove.outerepoch3.chatgpt.site)第 13 版已公开。干净源码提交与标签为 `f585e89`。ZIP、只读 DMG 各 12 项载荷和严格签名通过核对。GitHub 三项附件完整下载后逐字节相同；在 Chrome 中通过官网按钮下载的 ZIP 也相同。[构建记录](build-manifest.json)
 
