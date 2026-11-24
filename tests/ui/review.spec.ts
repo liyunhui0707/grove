@@ -1257,7 +1257,7 @@ test('local trial guide keeps data location readable and isolates keyboard focus
     expect(
       await dialog.locator('.guide-body').evaluate((e) => e.scrollWidth <= e.clientWidth),
     ).toBe(true);
-    await page.screenshot({ path: `../results/screenshots/trial-guide-${theme}.png` });
+    await page.screenshot({ path: `test-results/trial-guide-${theme}.png` });
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
