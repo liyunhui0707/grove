@@ -1,6 +1,12 @@
 # 当前状态
 
-## 0.12.0 发版验证
+## 当前交付 · Grove 0.12.0（2026-11-24）
+
+[GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.12.0) 和[官网](https://grove.outerepoch3.chatgpt.site)第 13 版已公开。干净源码提交与标签为 `f585e89`。ZIP、只读 DMG 各 12 项载荷和严格签名通过核对。GitHub 三项附件完整下载后逐字节相同；在 Chrome 中通过官网按钮下载的 ZIP 也相同。[构建记录](build-manifest.json)
+
+用 0.12.0 ZIP 打开 0.11.0 的四张生成照片测试库，窗口显示图库与“审片位置已保存”。四条资产 ID、评分、修订及完整审片设置一致，SQLite 完整性检查通过。备份本机日常资料后，将 0.10.0 原子替换为 0.12.0，保留旧 App。日常 SQLite 的完整逻辑内容、审片位置和操作记录在替换前后一致。安装后的程序用独立空资料库启动，到达前端就绪状态。
+
+验证命令包括 `npm run build`、`npm test`、`npm run test:delivery`、`npm run test:ui`、`npm run test:website`、`npm run test:rust`、`npm run check:rust` 和 `npm run desktop:package -- --prerelease`。
 
 模拟 WebKit 越过图库顶端的滚动事件时，旧界面提交了 −40，超出原生审片位置的有效范围。新版保留有效小数偏移，将越界值限制到图库边缘。真实写入失败时可展开详情或重试，成功保存后提示消失。生产构建、20 项逻辑、15 项交付、101 项界面和 6 个官网视口测试通过。默认 Rust 测试在本机运行通过 143 项、忽略 25 项，Clippy 通过。浏览器回归注入的是滚动事件。
 
@@ -10,7 +16,7 @@
 
 在 1440 × 900 的本机 Chrome 内容窗口、默认缩略图大小下，侧栏展开时，改动前后图库起点由 325 px 上移至约 65 px，可视高度由 533 px 增至约 808 px。收起侧栏后，图库宽度由 1182 px 增至 1408 px，每排由四张增至五张。960 × 640 下搜索、清除筛选、导出和扫描详情均可用。三千张样本验证了滚动中段的选中照片在重排后仍在视野内。生产构建、20 项逻辑测试和 100 项界面测试通过。
 
-## 当前交付 · Grove 0.11.0 技术预发布（2026-11-24）
+## 历史交付 · Grove 0.11.0 技术预发布（2026-11-24）
 
 [GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.11.0) 和[官网](https://grove.outerepoch3.chatgpt.site)第 12 版已公开。构建源码及标签为 `da84e2b`，构建时工作树干净。逐项核对 94 份源码，ZIP 和只读 DMG 的载荷清单一致、各 12 项 SHA-256 和 App 严格签名核验通过。GitHub 的 ZIP、DMG 与校验和完整回读；通过官网点击下载的 ZIP 与本地验收包散列相同。[构建记录](build-manifest.json)
 

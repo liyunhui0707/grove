@@ -1,251 +1,316 @@
 {
   "product": "Grove",
-  "version": "0.11.0",
-  "buildId": "trial-20261124T043407-df3bbcca82",
-  "sourceCommit": "da84e2bd25a90ccf21f68675bebca464726a4d7e",
+  "version": "0.12.0",
+  "buildId": "trial-20261124T125337-f75d8f48f8",
+  "sourceCommit": "f585e8993c08d3720d7c319393a83d22a83337d1",
   "sourceDirty": false,
   "architecture": "arm64",
-  "sourceDigest": "df3bbcca82ed92e4ef589082765785d1055f33d64b603b261722faf7334f4435",
-  "binarySha256": "5023780325adfee7462af4cbb3d169e51041d60df106ed2a04d57914a0ea7d4d",
+  "sourceDigest": "f75d8f48f84c746ad2b33bea39f82f839eddd48746a70558f1b6e42ee995ab13",
+  "binarySha256": "9a92289cdca2c7fef38469598250f61b84ca568b2514ca892e078b7ec1d875d8",
   "signing": "ad-hoc; no Developer ID or notarization",
   "update": "manual replacement",
   "channel": "technical-prerelease",
-  "status": "PUBLISHED_ISOLATED_UPGRADE_VERIFIED",
+  "status": "PUBLISHED_INSTALLED_LOCAL",
   "repository": "https://github.com/liyunhui0707/grove",
-  "releaseUrl": "https://github.com/liyunhui0707/grove/releases/tag/v0.11.0",
-  "tagCommit": "da84e2bd25a90ccf21f68675bebca464726a4d7e",
+  "releaseUrl": "https://github.com/liyunhui0707/grove/releases/tag/v0.12.0",
+  "tagCommit": "f585e8993c08d3720d7c319393a83d22a83337d1",
   "artifacts": [
     {
-      "name": "Grove-0.11.0-macOS-arm64.zip",
-      "bytes": 5544263,
-      "sha256": "b6fe49c84aa6fab041c36974d7b54d7798c9aee6a6eb71047c26be6a61f5a7b6",
-      "url": "https://github.com/liyunhui0707/grove/releases/download/v0.11.0/Grove-0.11.0-macOS-arm64.zip"
+      "name": "Grove-0.12.0-macOS-arm64.zip",
+      "bytes": 5544487,
+      "sha256": "8a72d375bd0bfdb6bb3d4136c32f616308ed5fc1bb3f41198043e1485f89001f",
+      "url": "https://github.com/liyunhui0707/grove/releases/download/v0.12.0/Grove-0.12.0-macOS-arm64.zip"
     },
     {
-      "name": "Grove-0.11.0-macOS-arm64.dmg",
-      "bytes": 6402981,
-      "sha256": "bb1bb90e634f69b8cfd3b27f3f4351f210b3447f8494972c507c66f7a9879ddf",
-      "url": "https://github.com/liyunhui0707/grove/releases/download/v0.11.0/Grove-0.11.0-macOS-arm64.dmg"
+      "name": "Grove-0.12.0-macOS-arm64.dmg",
+      "bytes": 6403398,
+      "sha256": "4ca6dd897e4a908acf1f328336a67189af9df9f89479699f6c7aeb5a1b66e9a1",
+      "url": "https://github.com/liyunhui0707/grove/releases/download/v0.12.0/Grove-0.12.0-macOS-arm64.dmg"
     }
   ],
   "validation": {
     "rustDefaultPassed": 143,
     "rustDefaultIgnored": 25,
-    "explicitNativeTests": [
-      "Finder recovery on a disposable APFS volume",
-      "Live Photo group export and conflict recovery with generated media"
-    ],
-    "uiPassed": 98,
+    "uiPassed": 101,
     "logicPassed": 20,
     "deliveryPassed": 15,
     "websiteViewportsPassed": 6,
     "verifiedBuildInputs": 94,
+    "verifiedPayloadsPerArchive": 12,
     "downloadedArchivesFullyVerified": true,
-    "nativeChromeQuarantineObserved": true,
-    "gatekeeperAssessment": "rejected",
-    "isolatedUpgradeFrom": "0.10.0",
+    "websiteZipClickVerified": true,
+    "isolatedUpgradeFrom": "0.11.0",
+    "generatedOccurrencesWithRatingsChecked": 4,
     "catalogIntegrity": "ok",
     "workspaceAndRatingsMatch": true
   },
+  "installation": {
+    "installed": "0.12.0",
+    "previous": "0.10.0",
+    "catalogAndWorkspaceMatch": true,
+    "rollbackRetained": true,
+    "installedAppStartedWithIsolatedCatalog": true
+  },
   "website": {
     "url": "https://grove.outerepoch3.chatgpt.site",
-    "version": 12,
-    "sourceCommit": "796553456881a59742f67c77704f74a889aea80f",
+    "version": 13,
+    "sourceCommit": "0ae7a695991516730f7e467b5fab015aee018e38",
     "status": "DEPLOYED"
   },
   "limits": [
-    "Apple Silicon macOS technical trial; ad-hoc signed, not notarized",
-    "No captured-device or Photos import/playback acceptance",
-    "Finder recovery accepted on the isolated APFS volume; account Trash Apple Event restore was denied",
-    "Existing daily installations outside this release acceptance"
+    "Apple Silicon macOS technical prerelease with ad-hoc signature; no notarization",
+    "Elastic overscroll regression exercised with synthetic scroll events",
+    "Local Mac daily app updated; other Macs outside the requested installation scope"
   ],
   "previousRelease": {
     "product": "Grove",
-    "version": "0.10.0",
-    "channel": "technical-prerelease",
-    "status": "PUBLISHED_INSTALLED_LOCAL",
-    "repository": "https://github.com/liyunhui0707/grove",
-    "releaseUrl": "https://github.com/liyunhui0707/grove/releases/tag/v0.10.0",
-    "buildId": "trial-20261118T132849-162ce7fc8b",
-    "sourceCommit": "2e1c856aac82ffcfbe9e78e5a5e1ee83dc4e3c9b",
+    "version": "0.11.0",
+    "buildId": "trial-20261124T043407-df3bbcca82",
+    "sourceCommit": "da84e2bd25a90ccf21f68675bebca464726a4d7e",
     "sourceDirty": false,
-    "tagCommit": "2e1c856aac82ffcfbe9e78e5a5e1ee83dc4e3c9b",
     "architecture": "arm64",
-    "sourceDigest": "162ce7fc8b79e760f7431530564e12c55d49b51feca1f6bb4dba7621596a5b73",
-    "binarySha256": "2f383b6fecee357289e85681cb4e376978226c7c38c4f9a5ff490c0941c3be0d",
-    "artifacts": [
-      {
-        "name": "Grove-0.10.0-macOS-arm64.zip",
-        "bytes": 5530153,
-        "sha256": "343cedceac8d44f9a90309b8b2057004eb85d593a6e2b39261a93be445b660c9",
-        "url": "https://github.com/liyunhui0707/grove/releases/download/v0.10.0/Grove-0.10.0-macOS-arm64.zip"
-      },
-      {
-        "name": "Grove-0.10.0-macOS-arm64.dmg",
-        "bytes": 6393897,
-        "sha256": "ca0c39c1d2a98f536d28a59be0e1cf2931bd4954fd7babb4f5c1ed10c489e641",
-        "url": "https://github.com/liyunhui0707/grove/releases/download/v0.10.0/Grove-0.10.0-macOS-arm64.dmg"
-      }
-    ],
+    "sourceDigest": "df3bbcca82ed92e4ef589082765785d1055f33d64b603b261722faf7334f4435",
+    "binarySha256": "5023780325adfee7462af4cbb3d169e51041d60df106ed2a04d57914a0ea7d4d",
     "signing": "ad-hoc; no Developer ID or notarization",
     "update": "manual replacement",
-    "validation": {
-      "ui": 98,
-      "rust": 143,
-      "rustExplicitIgnored": 23,
-      "logic": 20,
-      "delivery": 12,
-      "websiteViewports": 6,
-      "build": true,
-      "clippy": true,
-      "testedSystem": "macOS 27.2.1 Apple Silicon",
-      "zipPayloadsVerified": 12,
-      "readOnlyDmgPayloadsVerified": 12,
-      "uploadedAssetsFullReadback": true,
-      "readbackMethod": "anonymous bounded HTTP ranges; complete ZIP/DMG reassembly and SHA-256; public checksum exact",
-      "nativeTrashUi": {
-        "selectedZeroRatedGeneratedPhotos": 2,
-        "existingXmp": 1,
-        "completed": 2,
-        "refreshedTotal": 2,
-        "rejectResults": 0,
-        "restartAndHistoryRetained": true,
-        "unselectedOriginalHashesUnchanged": true
+    "channel": "technical-prerelease",
+    "status": "PUBLISHED_ISOLATED_UPGRADE_VERIFIED",
+    "repository": "https://github.com/liyunhui0707/grove",
+    "releaseUrl": "https://github.com/liyunhui0707/grove/releases/tag/v0.11.0",
+    "tagCommit": "da84e2bd25a90ccf21f68675bebca464726a4d7e",
+    "artifacts": [
+      {
+        "name": "Grove-0.11.0-macOS-arm64.zip",
+        "bytes": 5544263,
+        "sha256": "b6fe49c84aa6fab041c36974d7b54d7798c9aee6a6eb71047c26be6a61f5a7b6",
+        "url": "https://github.com/liyunhui0707/grove/releases/download/v0.11.0/Grove-0.11.0-macOS-arm64.zip"
       },
-      "nativeEngineTrashRoundtrip": {
-        "generatedPhotos": 2,
-        "xmp": 2,
-        "hashVerifiedAndRestoredNoReplace": true
-      },
-      "installation": {
-        "application": "/Applications/Grove.app",
-        "previousAppRetained": true,
-        "consistentCatalogBackup": true,
-        "allBusinessTablesSettingsAndRecordsUnchanged": true,
-        "allRatingOccurrencesUnchangedAfterDailyLaunch": true,
-        "installedIsolatedStartupObserved": true,
-        "installedIsolatedExit": "controlled SIGTERM after control failure; not normal-quit acceptance",
-        "nativeZipNormalQuitAndRestart": true,
-        "dock": "one Grove pin at installed application; other pins preserved"
+      {
+        "name": "Grove-0.11.0-macOS-arm64.dmg",
+        "bytes": 6402981,
+        "sha256": "bb1bb90e634f69b8cfd3b27f3f4351f210b3447f8494972c507c66f7a9879ddf",
+        "url": "https://github.com/liyunhui0707/grove/releases/download/v0.11.0/Grove-0.11.0-macOS-arm64.dmg"
       }
-    },
-    "compatibility": {
-      "bundleIdentifier": "app.momentgrove.desktop",
-      "schema": 3,
-      "existingDataKeysRetained": true,
-      "legacyExportsResume": true,
-      "legacyMovesWithdraw": true,
-      "newFilePrefix": "Grove",
-      "newPortableManifest": "grove-export.json"
+    ],
+    "validation": {
+      "rustDefaultPassed": 143,
+      "rustDefaultIgnored": 25,
+      "explicitNativeTests": [
+        "Finder recovery on a disposable APFS volume",
+        "Live Photo group export and conflict recovery with generated media"
+      ],
+      "uiPassed": 98,
+      "logicPassed": 20,
+      "deliveryPassed": 15,
+      "websiteViewportsPassed": 6,
+      "verifiedBuildInputs": 94,
+      "downloadedArchivesFullyVerified": true,
+      "nativeChromeQuarantineObserved": true,
+      "gatekeeperAssessment": "rejected",
+      "isolatedUpgradeFrom": "0.10.0",
+      "catalogIntegrity": "ok",
+      "workspaceAndRatingsMatch": true
     },
     "website": {
       "url": "https://grove.outerepoch3.chatgpt.site",
-      "version": 11,
-      "sourceCommit": "c9bc8c730da7d462207f144e29166c2243f1f5b3",
-      "deploymentStatus": "succeeded",
-      "publicTitleAndDownloadsVerified": true,
-      "fourStaticAssetsExact": true
+      "version": 12,
+      "sourceCommit": "796553456881a59742f67c77704f74a889aea80f",
+      "status": "DEPLOYED"
     },
-    "previousReleaseCountPreserved": 11,
-    "previousAssetCountPreserved": 33,
     "limits": [
-      "technical trial; ad-hoc and not notarized",
-      "Finder UI restoration not executed; separate native generated roundtrip passed",
-      "photo/XMP are not one atomic transaction; interrupted results need review",
-      "other platforms, browser-quarantine first install and long-term personal-library reliability not established",
-      "Air remains previous installation; not in this local-only update scope"
+      "Apple Silicon macOS technical trial; ad-hoc signed, not notarized",
+      "No captured-device or Photos import/playback acceptance",
+      "Finder recovery accepted on the isolated APFS volume; account Trash Apple Event restore was denied",
+      "Existing daily installations outside this release acceptance"
     ],
     "previousRelease": {
-      "version": "0.9.0",
-      "channel": "public-prerelease",
-      "buildId": "trial-20261118T083732-4dc03f4c98",
-      "sourceCommit": "524724267583b54c90f53cffef8043944fa18c38",
+      "product": "Grove",
+      "version": "0.10.0",
+      "channel": "technical-prerelease",
+      "status": "PUBLISHED_INSTALLED_LOCAL",
+      "repository": "https://github.com/liyunhui0707/grove",
+      "releaseUrl": "https://github.com/liyunhui0707/grove/releases/tag/v0.10.0",
+      "buildId": "trial-20261118T132849-162ce7fc8b",
+      "sourceCommit": "2e1c856aac82ffcfbe9e78e5a5e1ee83dc4e3c9b",
       "sourceDirty": false,
+      "tagCommit": "2e1c856aac82ffcfbe9e78e5a5e1ee83dc4e3c9b",
       "architecture": "arm64",
-      "sourceDigest": "4dc03f4c98c4b13b4e3b1ec4916d6f740148fc543c70ce7239cce9eb6467f17e",
-      "binarySha256": "3cb74ffaea8b96f05fe6ab329e9501c169f53f197f98fe949e51d2fd8c271f6c",
+      "sourceDigest": "162ce7fc8b79e760f7431530564e12c55d49b51feca1f6bb4dba7621596a5b73",
+      "binarySha256": "2f383b6fecee357289e85681cb4e376978226c7c38c4f9a5ff490c0941c3be0d",
       "artifacts": [
         {
-          "name": "Moment-Grove-0.9.0-macOS-arm64.zip",
-          "bytes": 5693982,
-          "sha256": "175f9979ca24b159b795889d977d3e24d569b83c43cdc76daeadd454439f95ea"
+          "name": "Grove-0.10.0-macOS-arm64.zip",
+          "bytes": 5530153,
+          "sha256": "343cedceac8d44f9a90309b8b2057004eb85d593a6e2b39261a93be445b660c9",
+          "url": "https://github.com/liyunhui0707/grove/releases/download/v0.10.0/Grove-0.10.0-macOS-arm64.zip"
         },
         {
-          "name": "Moment-Grove-0.9.0-macOS-arm64.dmg",
-          "bytes": 6538253,
-          "sha256": "05b9c1190bcd9c6601aab2ae8e539325f7e4997a89379cbea0d815e1aadd35cf"
+          "name": "Grove-0.10.0-macOS-arm64.dmg",
+          "bytes": 6393897,
+          "sha256": "ca0c39c1d2a98f536d28a59be0e1cf2931bd4954fd7babb4f5c1ed10c489e641",
+          "url": "https://github.com/liyunhui0707/grove/releases/download/v0.10.0/Grove-0.10.0-macOS-arm64.dmg"
         }
       ],
       "signing": "ad-hoc; no Developer ID or notarization",
-      "status": "PUBLISHED_TECHNICAL_PRERELEASE",
-      "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0",
+      "update": "manual replacement",
       "validation": {
-        "rustPassed": 132,
-        "rustIgnoredByDefault": 21,
-        "uiPassed": 93,
-        "logicPassed": 20,
-        "deliveryPassed": 12,
-        "websiteViewportPassed": 6,
-        "clippy": "all targets -D warnings passed",
-        "archives": {
-          "payloadFiles": 12,
-          "sourceFiles": 88,
-          "readOnlyDmgMount": true,
-          "strictAdHocSignature": true
+        "ui": 98,
+        "rust": 143,
+        "rustExplicitIgnored": 23,
+        "logic": 20,
+        "delivery": 12,
+        "websiteViewports": 6,
+        "build": true,
+        "clippy": true,
+        "testedSystem": "macOS 27.2.1 Apple Silicon",
+        "zipPayloadsVerified": 12,
+        "readOnlyDmgPayloadsVerified": 12,
+        "uploadedAssetsFullReadback": true,
+        "readbackMethod": "anonymous bounded HTTP ranges; complete ZIP/DMG reassembly and SHA-256; public checksum exact",
+        "nativeTrashUi": {
+          "selectedZeroRatedGeneratedPhotos": 2,
+          "existingXmp": 1,
+          "completed": 2,
+          "refreshedTotal": 2,
+          "rejectResults": 0,
+          "restartAndHistoryRetained": true,
+          "unselectedOriginalHashesUnchanged": true
         },
-        "native": {
-          "system": "macOS27.2.1 arm64",
-          "sourceFilesUnchanged": 506,
-          "listedPhotos": 506,
-          "ratingUndo": true,
-          "copyPhotos": 1,
-          "watermarkPhotos": 1,
-          "installedExactBinary": true,
-          "normalQuit": true,
-          "sameSchemaRollback": "0.9.0 -> 0.8.0 -> 0.9.0; all business tables and workspace unchanged after workflow"
+        "nativeEngineTrashRoundtrip": {
+          "generatedPhotos": 2,
+          "xmp": 2,
+          "hashVerifiedAndRestoredNoReplace": true
         },
         "installation": {
-          "local": {
-            "version": "0.9.0",
-            "previousVersion": "0.8.0",
-            "oldAppRetained": true,
-            "coherentCatalogBackup": true,
-            "dailyTablesAndSettingsUnchanged": true,
-            "isolatedNativeResumeNormalQuit": true
-          },
-          "air": {
-            "version": "0.9.0",
-            "previousVersion": "0.8.0",
-            "sameBinarySha256": true,
-            "oldAppRetained": true,
-            "coherentCatalogBackup": true,
-            "dailyTablesAndSettingsUnchanged": true,
-            "isolatedWindowAndReadyObserved": true,
-            "interactiveAcceptance": "NOT_COMPLETED: remote coordinate control noWindowsAvailable",
-            "exit": "controlled SIGTERM of isolated test; not normal quit"
-          }
+          "application": "/Applications/Grove.app",
+          "previousAppRetained": true,
+          "consistentCatalogBackup": true,
+          "allBusinessTablesSettingsAndRecordsUnchanged": true,
+          "allRatingOccurrencesUnchangedAfterDailyLaunch": true,
+          "installedIsolatedStartupObserved": true,
+          "installedIsolatedExit": "controlled SIGTERM after control failure; not normal-quit acceptance",
+          "nativeZipNormalQuitAndRestart": true,
+          "dock": "one Grove pin at installed application; other pins preserved"
         }
       },
-      "limits": [
-        "ad-hoc signed; not Developer ID signed or notarized",
-        "manual replacement updates",
-        "browser quarantine/Gatekeeper first-open not accepted",
-        "Air full interactive workflow not accepted",
-        "other OS versions, Intel, Windows and Linux not validated",
-        "short isolated checks do not establish long-term real-library reliability"
-      ],
-      "tagCommit": "23d9c461339e013a4faf90bf4b4ab9df72859496",
-      "tagSourceEquivalent": true,
-      "sourceCommitRole": "Exact clean build source; release tag adds acceptance documentation only",
-      "website": {
-        "url": "https://moment-grove.outerepoch3.chatgpt.site",
-        "version": 10,
-        "sourceCommit": "8544db39196713929db51d23e4e50405975fa2b0",
-        "status": "DEPLOYED"
+      "compatibility": {
+        "bundleIdentifier": "app.momentgrove.desktop",
+        "schema": 3,
+        "existingDataKeysRetained": true,
+        "legacyExportsResume": true,
+        "legacyMovesWithdraw": true,
+        "newFilePrefix": "Grove",
+        "newPortableManifest": "grove-export.json"
       },
-      "previousReleaseCountPreserved": 10,
-      "uploadedAssetsFullReadback": true,
-      "anonymousAssetPrefixesVerified": 3
+      "website": {
+        "url": "https://grove.outerepoch3.chatgpt.site",
+        "version": 11,
+        "sourceCommit": "c9bc8c730da7d462207f144e29166c2243f1f5b3",
+        "deploymentStatus": "succeeded",
+        "publicTitleAndDownloadsVerified": true,
+        "fourStaticAssetsExact": true
+      },
+      "previousReleaseCountPreserved": 11,
+      "previousAssetCountPreserved": 33,
+      "limits": [
+        "technical trial; ad-hoc and not notarized",
+        "Finder UI restoration not executed; separate native generated roundtrip passed",
+        "photo/XMP are not one atomic transaction; interrupted results need review",
+        "other platforms, browser-quarantine first install and long-term personal-library reliability not established",
+        "Air remains previous installation; not in this local-only update scope"
+      ],
+      "previousRelease": {
+        "version": "0.9.0",
+        "channel": "public-prerelease",
+        "buildId": "trial-20261118T083732-4dc03f4c98",
+        "sourceCommit": "524724267583b54c90f53cffef8043944fa18c38",
+        "sourceDirty": false,
+        "architecture": "arm64",
+        "sourceDigest": "4dc03f4c98c4b13b4e3b1ec4916d6f740148fc543c70ce7239cce9eb6467f17e",
+        "binarySha256": "3cb74ffaea8b96f05fe6ab329e9501c169f53f197f98fe949e51d2fd8c271f6c",
+        "artifacts": [
+          {
+            "name": "Moment-Grove-0.9.0-macOS-arm64.zip",
+            "bytes": 5693982,
+            "sha256": "175f9979ca24b159b795889d977d3e24d569b83c43cdc76daeadd454439f95ea"
+          },
+          {
+            "name": "Moment-Grove-0.9.0-macOS-arm64.dmg",
+            "bytes": 6538253,
+            "sha256": "05b9c1190bcd9c6601aab2ae8e539325f7e4997a89379cbea0d815e1aadd35cf"
+          }
+        ],
+        "signing": "ad-hoc; no Developer ID or notarization",
+        "status": "PUBLISHED_TECHNICAL_PRERELEASE",
+        "releaseUrl": "https://github.com/liyunhui0707/moment-grove/releases/tag/v0.9.0",
+        "validation": {
+          "rustPassed": 132,
+          "rustIgnoredByDefault": 21,
+          "uiPassed": 93,
+          "logicPassed": 20,
+          "deliveryPassed": 12,
+          "websiteViewportPassed": 6,
+          "clippy": "all targets -D warnings passed",
+          "archives": {
+            "payloadFiles": 12,
+            "sourceFiles": 88,
+            "readOnlyDmgMount": true,
+            "strictAdHocSignature": true
+          },
+          "native": {
+            "system": "macOS27.2.1 arm64",
+            "sourceFilesUnchanged": 506,
+            "listedPhotos": 506,
+            "ratingUndo": true,
+            "copyPhotos": 1,
+            "watermarkPhotos": 1,
+            "installedExactBinary": true,
+            "normalQuit": true,
+            "sameSchemaRollback": "0.9.0 -> 0.8.0 -> 0.9.0; all business tables and workspace unchanged after workflow"
+          },
+          "installation": {
+            "local": {
+              "version": "0.9.0",
+              "previousVersion": "0.8.0",
+              "oldAppRetained": true,
+              "coherentCatalogBackup": true,
+              "dailyTablesAndSettingsUnchanged": true,
+              "isolatedNativeResumeNormalQuit": true
+            },
+            "air": {
+              "version": "0.9.0",
+              "previousVersion": "0.8.0",
+              "sameBinarySha256": true,
+              "oldAppRetained": true,
+              "coherentCatalogBackup": true,
+              "dailyTablesAndSettingsUnchanged": true,
+              "isolatedWindowAndReadyObserved": true,
+              "interactiveAcceptance": "NOT_COMPLETED: remote coordinate control noWindowsAvailable",
+              "exit": "controlled SIGTERM of isolated test; not normal quit"
+            }
+          }
+        },
+        "limits": [
+          "ad-hoc signed; not Developer ID signed or notarized",
+          "manual replacement updates",
+          "browser quarantine/Gatekeeper first-open not accepted",
+          "Air full interactive workflow not accepted",
+          "other OS versions, Intel, Windows and Linux not validated",
+          "short isolated checks do not establish long-term real-library reliability"
+        ],
+        "tagCommit": "23d9c461339e013a4faf90bf4b4ab9df72859496",
+        "tagSourceEquivalent": true,
+        "sourceCommitRole": "Exact clean build source; release tag adds acceptance documentation only",
+        "website": {
+          "url": "https://moment-grove.outerepoch3.chatgpt.site",
+          "version": 10,
+          "sourceCommit": "8544db39196713929db51d23e4e50405975fa2b0",
+          "status": "DEPLOYED"
+        },
+        "previousReleaseCountPreserved": 10,
+        "uploadedAssetsFullReadback": true,
+        "anonymousAssetPrefixesVerified": 3
+      }
     }
   }
 }
