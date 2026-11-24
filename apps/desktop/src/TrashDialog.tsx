@@ -207,11 +207,12 @@ export function TrashDialog({
           )}
           <p className="trash-recovery">
             <ShieldCheck size={16} /> 可在 Finder 的废纸篓中找回文件。照片和 XMP
-            都需放回原位置，再重新扫描；App 保留评分记录。关联视频或 RAW 的照片暂不处理。
+            都需按清单原名放回原文件夹，再重新扫描。若原位置已有同名文件，请取消替换并先核对。
           </p>
           {history.length > 0 && (
             <details className="trash-history">
               <summary>最近操作记录（{history.length}）</summary>
+              <p>记录显示操作当时的结果。仅找回照片时，原有 XMP 仍需单独找回。</p>
               {history.map((r) => (
                 <details key={r.id}>
                   <summary>

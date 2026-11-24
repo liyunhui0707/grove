@@ -11,7 +11,9 @@ struct Scene {
     targets: Vec<Target>,
 }
 fn scene(ratings: &[Option<i32>], xmp: bool) -> Scene {
-    let temp = tempfile::tempdir().unwrap();
+    scene_in(tempfile::tempdir().unwrap(), ratings, xmp)
+}
+fn scene_in(temp: tempfile::TempDir, ratings: &[Option<i32>], xmp: bool) -> Scene {
     let base = temp.path().canonicalize().unwrap();
     let root = base.join("generated");
     let data = base.join("runtime");
@@ -389,4 +391,59 @@ fn prepare_grove_native_fixture() {
         .unwrap(),
     )
     .unwrap();
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+#[ignore = "Run only on the operator-created disposable GroveRecoveryQA24 volume with Finder"]
+fn finder_restores_generated_pair_and_catalog_occurrence() {
+    let volume = Path::new("/Volumes/GroveRecoveryQA24");
+    assert_eq!(std::env::var("GROVE_FINDER_QA").as_deref(), Ok("1"));
+    let s = scene_in(tempfile::tempdir_in(volume).unwrap(), &[Some(0)], true);
+    let plan = prepare_scene(&s).unwrap();
+    let checks = plan.items[0].files.clone();
+    let result = run(
+        &s.c,
+        &s.roots,
+        plan,
+        &s.data,
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(result.completed, 1);
+    for (res, check) in result.items[0].resources.iter().zip(checks) {
+        let path = s.root.join(&res.name);
+        let dest = Path::new(res.destination.as_deref().unwrap());
+        assert!(dest.starts_with(volume.join(".Trashes")));
+        assert!(!path.exists());
+        let script = r#"on run argv
+            set sourceFile to POSIX file (item 1 of argv) as alias
+            set targetFolder to POSIX file (item 2 of argv) as alias
+            tell application "Finder" to move sourceFile to targetFolder without replacing
+        end run"#;
+        assert!(
+            std::process::Command::new("osascript")
+                .args(["-e", script])
+                .arg(dest)
+                .arg(&s.root)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert_eq!(files::hash_bytes(&fs::read(&path).unwrap()), check.hash);
+        if res.name.ends_with(".jpg") {
+            assert!(!path.with_extension("xmp").exists());
+            let id =
+                s.c.upsert(s.folder, &path, &imaging::identity(&path).unwrap(), None)
+                    .unwrap()
+                    .0;
+            assert_eq!(id, s.targets[0].id);
+            let rating: i32 =
+                s.c.db
+                    .query_row("SELECT rating FROM assets WHERE id=?1", [&id], |r| r.get(0))
+                    .unwrap();
+            assert_eq!(rating, 0);
+        }
+    }
 }
