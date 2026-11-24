@@ -1,6 +1,16 @@
 # 当前状态
 
-## 0.11.0 本机生成素材验收
+## 当前交付 · Grove 0.11.0 技术预发布（2026-11-24）
+
+[GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.11.0) 和[官网](https://grove.outerepoch3.chatgpt.site)第 12 版已公开。构建源码及标签为 `da84e2b`，构建时工作树干净。逐项核对 94 份源码，ZIP 和只读 DMG 的载荷清单一致、各 12 项 SHA-256 和 App 严格签名核验通过。GitHub 的 ZIP、DMG 与校验和完整回读；通过官网点击下载的 ZIP 与本地验收包散列相同。[构建记录](build-manifest.json)
+
+在本机从官网下载 0.10.0，用独立资料库打开四张生成照片，给未评分照片评 3 星、切换暗色并正常退出。从新版 DMG 替换隔离安装并重开，窗口显示 0.11.0 与四张照片。四条资产 ID、评分、修订及整份审片设置逐项相同，SQLite 完整性检查为 ok。两台 Mac 日常安装均不在此项操作范围。
+
+另用全新 Chrome 用户配置执行原生下载，ZIP 具有 Chrome 写入的隔离标记，解包后 App 保留隔离标记。Gatekeeper 对下载的 App 执行评估为 rejected，正常打开请求后未观察到独立资料库就绪。本轮没有 Developer ID Application 证书，按授权以 ad-hoc 渠道交付。未调整系统安全策略。新浏览器配置与新资料库不等同于全新 macOS 帐号。
+
+完整基线：生产构建、Clippy、20 项逻辑、15 项交付、98 项 UI、6 个官网视口和 143 项默认 Rust 测试通过。另显式运行下列两项原生试验。
+
+### 本机生成素材验收
 
 独立 Grove 窗口只选择一张 0 分 PNG，系统废纸篓操作报告照片和 XMP 完成 1/1。账户废纸篓的同名样本得到带后缀的名称，Finder 的脚本放回遇到权限错误。在另建的 APFS 卷上运行 `finder_restores_generated_pair_and_catalog_occurrence` 通过，Grove 实际废纸篓回执逐项交给 Finder，先还原照片、后还原 XMP。重新登记照片得到同一资产 ID 及 0 分，两份文件 SHA-256 均与操作前一致。此项使用 Finder Apple Events，未模拟点击“放回原处”菜单。
 
@@ -16,7 +26,7 @@
 
 Air 从 0.9.0 更新至已发布的 0.10.0。升级前备份日常资料库、设置、操作记录及旧 App，升级前后业务数据校验一致。复核签名、已发布可执行文件摘要及 Dock 入口后，以独立空资料库启动安装版，确认进程打开该库并正常退出，SQLite 完整性检查通过。本次本地重建包仅用于验收。两台 Mac 日常使用的均为原 0.10.0 发行构建。
 
-## 当前交付：Grove 0.10.0（2026-11-18已收口）
+## 历史交付：Grove 0.10.0（2026-11-18已收口）
 
 已统一应用、G叶标、可执行文件、安装包、新文件输出、原仓库与官网品牌。原仓库保持同一ID并更名为 [liyunhui0707/grove](https://github.com/liyunhui0707/grove)，[0.10.0技术测试预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.10.0)已公开，原[官网](https://grove.outerepoch3.chatgpt.site)沿同一Site与公开受众发布第11版。旧11个发行及33项资产ID/名称/大小/摘要保持，不替换旧标签或资产。
 
