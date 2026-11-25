@@ -1,6 +1,16 @@
 # 当前状态
 
-## 当前交付 · Grove 0.12.1（2026-11-24）
+## 当前交付 · Grove 0.13.0（2026-11-25）
+
+[GitHub 技术预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.13.0) 和[官网](https://grove.outerepoch3.chatgpt.site)第 15 版已公开。发布标签对应干净源码 `fc54509`。ZIP、只读 DMG 的载荷与严格签名通过校验。从 GitHub 完整回读三个附件，通过官网按钮下载的 ZIP 也与验收包逐字节一致。[构建记录](build-manifest.json)
+
+从发行 ZIP 打开万张生成图库，在原生审片窗口前后切换 JPEG 和 16 位 PNG，正常退出重开后回到同一张 PNG。核对全部一万条资产的评分及修订。两台 Mac 均由 0.12.1 更新至 0.13.0，保留了各自的旧程序与资料备份，核对安装前后日常数据库逻辑内容及保存的设置和操作记录一致。两台均从安装位置用独立资料库完成启动。测试采用生成样本，未检查私人图库原件。
+
+`npm run build`、`npm test`、`npm run test:delivery`、`npm run test:ui`、`npm run test:website`、`npm run test:rust`、`npm run check:rust`、`npm run desktop:package -- --prerelease` 通过。默认 Rust 测试 145 项通过、25 项忽略，界面回归 103 项通过。文末记录了另行运行的万张基准和色彩测试。
+
+在同一台 Mac、同一份一万张生成图库中，从请求启动到辅助功能树首次检测到指定 JPEG，0.12.1 的冷／暖缓存单次读数为 2.57／2.32 秒，0.13.0 为 2.32／2.28 秒。这些数值包含窗口启动和轮询时间。
+
+## 历史交付 · Grove 0.12.1（2026-11-24）
 
 [GitHub 预发布](https://github.com/liyunhui0707/grove/releases/tag/v0.12.1) 与[原官网](https://grove.outerepoch3.chatgpt.site)第 14 版已公开。切图、滚动时后台保存位置，失败时可查看详情并重试。从发布 ZIP 启动，使用四张生成照片执行前后切图，正常退出重开后回到最后查看的照片，四张评分及修订一致。已备份本机日常资料和 0.12.0，替换为 0.12.1 后核对数据库和设置一致，并从安装位置用独立资料库验证启动。
 
