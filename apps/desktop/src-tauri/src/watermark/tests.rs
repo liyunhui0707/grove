@@ -1,6 +1,16 @@
 use super::*;
 
 pub(crate) fn fixture(width: u32, height: u32, orientation: u16, date: Option<&str>) -> Vec<u8> {
+    gps_fixture(width, height, orientation, date, None)
+}
+
+pub(crate) fn gps_fixture(
+    width: u32,
+    height: u32,
+    orientation: u16,
+    date: Option<&str>,
+    coordinates: Option<(i32, i32)>,
+) -> Vec<u8> {
     use image::{Rgb, RgbImage, codecs::jpeg::JpegEncoder};
     let image = RgbImage::from_fn(width, height, |x, y| {
         Rgb(match (x < width / 2, y < height / 2) {
@@ -61,19 +71,32 @@ pub(crate) fn fixture(width: u32, height: u32, orientation: u16, date: Option<&s
     while tiff.len() < gps_offset as usize {
         tiff.push(0);
     }
-    tiff.extend(2u16.to_le_bytes());
-    tiff.extend(1u16.to_le_bytes());
-    tiff.extend(2u16.to_le_bytes());
-    tiff.extend(2u32.to_le_bytes());
-    tiff.extend(b"N\0\0\0");
-    tiff.extend(2u16.to_le_bytes());
-    tiff.extend(5u16.to_le_bytes());
-    tiff.extend(3u32.to_le_bytes());
-    tiff.extend((gps_offset + 30).to_le_bytes());
+    // Minutes of arc, encoded as standard TIFF GPS tag pairs. Existing fixtures
+    // deliberately have latitude only and must not resolve to a city.
+    let (latitude, longitude) = coordinates.unwrap_or((28 * 60, 0));
+    let mut axes = vec![(1u16, latitude, if latitude < 0 { b'S' } else { b'N' })];
+    if coordinates.is_some() {
+        axes.push((3, longitude, if longitude < 0 { b'W' } else { b'E' }));
+    }
+    let entries = axes.len() as u16 * 2;
+    let rational_offset = gps_offset + 2 + u32::from(entries) * 12 + 4;
+    tiff.extend(entries.to_le_bytes());
+    for (i, (tag, _, hemisphere)) in axes.iter().enumerate() {
+        tiff.extend(tag.to_le_bytes());
+        tiff.extend(2u16.to_le_bytes());
+        tiff.extend(2u32.to_le_bytes());
+        tiff.extend([*hemisphere, 0, 0, 0]);
+        tiff.extend((tag + 1).to_le_bytes());
+        tiff.extend(5u16.to_le_bytes());
+        tiff.extend(3u32.to_le_bytes());
+        tiff.extend((rational_offset + i as u32 * 24).to_le_bytes());
+    }
     tiff.extend([0; 4]);
-    for n in [28u32, 0, 0] {
-        tiff.extend(n.to_le_bytes());
-        tiff.extend(1u32.to_le_bytes());
+    for (_, minutes, _) in axes {
+        for n in [minutes.unsigned_abs() / 60, minutes.unsigned_abs() % 60, 0] {
+            tiff.extend(n.to_le_bytes());
+            tiff.extend(1u32.to_le_bytes());
+        }
     }
     let mut packet = b"Exif\0\0".to_vec();
     packet.extend(tiff);

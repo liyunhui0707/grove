@@ -1,5 +1,8 @@
 # 第三方依赖与素材来源
 
+The offline city-centre index is derived from the GeoNames cities15000 extract and distributed under CC BY 4.0. The source archive digest, transformations, links and attribution are included in THIRD-PARTY-NOTICES.txt.
+
+
 自写代码、程序图与 assets/grove.svg 为 Apache-2.0。没有复制 Lap/digiKam/nomacs 应用代码，没有捆绑 libheif、FFmpeg、AI 模型或字体。
 以下列出直接依赖。完整 macOS arm64 Rust 解析依赖及已安装 npm 构建/测试依赖的声明文本、版本和源码链接见根目录 THIRD-PARTY-NOTICES.txt。
 

@@ -249,7 +249,7 @@ pub fn preview_watermark(
     let (folder, path, _, key) = c.location(id)?;
     let root = roots.get(&folder).ok_or("请先打开照片目录")?;
     let bytes = watermark::read_input(files::source(root, Path::new(&path), &key)?)?;
-    let rendered = watermark::render(&bytes, options, Some(1280))?;
+    let rendered = watermark::render(&bytes, &options.for_photo(id), Some(1280))?;
     let (export_width, export_height) = watermark::output_dimensions(
         rendered.info.source.width,
         rendered.info.source.height,
@@ -303,20 +303,11 @@ fn prepare_kind(
     for ancestor in parent.ancestors() {
         ancestor_keys.insert(Dir::open(ancestor)?.key()?);
     }
-    let mut q =
-        c.db.prepare("SELECT path FROM folders")
-            .map_err(|e| e.to_string())?;
-    let registered = q
-        .query_map([], |r| r.get::<_, String>(0))
-        .map_err(|e| e.to_string())?;
-    for p in registered {
-        let p = PathBuf::from(p.map_err(|e| e.to_string())?);
-        let physical_match = Dir::open(&p)
-            .and_then(|d| d.key())
-            .is_ok_and(|key| ancestor_keys.contains(&key));
-        if destination.starts_with(&p) || p.starts_with(&destination) || physical_match {
-            return Err("请选择已登记照片目录之外的导出位置".into());
-        }
+    if destination.starts_with(&root)
+        || root.starts_with(&destination)
+        || ancestor_keys.contains(&Dir::open(&root)?.key()?)
+    {
+        return Err("请选择当前照片文件夹之外的导出位置，例如与它同级的文件夹".into());
     }
     if destination.starts_with(data)
         || data.starts_with(&destination)
@@ -353,7 +344,7 @@ fn prepare_kind(
         }
         let (sha256, bytes, info) = if let Some(o) = &options {
             let input = watermark::read_input(source)?;
-            let info = watermark::inspect(&input, o)?;
+            let info = watermark::inspect(&input, &o.for_photo(&t.id))?;
             if info.date.is_none() {
                 return Err(format!(
                     "{}：请补充备用日期后重新核对",
@@ -711,7 +702,11 @@ fn publish_photo(
         }
         return Ok(());
     }
-    let rendered = watermark::render(&bytes, options, None)?;
+    let rendered = watermark::render_planned(
+        &bytes,
+        &options.for_photo(&i.id),
+        i.info.as_ref().ok_or("缺少已确认的水印信息")?,
+    )?;
     if i.info.as_ref() != Some(&rendered.info.source) {
         return Err("拍摄日期或图像属性与清单不符".into());
     }
@@ -875,7 +870,11 @@ pub fn run(
             }
         }
         if let Some(options) = &p.job.watermark {
-            portable["watermark"] = serde_json::to_value(options).map_err(|e| e.to_string())?;
+            // The per-photo captions are in rendered[]. Keep catalog asset IDs
+            // and the private override map out of the shareable manifest.
+            let mut style = options.clone();
+            style.city_overrides = None;
+            portable["watermark"] = serde_json::to_value(style).map_err(|e| e.to_string())?;
             portable["rendered"] = serde_json::to_value(
                 p.job
                     .items

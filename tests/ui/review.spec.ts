@@ -644,6 +644,32 @@ test('safe organization keeps status text clear of both scrollbars', async ({ pa
   }
 });
 
+test('watermark preview arrows keep city edits on the correct photo', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  const trigger = page.getByRole('button', { name: '日期城市水印', exact: true });
+  if (!(await trigger.isVisible()))
+    await page.getByRole('button', { name: '资料库工具', exact: true }).click();
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: '日期城市水印' });
+  const photo = dialog.getByRole('combobox', { name: '预览照片' });
+  const city = dialog.getByLabel('手动城市');
+  await city.fill('首尔');
+  await city.press('ArrowRight');
+  await expect(photo).toHaveValue('0');
+  await dialog.getByRole('group', { name: '水印预览' }).click();
+  await page.keyboard.press('ArrowRight');
+  await expect(photo).toHaveValue('1');
+  await expect(city).toHaveValue('');
+  await city.fill('釜山');
+  await photo.press('ArrowLeft');
+  await expect(city).toHaveValue('首尔');
+  await photo.press('ArrowLeft');
+  await expect(photo).toHaveValue('0');
+  await dialog.getByRole('button', { name: '下一张预览照片' }).click();
+  await expect(city).toHaveValue('釜山');
+});
+
 test('watermark inputs protect ratings and fit both small-window themes', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 640 });
   await page.goto('/');
@@ -716,9 +742,11 @@ test('watermark batch freezes the explicit two-photo selection', async ({ page }
   await page.getByRole('button', { name: '日期城市水印', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '日期城市水印' });
   await expect(dialog).toContainText('已选照片 · 2 张');
-  await expect(dialog.getByLabel('预览照片').locator('option')).toHaveCount(2);
-  await dialog.getByLabel('预览照片').selectOption('1');
-  await expect(dialog.getByLabel('预览照片')).toHaveValue('1');
+  await expect(
+    dialog.getByRole('combobox', { name: '预览照片', exact: true }).locator('option'),
+  ).toHaveCount(2);
+  await dialog.getByRole('combobox', { name: '预览照片', exact: true }).selectOption('1');
+  await expect(dialog.getByRole('combobox', { name: '预览照片', exact: true })).toHaveValue('1');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '选择 山海_02.jpg', exact: true })).toHaveAttribute(

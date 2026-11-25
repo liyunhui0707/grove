@@ -9,6 +9,9 @@ pub const MAX_PIXELS: u64 = 24_000_000;
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     pub city: String,
+    // Absent in existing jobs, where city is the fixed caption for the batch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub city_overrides: Option<std::collections::BTreeMap<String, String>>,
     pub fallback_date: Option<String>,
     pub font: String,
     pub size_percent: f64,
@@ -28,6 +31,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             city: String::new(),
+            city_overrides: None,
             fallback_date: None,
             font: "sans".into(),
             size_percent: 2.0,
@@ -40,7 +44,26 @@ impl Default for Options {
         }
     }
 }
+fn valid_city(city: &str) -> bool {
+    city.chars().count() <= 32
+        && !city
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}'))
+}
 impl Options {
+    pub fn for_photo(&self, id: &str) -> Self {
+        let mut o = self.clone();
+        if let Some(overrides) = o.city_overrides.take() {
+            if let Some(city) = overrides.get(id) {
+                o.city = city.clone();
+            } else {
+                o.city.clear();
+                o.city_overrides = Some(Default::default());
+            }
+        }
+        o
+    }
+
     pub fn normalized(&self) -> Result<Self> {
         let mut o = self.clone();
         if !matches!(o.output_max_edge, None | Some(2048 | 4096))
@@ -49,9 +72,9 @@ impl Options {
             return Err("导出尺寸或JPEG质量无效".into());
         }
         o.city = o.city.trim().to_string();
-        if o.city.chars().count() > 32
-            || o.city.chars().any(|c| {
-                c.is_control() || matches!(c,'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}')
+        if !valid_city(&o.city)
+            || o.city_overrides.as_ref().is_some_and(|cities| {
+                cities.len() > 100 || cities.values().any(|city| !valid_city(city.trim()))
             })
         {
             return Err("城市限32个字符，不含换行或控制字符".into());
@@ -153,6 +176,8 @@ pub struct Info {
     pub date: Option<String>,
     pub date_source: String,
     pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detected_city: Option<String>,
     pub source_profile: Option<String>,
     pub warning: Option<String>,
 }
@@ -243,6 +268,7 @@ pub fn caption(
         date,
         date_source: date_source.into(),
         text,
+        detected_city: None,
         source_profile: profile,
         warning: if date_source == "missing" {
             Some("未找到有效EXIF拍摄日期，请填写备用日期；不会使用文件修改时间".into())
@@ -252,15 +278,22 @@ pub fn caption(
     })
 }
 #[cfg(target_os = "macos")]
+mod cities;
+#[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::{inspect, render};
+pub use macos::{inspect, render, render_planned};
 #[cfg(not(target_os = "macos"))]
 pub fn inspect(_: &[u8], _: &Options) -> Result<Info> {
     Err("此平台水印渲染尚未验证".into())
 }
 #[cfg(not(target_os = "macos"))]
 pub fn render(_: &[u8], _: &Options, _: Option<u32>) -> Result<Rendered> {
+    Err("此平台水印渲染尚未验证".into())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn render_planned(_: &[u8], _: &Options, _: &Info) -> Result<Rendered> {
     Err("此平台水印渲染尚未验证".into())
 }
 

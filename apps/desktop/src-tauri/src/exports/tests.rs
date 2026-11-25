@@ -1271,3 +1271,56 @@ fn identified_pair_round_trip_and_conflicts() {
     fs::copy(&still, source.join("live.heic")).unwrap();
     assert!(plan().is_err());
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn watermark_resolves_each_photo_and_allows_a_previously_opened_sibling() {
+    let t = tempfile::tempdir().unwrap();
+    let b = t.path().canonicalize().unwrap();
+    let (c, roots, f, targets) = fixture(&b);
+    let out = b.join("output");
+    let data = b.join("data");
+    c.folder(&b).unwrap();
+    c.folder(&out).unwrap();
+    // Seoul, Sydney, no complete GPS, manual override, and open ocean.
+    let points = [
+        Some((2254, 7619)),
+        Some((-2032, 9073)),
+        None,
+        Some((2254, 7619)),
+        Some((0, -8400)),
+    ];
+    let options = crate::watermark::Options {
+        city_overrides: Some([(targets[3].id.clone(), "自选城市".to_owned())].into()),
+        ..Default::default()
+    };
+    let cities = ["Seoul", "Sydney", "", "自选城市", ""];
+    for (index, point) in points.into_iter().enumerate() {
+        let bytes =
+            crate::watermark::tests::gps_fixture(640, 480, 1, Some("2026:10:25 23:59:59"), point);
+        fs::write(roots[&f].join(format!("generated-{index}.jpg")), &bytes).unwrap();
+        let preview = preview_watermark(&c, &roots, &targets[index].id, &options).unwrap();
+        assert_eq!(
+            preview.info.source.text,
+            format!("2026-10-25 {}", cities[index]).trim_end()
+        );
+    }
+    let selected = &targets[..cities.len()];
+    let plan = prepare_watermark(&c, &roots, f, selected, &out, &data, &options).unwrap();
+    let result = execute(plan, &data, &AtomicBool::new(false));
+    assert_eq!(result.verified, cities.len());
+    for (row, city) in result.items.iter().zip(cities) {
+        assert_eq!(
+            row.caption.as_deref().unwrap(),
+            format!("2026-10-25 {city}").trim_end()
+        );
+    }
+    let manifest =
+        fs::read_to_string(Path::new(&result.destination).join("grove-export.json")).unwrap();
+    assert!(!manifest.contains(&targets[3].id));
+    assert!(prepare(&c, &roots, f, selected, &out, &data).is_ok());
+    assert!(prepare(&c, &roots, f, selected, &data, &data).is_err());
+    let alias = b.join("alias");
+    std::os::unix::fs::symlink(&roots[&f], &alias).unwrap();
+    assert!(prepare(&c, &roots, f, selected, &alias, &data).is_err());
+}

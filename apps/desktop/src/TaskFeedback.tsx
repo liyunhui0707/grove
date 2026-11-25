@@ -32,13 +32,15 @@ export function TaskError({
       <strong>{title}</strong>
       <p>
         {hint ||
-          (/空间|space|disk full/i.test(error)
-            ? '目标磁盘空间不足。请选择空间充足的位置后重试。'
-            : /冲突|变化|占用|identity|conflict/i.test(error)
-              ? '文件或位置已变化。请核对相关文件，再重新准备清单；不会静默覆盖。'
-              : /权限|离线|目录|EACCES|denied|permission/i.test(error)
-                ? '请确认文件夹在线且可以访问，再重试或重新选择位置。'
-                : '操作未能完成。请重新核对后重试；展开详情可查看具体原因。')}
+          (/请选择当前照片文件夹之外的导出位置/.test(error)
+            ? '导出位置位于当前照片文件夹内。请选择与原片文件夹同级的输出文件夹。'
+            : /空间|space|disk full/i.test(error)
+              ? '目标磁盘空间不足。请选择空间充足的位置后重试。'
+              : /冲突|变化|占用|identity|conflict/i.test(error)
+                ? '文件或位置已变化。请核对相关文件，再重新准备清单；不会静默覆盖。'
+                : /权限|离线|目录|EACCES|denied|permission/i.test(error)
+                  ? '请确认文件夹在线且可以访问，再重试或重新选择位置。'
+                  : '操作未能完成。请重新核对后重试；展开详情可查看具体原因。')}
       </p>
       {action}
       <details>

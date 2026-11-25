@@ -129,7 +129,34 @@ fn source(bytes: &[u8]) -> Result<(CFData, CFType, Dict)> {
     let props = unsafe { Dict::wrap_under_create_rule(raw) };
     Ok((data, source, props))
 }
-fn metadata(source: &CFType, p: &Dict, o: &Options) -> Result<Info> {
+fn nested(props: &Dict, key: &str) -> Option<Dict> {
+    let dict = value(props, key)?.downcast::<CFDictionary>()?;
+    Some(unsafe { Dict::wrap_under_get_rule(dict.as_concrete_TypeRef()) })
+}
+
+fn coordinate(gps: &Dict, axis: &str, positive: &str, negative: &str) -> Option<f64> {
+    let n = value(gps, axis)?.downcast::<CFNumber>()?.to_f64()?;
+    match string(gps, &format!("{axis}Ref"))?.as_str() {
+        d if d == positive && n >= 0.0 => Some(n),
+        d if d == negative => Some(-n.abs()),
+        _ => None,
+    }
+}
+
+fn detect_city(p: &Dict) -> Option<String> {
+    if let Some(city) = nested(p, "{GPS}").and_then(|gps| {
+        let lat = coordinate(&gps, "Latitude", "N", "S")?;
+        let lon = coordinate(&gps, "Longitude", "E", "W")?;
+        super::cities::nearby(lat, lon)
+    }) {
+        return Some(city.to_owned());
+    }
+    let raw = string(&nested(p, "{IPTC}")?, "City")?;
+    let city = raw.trim();
+    (!city.is_empty() && super::valid_city(city)).then(|| city.to_owned())
+}
+
+fn metadata(source: &CFType, p: &Dict, o: &Options, planned: Option<&Info>) -> Result<Info> {
     let width = number(p, "PixelWidth")
         .and_then(|n| u32::try_from(n).ok())
         .ok_or("照片宽度无效")?;
@@ -151,14 +178,24 @@ fn metadata(source: &CFType, p: &Dict, o: &Options) -> Result<Info> {
         .map(|d| unsafe { Dict::wrap_under_get_rule(d.as_concrete_TypeRef()) })
         .and_then(|d| string(&d, "DateTimeOriginal"))
         .and_then(|s| exif_date(&s));
-    let info = caption(w, h, date, profile.clone(), o)?;
+    let mut effective = o.clone();
+    let mut detected_city = None;
+    if o.city_overrides.is_some() {
+        detected_city = match planned {
+            Some(info) => info.detected_city.clone(),
+            None => detect_city(p),
+        };
+        effective.city = detected_city.clone().unwrap_or_default();
+    }
+    let mut info = caption(w, h, date, profile, &effective)?;
+    info.detected_city = detected_city;
     crate::imaging::sdr_options(source, p)?;
     Ok(info)
 }
 pub fn inspect(bytes: &[u8], options: &Options) -> Result<Info> {
     let o = options.normalized()?;
     let (_data, source, props) = source(bytes)?;
-    metadata(&source, &props, &o)
+    metadata(&source, &props, &o, None)
 }
 fn line(text: &str, size: f64, font: &str) -> Result<CFType> {
     let language = CFString::new("zh-Hans");
@@ -237,9 +274,22 @@ fn jpeg(image: &CGImage, quality: u8) -> Result<Vec<u8>> {
     Ok(data.bytes().to_vec())
 }
 pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<Rendered> {
+    render_image(bytes, options, preview, None)
+}
+
+pub fn render_planned(bytes: &[u8], options: &Options, info: &Info) -> Result<Rendered> {
+    render_image(bytes, options, None, Some(info))
+}
+
+fn render_image(
+    bytes: &[u8],
+    options: &Options,
+    preview: Option<u32>,
+    planned: Option<&Info>,
+) -> Result<Rendered> {
     let o = options.normalized()?;
     let (_data, source, props) = source(bytes)?;
-    let info = metadata(&source, &props, &o)?;
+    let info = metadata(&source, &props, &o, planned)?;
     if preview.is_none() && info.date.is_none() {
         return Err(info
             .warning

@@ -10,6 +10,8 @@ import { usePreparation, PreparationStatus, BatchOutcome } from './BatchFeedback
 import { useEffect, useRef, useState } from 'react';
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Check,
   FolderOpen,
   LoaderCircle,
@@ -78,6 +80,9 @@ export function WatermarkDialog({
   const panel = useRef<HTMLElement>(null);
   const preparation = usePreparation(bridge.cancelExport);
   const asset = selection[index];
+  const manualCity = options.cityOverrides?.[asset?.id] ?? '';
+  const stepPreview = (delta: number) =>
+    setIndex((i) => Math.max(0, Math.min(selection.length - 1, i + delta)));
   const remember = (next: WatermarkOptions) => {
     const ticket = ++styleRevision.current;
     setStyleStatus('正在保存样式…');
@@ -264,6 +269,22 @@ export function WatermarkDialog({
             e.preventDefault();
             onClose();
           }
+          const target = e.target as HTMLElement;
+          if (
+            !busy &&
+            !resuming &&
+            !e.nativeEvent.isComposing &&
+            !e.altKey &&
+            !e.metaKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+            (!target.closest('input, textarea, select, [contenteditable="true"]') ||
+              target.matches('.watermark-photo-label select'))
+          ) {
+            e.preventDefault();
+            stepPreview(e.key === 'ArrowLeft' ? -1 : 1);
+          }
           if (e.key === 'Tab') {
             const controls = dialogControls(panel.current);
             const active = document.activeElement as HTMLElement;
@@ -309,7 +330,14 @@ export function WatermarkDialog({
         <div className="watermark-body">
           <div className="watermark-workspace">
             <div className="watermark-preview-column">
-              <div className="watermark-stage" aria-label="水印预览" aria-busy={previewBusy}>
+              <div
+                className="watermark-stage"
+                role="group"
+                tabIndex={resuming ? -1 : 0}
+                aria-label="水印预览"
+                aria-keyshortcuts="ArrowLeft ArrowRight"
+                aria-busy={previewBusy}
+              >
                 {resuming ? (
                   <p>
                     使用上次保存的日期和样式。
@@ -337,7 +365,7 @@ export function WatermarkDialog({
                           textShadow: options.shadow ? '0 1px 3px #0008' : 'none',
                         }}
                       >
-                        {options.fallbackDate} {options.city.trim()}
+                        {options.fallbackDate} {manualCity.trim()}
                       </span>
                     )}
                   </div>
@@ -346,8 +374,17 @@ export function WatermarkDialog({
                 )}
               </div>
               {asset && !resuming && (
-                <label className="watermark-photo-label">
-                  预览照片
+                <div className="watermark-photo-label">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="上一张预览照片"
+                    title="上一张（←）"
+                    disabled={busy || index === 0}
+                    onClick={() => stepPreview(-1)}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
                   <select
                     aria-label="预览照片"
                     value={index}
@@ -360,7 +397,17 @@ export function WatermarkDialog({
                       </option>
                     ))}
                   </select>
-                </label>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="下一张预览照片"
+                    title="下一张（→）"
+                    disabled={busy || index + 1 >= selection.length}
+                    onClick={() => stepPreview(1)}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               )}
               {!resuming && (
                 <p className="watermark-caption" aria-live="polite">
@@ -384,11 +431,12 @@ export function WatermarkDialog({
                 </p>
               )}
             </div>
-            <fieldset className="watermark-controls" disabled={busy || resuming || styleLoading}>
+            <fieldset
+              className="watermark-controls"
+              disabled={busy || resuming || styleLoading || !asset}
+            >
               <legend className="sr-only">水印样式</legend>
-              <p className="watermark-hint">
-                自动记住字体及更多样式；城市、备用日期每批重新填写。继续历史清单时沿用该批参数。
-              </p>
+              <p className="watermark-hint">水印外观自动保存。历史任务沿用已确认的清单。</p>
               <div className="watermark-style-memory">
                 <span role="status" aria-label="水印样式保存状态">
                   {resuming ? '历史清单参数固定，未改写已记住样式' : styleStatus}
@@ -410,15 +458,20 @@ export function WatermarkDialog({
                 </div>
               )}
               <label>
-                城市 <span>可选</span>
+                城市 <span>{resuming ? '历史清单' : '仅当前照片'}</span>
                 <input
                   aria-label="手动城市"
-                  placeholder="例如：温州"
+                  placeholder={preview?.info.source.detectedCity ?? '自动识别，也可手填'}
                   maxLength={32}
-                  value={options.city}
+                  value={resuming ? options.city : manualCity}
                   onCompositionStart={() => setComposing(true)}
                   onCompositionEnd={() => setComposing(false)}
-                  onChange={(e) => update({ city: e.target.value })}
+                  onChange={(e) => {
+                    const cityOverrides = { ...options.cityOverrides };
+                    if (e.target.value) cityOverrides[asset.id] = e.target.value;
+                    else delete cityOverrides[asset.id];
+                    update({ cityOverrides });
+                  }}
                 />
               </label>
               <label>
@@ -431,7 +484,8 @@ export function WatermarkDialog({
                 />
               </label>
               <p className="watermark-hint">
-                优先使用实际拍摄日期。城市留空时仅显示日期；不联网查询位置。
+                逐张读取城市标签或用 GPS
+                离线估算附近城市。清空手填值可恢复自动识别；没有匹配时仅显示日期。
               </p>
               {preview && !preview.canExport && !resuming && (
                 <p className="field-error" role="status">

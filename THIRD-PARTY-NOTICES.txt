@@ -4,6 +4,14 @@ Third-party components retain their own licenses. System frameworks, codecs, pro
 
 This inventory covers the resolved macOS arm64 Rust graph and installed npm packages, including build/test tools. Lockfiles may also name optional packages for other platforms that are not distributed here. MPL-2.0 components are unmodified. Their exact source archives are linked below.
 
+Offline city index — GeoNames and contributors, CC BY 4.0.
+Source: https://download.geonames.org/export/dump/cities15000.zip
+Attribution: https://www.geonames.org/ | License: https://creativecommons.org/licenses/by/4.0/
+Source archive SHA-256: 6068dba5be2fa7e2b9ef51a1350875b404255bcd968551a5428f83038ee36f22
+Grove retained 31710 populated places (PPL, PPLC, PPLA through PPLA5, PPLG),
+selected name and WGS84 coordinates, rounded coordinates to five decimals and sorted by latitude.
+City estimates use nearby place centres. Coverage and accuracy vary.
+
 ========================================================================
 adler2 2.0.1 — 0BSD OR MIT OR Apache-2.0
 Authors / attribution: Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>

@@ -2,6 +2,7 @@ import { bridge, native, type WatermarkOptions, type WatermarkStyle } from './br
 
 export const defaultWatermarkOptions: WatermarkOptions = {
   city: '',
+  cityOverrides: {},
   fallbackDate: null,
   font: 'sans',
   sizePercent: 2,

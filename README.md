@@ -8,7 +8,9 @@
 
 *Browser preview using generated demo artwork; this is not a photograph or a native macOS screenshot.*
 
-## What you can do
+The current development branch adds per-photo offline city captions and arrow-key watermark previews. Copy and watermark exports can use a sibling of the active source folder even when its parent was previously opened.
+
+## What you can do in 0.13.0
 
 - Preview static 8/16-bit SDR PNG in sRGB, including grayscale, transparency and Display P3. Detail failures retain the screen preview; discovered preview issues are grouped under library tools.
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.

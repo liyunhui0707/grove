@@ -91,6 +91,7 @@ export type ExportRow = {
 };
 export type WatermarkOptions = {
   city: string;
+  cityOverrides?: Record<string, string>;
   fallbackDate: string | null;
   font: 'sans' | 'serif';
   sizePercent: number;
@@ -116,6 +117,7 @@ export type WatermarkPreview = {
       height: number;
       date: string | null;
       dateSource: string;
+      detectedCity?: string;
       text: string;
       warning: string | null;
     };
