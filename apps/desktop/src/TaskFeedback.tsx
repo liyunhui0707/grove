@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { bridge } from './bridge';
 
 export function dialogControls(panel: HTMLElement | null): HTMLElement[] {
@@ -181,13 +181,25 @@ export function ExportCompletion({
 
 export function ToolsMenu({ children }: { children: ReactNode }) {
   const root = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    // WebKit blurs the summary on mouse-down without focusing the button.
+    // Only a known outside target should dismiss the menu before a click.
+    const dismissOutside = (event: Event) => {
+      const menu = root.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target))
+        menu.open = false;
+    };
+    document.addEventListener('pointerdown', dismissOutside, true);
+    document.addEventListener('focusin', dismissOutside, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside, true);
+      document.removeEventListener('focusin', dismissOutside, true);
+    };
+  }, []);
   return (
     <details
       className="tools-menu"
       ref={root}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.open = false;
-      }}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && e.currentTarget.open) {
           e.preventDefault();

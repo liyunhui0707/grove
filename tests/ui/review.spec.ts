@@ -150,6 +150,33 @@ test('failed native preview can retry without changing selection or rating', asy
   expect(changes).toEqual([]);
 });
 
+test('library tools open when WebKit blurs the summary before a button click', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  await page.getByRole('button', { name: '选择 山海_01.jpg', exact: true }).click();
+  const trigger = page.getByRole('button', { name: '资料库工具', exact: true });
+  for (const name of ['安全整理', '日期城市水印', '重新关联目录', '评分同步', '资料库备份']) {
+    await trigger.click();
+    await trigger.focus();
+    const item = page.getByRole('button', { name, exact: true });
+    await item.evaluate((button) => {
+      button.addEventListener(
+        'mousedown',
+        (event) => {
+          event.preventDefault();
+          button.closest('details')?.querySelector('summary')?.blur();
+        },
+        { once: true },
+      );
+    });
+    await item.click();
+    const dialog = page.getByRole('dialog', { name, exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: /^关闭/ }).first().click();
+    await expect(trigger).toBeFocused();
+  }
+});
+
 test('safe organization isolates only zero and one and protects shortcuts in both themes', async ({
   page,
 }) => {
