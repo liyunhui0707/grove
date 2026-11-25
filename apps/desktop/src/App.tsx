@@ -72,6 +72,7 @@ import {
   type Sort,
   type SkippedMedia,
 } from './domain';
+import { PreviewReport, previewProblem } from './preview-status';
 import { useMedia, useReviewPrefetch } from './media';
 import { BackupDialog } from './BackupDialog';
 import { SyncDialog } from './SyncDialog';
@@ -206,10 +207,16 @@ function Thumbnail({ asset }: { asset: Asset }) {
   return media.error ? (
     <span className="thumb-error" title={media.error}>
       <ImageOff size={24} />
-      <span>无法预览</span>
+      <span>{previewProblem(media.error).label}</span>
     </span>
   ) : media.url ? (
-    <img src={media.url} alt={asset.name} draggable={false} />
+    <img
+      src={media.url}
+      alt={asset.name}
+      draggable={false}
+      onLoad={media.displayed}
+      onError={media.displayFailed}
+    />
   ) : (
     <span className="skeleton" />
   );
@@ -410,6 +417,7 @@ function PhotoPane({
   onActivate,
   onFocus,
   detail,
+  onRescan,
   onRate,
   disabled,
 }: {
@@ -420,15 +428,17 @@ function PhotoPane({
   onActivate: () => void;
   onFocus: () => void;
   detail: boolean;
+  onRescan: () => void;
   onRate: (r: Rating) => void;
   disabled: boolean;
 }) {
-  const media = useMedia(asset, detail ? 8192 : 1600);
+  const ordinary = useMedia(asset, 1600);
+  const enlarged = useMedia(asset, 8192, detail && Boolean(ordinary.url));
+  const media = detail && enlarged.url ? enlarged : ordinary;
+  const action = previewProblem(media.error).action;
   const canvas = useRef<HTMLDivElement>(null);
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
-  const [imageError, setImageError] = useState(false);
-  useEffect(() => setImageError(false), [media.url]);
   useEffect(() => {
     const el = canvas.current;
     if (!el) return;
@@ -474,31 +484,34 @@ function PhotoPane({
           drag.current = null;
         }}
       >
-        {media.error || imageError ? (
+        {media.error ? (
           <div className="preview-error">
             <ImageOff size={30} />
             <strong>这张照片暂时无法预览</strong>
             <span>{media.error || '图像显示失败，可重试或继续查看其他照片'}</span>
-            <button
-              type="button"
-              className="secondary"
-              onPointerDown={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setImageError(false);
-                media.retry();
-              }}
-            >
-              重试预览
-            </button>
+            {action !== 'skip' && (
+              <button
+                type="button"
+                className="secondary"
+                onPointerDown={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (action === 'rescan') onRescan();
+                  else media.retry();
+                }}
+              >
+                {action === 'rescan' ? '重新扫描目录' : '重试预览'}
+              </button>
+            )}
           </div>
         ) : media.url ? (
           <img
             src={media.url}
             alt={asset.name}
             draggable={false}
-            onError={() => setImageError(true)}
+            onError={media.displayFailed}
+            onLoad={media.displayed}
             style={{
               transform: `translate(${viewport.x * 100}%,${viewport.y * 100}%) scale(${viewport.scale})`,
             }}
@@ -517,7 +530,12 @@ function PhotoPane({
             {asset.width && asset.height
               ? `${asset.width} × ${asset.height}`
               : asset.format.toUpperCase()}
-            {detail ? ' · 细节预览（最长边 8192px）' : ''}
+            {detail &&
+              (enlarged.error
+                ? ' · 普通预览（' + enlarged.error + '）'
+                : enlarged.url
+                  ? ' · 细节预览（最长边 8192px）'
+                  : ' · 正在准备细节')}
             {companionLabel(asset) ? ` · ${companionLabel(asset)}` : ''}
           </small>
         </span>
@@ -587,6 +605,23 @@ export function App() {
   const [reviewInputHint, setReviewInputHint] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [previewIssues, setPreviewIssues] = useState<Map<string, string>>(() => new Map());
+  const reportPreview = useCallback((id: string, size: number, reason: string) => {
+    const key = id + '/' + size;
+    setPreviewIssues((current) => {
+      if ((current.get(key) ?? '') === reason) return current;
+      const next = new Map(current);
+      if (reason) next.set(key, reason);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+  const previewGroups = new Map<string, Set<string>>();
+  for (const [key, reason] of previewIssues) {
+    const group = previewGroups.get(reason) ?? new Set<string>();
+    group.add(key.split('/')[0]);
+    previewGroups.set(reason, group);
+  }
   const [warnings, setWarnings] = useState<string[]>([]);
   const [scanSummary, setScanSummary] = useState<{ count: number; skipped: SkippedMedia } | null>(
     null,
@@ -714,6 +749,7 @@ export function App() {
       setFilter('all');
       setSearch('');
       setWarnings([]);
+      setPreviewIssues(new Map());
       setScanSummary(null);
       scrollOffset.current = 0;
       setGridOffset(0);
@@ -1294,7 +1330,7 @@ export function App() {
         '4': '4 星',
         '5': '5 星',
       }[filter];
-  return (
+  const shell = (
     <div className="app-shell">
       <ExitSaveGuard flushReview={flushReview} />
       <aside
@@ -1609,6 +1645,16 @@ export function App() {
               >
                 <Archive size={17} />
               </IconButton>
+              {previewGroups.size > 0 && (
+                <div className="preview-issue-summary">
+                  <strong>本次浏览发现</strong>
+                  {Array.from(previewGroups, ([reason, ids]) => (
+                    <div key={reason}>
+                      {reason} · {ids.size} 张
+                    </div>
+                  ))}
+                </div>
+              )}
             </ToolsMenu>
             <IconButton
               label="撤销评分"
@@ -2061,7 +2107,7 @@ export function App() {
             >
               {shown.map((asset) => (
                 <PhotoPane
-                  key={`${asset.id}-${detail}`}
+                  key={asset.id}
                   asset={asset}
                   active={active === asset.id}
                   viewport={
@@ -2076,6 +2122,7 @@ export function App() {
                     setDetail((v) => !v);
                     setViewports({});
                   }}
+                  onRescan={() => void open(false, folder ?? undefined)}
                   detail={detail}
                   onRate={(r) => void rate(r, asset.id)}
                   disabled={saving || scanning || Boolean(reviewFailure)}
@@ -2296,4 +2343,5 @@ export function App() {
       )}
     </div>
   );
+  return <PreviewReport.Provider value={reportPreview}>{shell}</PreviewReport.Provider>;
 }

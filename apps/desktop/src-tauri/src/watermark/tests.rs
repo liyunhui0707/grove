@@ -236,7 +236,13 @@ fn native_png_and_generated_sdr_heic_have_independent_jpeg_outputs() {
             image::ImageFormat::Png,
         )
         .unwrap();
-    assert!(inspect(&png16, &options).unwrap_err().contains("高位深"));
+    let output16 = render(&png16, &options, None).unwrap();
+    let rgb = image::load_from_memory(&output16.jpeg).unwrap().to_rgb8();
+    let actual = rgb.get_pixel(1, 1).0;
+    assert!(
+        actual[0] > 245 && actual[1].abs_diff(128) < 8 && actual[2] < 8,
+        "{actual:?}"
+    );
     let (input, heic) = (root.join("generated.jpg"), root.join("generated.heic"));
     let bytes = fixture(640, 480, 6, Some("2026:10:25 23:59:59"));
     std::fs::write(&input, &bytes).unwrap();

@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "grove"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "base64 0.23.1",
  "cc",
@@ -1155,6 +1155,7 @@ dependencies = [
  "kamadak-exif",
  "objc2",
  "objc2-foundation",
+ "png",
  "roxmltree",
  "rusqlite",
  "rustix",

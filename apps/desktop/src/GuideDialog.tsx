@@ -98,7 +98,7 @@ export function GuideDialog({ onClose }: { onClose: () => void }) {
           </p>
           <h3>当前范围</h3>
           <p>
-            Apple Silicon macOS；JPEG/PNG/WebP、单帧 SDR HEIC/HEIF。预览转为
+            Apple Silicon macOS；JPEG、8/16 位静态 SDR PNG、WebP、单帧 SDR HEIC/HEIF。预览转为
             sRGB，透明图片使用白底； macOS 14+ 可将已验证的 HDR JPEG/HEIC 解码为 SDR
             预览和水印，不保留 HDR
             显示效果；其他高位深和多帧照片仍不支持。混合目录会说明未载入的视频、RAW

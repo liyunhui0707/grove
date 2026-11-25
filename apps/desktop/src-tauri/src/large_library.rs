@@ -31,6 +31,7 @@ fn mixed_library_scan_restart_and_ratings() {
     assert!([3000, 10000].contains(&total));
     let run = std::env::var("MG_LARGE_RUN").unwrap();
     assert!(["baseline", "optimized", "volume", "phone"].contains(&run.as_str()));
+    let reliability = std::env::var_os("MG_PREVIEW_MATRIX").is_some();
     let sources = root.join("sources");
     let manifest = root.join("sources.json");
     if !sources.exists() {
@@ -51,6 +52,13 @@ fn mixed_library_scan_restart_and_ratings() {
             small.save(&p).unwrap();
             encoded.push(fs::read(p).unwrap());
         }
+        let png16 = root.join("gradient.png");
+        image::ImageBuffer::from_fn(320, 240, |x, _| {
+            image::Rgb([((x * 197) as u16), 32000, 65535])
+        })
+        .save(&png16)
+        .unwrap();
+        let high = fs::read(png16).unwrap();
         let mut files = Vec::new();
         for i in 0..total {
             let ext = if i % 20 == 1 {
@@ -61,7 +69,11 @@ fn mixed_library_scan_restart_and_ratings() {
                 "jpg"
             };
             let p = sources.join(format!("照片_{i:05}.{ext}"));
-            let data = if i % 100 == 0 {
+            let data: &[u8] = if reliability && i % 100 == 21 {
+                &high
+            } else if reliability && i % 100 == 41 {
+                b"intentionally unreadable generated PNG"
+            } else if i % 100 == 0 {
                 &bytes
             } else {
                 &encoded[if ext == "png" {
@@ -185,7 +197,44 @@ fn mixed_library_scan_restart_and_ratings() {
     for (name, h) in &files {
         assert_eq!(&hash(&sources.join(name)), h);
     }
-    let report = serde_json::json!({"run":run,"photos":total,"formats":{"jpeg":total*18/20,"png":total/20,"webp":total/20},"twelveMegapixelJpegs":total/100,"otherDimensions":[320,240],"coldScanMs":cold_ms,"firstBatchMs":*first.lock().unwrap(),"restartScanMs":warm_ms,"idsRatingsRevisionsPreserved":true,"originalsUnchanged":total,"integrity":"ok","metric":"real scanner/catalog, not UI latency"});
+    let mut report = serde_json::json!({"run":run,"photos":total,"formats":{"jpeg":total*18/20,"png":total/20,"webp":total/20},"twelveMegapixelJpegs":total/100,"otherDimensions":[320,240],"coldScanMs":cold_ms,"firstBatchMs":*first.lock().unwrap(),"restartScanMs":warm_ms,"idsRatingsRevisionsPreserved":true,"originalsUnchanged":total,"integrity":"ok","metric":"real scanner/catalog, not UI latency"});
+    if reliability {
+        let mut sample = found.iter().collect::<Vec<_>>();
+        sample.sort_by_key(|a| &a.name);
+        let view = crate::workspace::View {
+            mode: "review".into(),
+            active: sample[20].id.clone(),
+            filter: "all".into(),
+            sort: "name".into(),
+            search: String::new(),
+            size: 260,
+            auto_advance: false,
+            theme: "light".into(),
+            offset: 0.,
+        };
+        crate::workspace::save(&s, Some(folder.id), view).unwrap();
+        let mut failures = std::collections::BTreeMap::new();
+        let mut times = Vec::new();
+        for pass in 0..2 {
+            let mut ms = Vec::new();
+            for asset in sample.iter().take(120) {
+                let at = Instant::now();
+                match crate::imaging::render(&s, &asset.id, 1600) {
+                    Ok(_) => ms.push(at.elapsed().as_secs_f64() * 1000.),
+                    Err(reason) if pass == 0 => *failures.entry(reason).or_insert(0) += 1,
+                    Err(_) => (),
+                }
+            }
+            ms.sort_by(f64::total_cmp);
+            times.push(ms[ms.len() * 95 / 100]);
+        }
+        let compare = Instant::now();
+        for asset in sample.iter().skip(201).take(8) {
+            crate::imaging::render(&s, &asset.id, 480).unwrap();
+        }
+        report["previewSample"] = serde_json::json!({"count":120,"coldWarmP95Ms":times,
+            "failedCold":failures,"eightThumbnailMs":compare.elapsed().as_secs_f64()*1000.});
+    }
     fs::write(
         root.join(format!("{run}.json")),
         serde_json::to_vec_pretty(&report).unwrap(),

@@ -1527,8 +1527,10 @@ fn setup_app(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         option_env!("MOMENT_GROVE_BUILD_ID").unwrap_or("development"),
     ));
     app.manage(startup.clone());
-    fs::create_dir_all(data.join("cache"))?;
-    imaging::prune_cache(&data.join("cache"), 256 * 1024 * 1024)?;
+    // The catalog remains required, but previews can run without disk caching.
+    if fs::create_dir_all(data.join("cache")).is_ok() {
+        let _ = imaging::prune_cache(&data.join("cache"), 256 * 1024 * 1024);
+    }
     let state = Arc::new(AppState {
         catalog: Mutex::new(
             Catalog::open(&data.join("catalog.sqlite")).map_err(std::io::Error::other)?,

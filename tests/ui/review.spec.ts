@@ -123,7 +123,7 @@ test('failed native preview can retry without changing selection or rating', asy
       !route.request().url().includes('refresh=1')
     ) {
       failed = true;
-      await route.fulfill({ status: 422, contentType: 'text/plain', body: '照片暂时离线，可重试' });
+      await route.fulfill({ status: 422, contentType: 'text/plain', body: '预览队列繁忙，请重试' });
     } else {
       await route.fulfill({
         contentType: 'image/svg+xml',
@@ -135,7 +135,7 @@ test('failed native preview can retry without changing selection or rating', asy
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 generated-0.jpg', exact: true }).dblclick();
   const pane = page.getByRole('region', { name: '比较照片 generated-0.jpg' });
-  await expect(pane).toContainText('照片暂时离线，可重试');
+  await expect(pane).toContainText('预览队列繁忙，请重试');
   await page.screenshot({ path: 'test-results/preview-retry-light.png' });
   await pane.getByRole('button', { name: '重试预览', exact: true }).click();
   await expect(pane.locator('img')).toBeVisible();
@@ -1270,4 +1270,47 @@ test('local trial guide keeps data location readable and isolates keyboard focus
       ? trigger
       : page.getByRole('button', { name: '资料库工具', exact: true }),
   ).toBeFocused();
+});
+
+test('damaged thumbnail rebuilds once, permanent and detail failures remain navigable', async ({
+  page,
+}) => {
+  await installMoveMock(page);
+  await page.addInitScript(() => {
+    const api = (
+      window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (id: string) => string } }
+    ).__TAURI_INTERNALS__;
+    api.convertFileSrc = (id) => 'http://grove.localhost/preview-check/' + id;
+  });
+  let firstThumb = '';
+  let repairs = 0;
+  await page.route('http://grove.localhost/preview-check/**', async (route) => {
+    const u = new URL(route.request().url());
+    if (u.searchParams.get('size') === '480') {
+      firstThumb ||= u.pathname;
+      if (u.pathname === firstThumb) {
+        if (!u.searchParams.has('refresh'))
+          return route.fulfill({ contentType: 'image/jpeg', body: 'damaged' });
+        repairs++;
+      }
+    }
+    if (u.searchParams.get('size') === '8192')
+      return route.fulfill({ status: 422, body: '细节预览超过2400万像素，请使用普通预览' });
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="40"/>',
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: '体验示例图库' }).click();
+  await expect.poll(() => repairs).toBe(1);
+  await page.getByRole('button', { name: '查看 generated-0.jpg', exact: true }).dblclick();
+  const pane = page.getByRole('region', { name: '比较照片 generated-0.jpg' });
+  await expect(pane.locator('img')).toHaveJSProperty('naturalWidth', 50);
+  await page.getByRole('button', { name: '查看当前照片细节' }).click();
+  await expect(pane).toContainText('普通预览（细节预览超过');
+  await expect(pane.locator('img')).toHaveJSProperty('naturalWidth', 50);
+  await expect(pane.getByRole('button', { name: '重试预览' })).toHaveCount(0);
+  await page.getByRole('button', { name: '资料库工具' }).click();
+  await expect(page.getByText('超过预览上限 · 1 张')).toBeVisible();
 });

@@ -196,23 +196,24 @@ fn display_p3_preview_matches_independent_colorsync_conversion() {
 }
 
 #[test]
-fn high_depth_and_corrupt_inputs_fail_without_poisoning_other_previews() {
+fn static_png16_renders_and_corrupt_inputs_do_not_poison_other_previews() {
     let t = tempfile::tempdir().unwrap();
     let s = state(&t.path().join("runtime"));
     let high = t.path().join("high.png");
     image::ImageBuffer::from_pixel(40, 30, image::Rgb([50000u16, 20000, 10000]))
         .save(&high)
         .unwrap();
-    let (folder, id) = register(&s, &high);
-    s.allowed
-        .lock()
-        .unwrap()
-        .insert(folder, t.path().canonicalize().unwrap());
-    assert!(
-        imaging::render(&s, &id, 480)
-            .unwrap_err()
-            .contains("高位深")
-    );
+    let original = fs::read(&high).unwrap();
+    for size in [480, 1600, 8192] {
+        let rgb = image::load_from_memory(&preview(&s, &high, size))
+            .unwrap()
+            .to_rgb8();
+        let actual = rgb.get_pixel(5, 5).0;
+        for (channel, expected) in actual.into_iter().zip([195, 78, 39]) {
+            assert!(channel.abs_diff(expected) < 6, "{actual:?}");
+        }
+    }
+    assert_eq!(fs::read(&high).unwrap(), original);
     let bad = t.path().join("broken.heic");
     fs::write(&bad, b"not a photo").unwrap();
     let (_, id) = register(&s, &bad);
@@ -220,6 +221,83 @@ fn high_depth_and_corrupt_inputs_fail_without_poisoning_other_previews() {
     let good = t.path().join("good.jpg");
     image::RgbImage::new(40, 30).save(&good).unwrap();
     assert!(!preview(&s, &good, 480).is_empty());
+}
+
+#[test]
+fn gray_alpha_and_p3_png16_render_into_srgb_even_without_a_writable_cache() {
+    let t = tempfile::tempdir().unwrap();
+    let s = state(&t.path().join("runtime"));
+    let cache = s.data.join("cache");
+    fs::rename(&cache, s.data.join("cache-backup")).unwrap();
+    fs::write(&cache, b"generated non-directory cache target").unwrap();
+    let gray = t.path().join("gray.png");
+    image::ImageBuffer::from_fn(256, 32, |x, _| {
+        image::LumaA([(x * 257) as u16, if x < 32 { 0 } else { 65535 }])
+    })
+    .save(&gray)
+    .unwrap();
+    let rgb = image::load_from_memory(&preview(&s, &gray, 480))
+        .unwrap()
+        .to_rgb8();
+    assert!(rgb.get_pixel(5, 5).0.iter().all(|&v| v >= 250));
+    assert!(rgb.get_pixel(240, 5)[0] > rgb.get_pixel(128, 5)[0]);
+    let path = t.path().join("alpha.png");
+    image::ImageBuffer::from_fn(128, 64, |x, _| {
+        image::Rgba([46000u16, 23000, 12000, if x < 32 { 0 } else { 65535 }])
+    })
+    .save(&path)
+    .unwrap();
+    let profile = t.path().join("p3.png");
+    sips(
+        &["-e", "/System/Library/ColorSync/Profiles/Display P3.icc"],
+        &path,
+        &profile,
+    );
+    assert_eq!(fs::read(&profile).unwrap()[24], 16);
+    let reference = t.path().join("reference.png");
+    sips(
+        &["-m", "/System/Library/ColorSync/Profiles/sRGB Profile.icc"],
+        &profile,
+        &reference,
+    );
+    let expected = image::open(reference).unwrap().to_rgb8();
+    let before = fs::read(&profile).unwrap();
+    for size in [480, 1600, 8192] {
+        let rgb = image::load_from_memory(&preview(&s, &profile, size))
+            .unwrap()
+            .to_rgb8();
+        assert!(rgb.get_pixel(4, 5).0.iter().all(|&v| v >= 250));
+        for (a, b) in rgb
+            .get_pixel(72, 8)
+            .0
+            .into_iter()
+            .zip(expected.get_pixel(72, 8).0)
+        {
+            assert!(a.abs_diff(b) <= 6, "{a} vs {b}");
+        }
+    }
+    assert_eq!(fs::read(profile).unwrap(), before);
+}
+
+#[test]
+fn png_hdr_transfer_is_explicitly_rejected_before_static_conversion() {
+    let mut info = png::Info::with_size(1, 1);
+    info.color_type = png::ColorType::Rgb;
+    info.bit_depth = png::BitDepth::Sixteen;
+    let mut bytes = Vec::new();
+    {
+        let mut w = png::Encoder::with_info(&mut bytes, info)
+            .unwrap()
+            .write_header()
+            .unwrap();
+        w.write_chunk(png::chunk::cICP, &[9, 16, 0, 1]).unwrap();
+        w.write_image_data(&[0; 6]).unwrap();
+    }
+    assert!(
+        imaging::check_png_header(std::io::Cursor::new(bytes))
+            .unwrap_err()
+            .contains("色调编码")
+    );
 }
 
 #[test]

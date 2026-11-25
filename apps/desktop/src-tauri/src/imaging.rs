@@ -10,7 +10,9 @@ use std::{
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub(crate) use macos::{draw_oriented, header, sdr_options, unequal_density};
+pub(crate) use macos::{
+    check_png_header, display_thumbnail, draw_oriented, header, sdr_options, unequal_density,
+};
 pub(crate) fn live_photo_identifier(path: &Path) -> Option<String> {
     #[cfg(target_os = "macos")]
     {
@@ -198,12 +200,12 @@ pub fn render_with_refresh(
     let source = allowed_path(state, id)?;
     let before = fingerprint(&source)?;
     if fs::metadata(&source).map_err(|e| e.to_string())?.len() > 128 * 1024 * 1024 {
-        return Err("此文件超过 Spike 单文件限制".into());
+        return Err("预览限单张 128 MiB 以内".into());
     }
     let cache = state
         .data
         .join("cache")
-        .join(format!("sdr-v5-{id}-{before}-{size}.jpg"));
+        .join(format!("sdr-v6-{id}-{before}-{size}.jpg"));
     // Explicit retry repairs a damaged cache without weakening grant/identity checks.
     if !refresh && let Ok(bytes) = fs::read(&cache) {
         return Ok(bytes);
@@ -242,9 +244,14 @@ pub fn render_with_refresh(
         return Err("解码过程中照片发生变化，请重试".into());
     }
     let write_temp = cache.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
-    fs::write(&write_temp, &bytes).map_err(|e| e.to_string())?;
-    fs::rename(write_temp, &cache).map_err(|e| e.to_string())?;
-    prune_cache(&state.data.join("cache"), 256 * 1024 * 1024)?;
+    if fs::write(&write_temp, &bytes)
+        .and_then(|()| fs::rename(&write_temp, &cache))
+        .is_ok()
+    {
+        let _ = prune_cache(&state.data.join("cache"), 256 * 1024 * 1024);
+    } else {
+        let _ = fs::remove_file(write_temp);
+    }
     Ok(bytes)
 }
 pub fn prune_cache(path: &Path, budget: u64) -> Result<()> {

@@ -116,7 +116,7 @@ fn profile_thumbnail(image: CGImage, source: &CFType, props: &Dict) -> Result<CG
     }
     let full = unsafe { CGImage::from_ptr(raw) };
     let space = unsafe { CGImageGetColorSpace(full.as_ptr()) };
-    if space.is_null() || full.bits_per_component() > 8 {
+    if space.is_null() || (full.bits_per_component() > 8 && !is_png(source)) {
         return Err("照片未提供可验证的 SDR 色彩空间，请保留原件".into());
     }
     let raw = unsafe { CGImageCreateCopyWithColorSpace(image.as_ptr(), space) };
@@ -124,6 +124,15 @@ fn profile_thumbnail(image: CGImage, source: &CFType, props: &Dict) -> Result<CG
         return Err("无法还原缩略图色彩空间，请重试或跳过".into());
     }
     Ok(unsafe { CGImage::from_ptr(raw) })
+}
+pub(crate) fn display_thumbnail(image: CGImage, source: &CFType, props: &Dict) -> Result<CGImage> {
+    let image = profile_thumbnail(image, source, props)?;
+    // A validated SDR PNG may keep its 16-bit precision until CoreGraphics
+    // composites into the shared 8-bit sRGB destination.
+    if image.bits_per_component() > 8 && !(is_png(source) && image.bits_per_component() == 16) {
+        return Err("系统未返回受支持的 SDR 预览".into());
+    }
+    Ok(image)
 }
 fn key(raw: CFStringRef) -> CFString {
     unsafe { CFString::wrap_under_get_rule(raw) }
@@ -181,8 +190,35 @@ fn optional_string(symbol: &std::ffi::CStr) -> Option<CFString> {
         Some(key(value))
     }
 }
+// Inspect PNG signalling before ImageIO normalises its transfer function for display.
+pub(crate) fn check_png_header(input: impl std::io::BufRead + std::io::Seek) -> Result<()> {
+    let reader = png::Decoder::new(input)
+        .read_info()
+        .map_err(|_| "PNG 数据损坏或不完整")?;
+    let info = reader.info();
+    if info.animation_control.is_some() {
+        return Err("动态 PNG 暂不支持预览".into());
+    }
+    if info.mastering_display_color_volume.is_some()
+        || info.content_light_level.is_some()
+        || info.coding_independent_code_points.is_some_and(|c| {
+            !matches!(c.transfer_function, 1 | 13)
+                || c.matrix_coefficients != 0
+                || !c.is_video_full_range_image
+        })
+    {
+        return Err("此 PNG 色调编码尚未验证，仅支持静态 SDR PNG".into());
+    }
+    Ok(())
+}
+
+fn is_png(source: &CFType) -> bool {
+    let kind = unsafe { CGImageSourceGetType(source.as_CFTypeRef()) };
+    !kind.is_null() && key(kind) == "public.png"
+}
+
 fn check_sdr_policy(kind: &str, depth: i64, hdr: bool, available: bool) -> Result<()> {
-    if depth > 16 || (depth > 8 && !["public.heic", "public.heif"].contains(&kind)) {
+    if depth > 16 || (depth > 8 && !["public.heic", "public.heif", "public.png"].contains(&kind)) {
         return Err(
             "暂不转换此高位深格式；支持范围为静态 JPEG、HEIC/HEIF 的已验证 SDR 解码".into(),
         );
@@ -238,7 +274,7 @@ pub(crate) fn sdr_options(source: &CFType, props: &Dict) -> Result<Vec<(CFString
         .unwrap_or_default();
     let depth = number(props, "Depth").unwrap_or(8);
     let hdr = gain
-        || depth > 8
+        || (depth > 8 && kind != "public.png")
         || ["2100", "hdr", "pq", "hlg", "linear"]
             .iter()
             .any(|p| profile.contains(p));
@@ -359,6 +395,11 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     if width <= 0 || height <= 0 || width > 30000 || height > 30000 || width * height > 64_000_000 {
         return Err("预览限6400万像素且边长不超过30000px".into());
     }
+    if is_png(&source) {
+        check_png_header(std::io::BufReader::new(
+            std::fs::File::open(path).map_err(|_| "照片已离线")?,
+        ))?;
+    }
     let decode = sdr_options(&source, &props)?;
     let orientation = number(&props, "Orientation").unwrap_or(1);
     if !(1..=8).contains(&orientation) {
@@ -393,15 +434,12 @@ pub fn preview(path: &Path, size: u32) -> Result<Vec<u8>> {
     if raw.is_null() {
         return Err("系统无法解码这张照片，可重试或跳过".into());
     }
-    let image = profile_thumbnail(unsafe { CGImage::from_ptr(raw) }, &source, &props)?;
+    let image = display_thumbnail(unsafe { CGImage::from_ptr(raw) }, &source, &props)?;
     let (w, h) = if manual && orientation >= 5 {
         (image.height(), image.width())
     } else {
         (image.width(), image.height())
     };
-    if image.bits_per_component() > 8 {
-        return Err("系统未返回8位SDR预览，未显示未经验证的转换".into());
-    }
     if w == 0
         || h == 0
         || w > max as usize

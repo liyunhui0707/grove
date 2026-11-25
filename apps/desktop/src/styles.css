@@ -2493,3 +2493,11 @@ select {
 .workspace-warning p {
   overflow-wrap: anywhere;
 }
+
+.preview-issue-summary {
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  line-height: 1.65;
+}

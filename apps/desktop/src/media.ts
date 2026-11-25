@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { PreviewReport, previewProblem } from './preview-status';
 import type { Asset } from './domain';
 import { mediaSource, native } from './bridge';
 
@@ -34,7 +35,8 @@ export function useReviewPrefetch(asset: Asset | undefined) {
   }, [source]);
 }
 
-export function useMedia(asset: Asset, size: 480 | 1600 | 8192) {
+export function useMedia(asset: Asset, size: 480 | 1600 | 8192, enabled = true) {
+  const report = useContext(PreviewReport);
   const [attempt, setAttempt] = useState(0);
   const source = mediaSource(asset, size, attempt);
   const request = `${source}\n${attempt}`;
@@ -45,6 +47,10 @@ export function useMedia(asset: Asset, size: 480 | 1600 | 8192) {
     error: '',
   });
   useEffect(() => {
+    if (!enabled) {
+      setResult({ source: '', url: '', error: '' });
+      return;
+    }
     const controller = new AbortController();
     let url = '';
     if (!native) {
@@ -72,9 +78,21 @@ export function useMedia(asset: Asset, size: 480 | 1600 | 8192) {
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [source, request]);
+  }, [source, request, enabled]);
+  const current =
+    enabled && result.source === request ? result : { source: request, url: '', error: '' };
+  useEffect(() => {
+    if (current.error) report(asset.id, size, previewProblem(current.error).label);
+  }, [asset.id, size, current.error, report]);
+  const displayed = () => report(asset.id, size, '');
+  const displayFailed = () => {
+    if (!attempt && native) retry();
+    else setResult({ source: request, url: '', error: '图像显示失败，可重试或继续查看其他照片' });
+  };
   return {
-    ...(result.source === request ? result : { source: request, url: '', error: '' }),
+    ...current,
+    displayed,
+    displayFailed,
     retry,
   };
 }

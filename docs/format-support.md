@@ -1,10 +1,11 @@
-# Photo support in 0.8.0
+# Photo support in 0.13.0
 
 The public prerelease targets Apple Silicon macOS. Runtime evidence is from macOS 27.2.1 using generated fixtures and the explicitly attributed samples below, not a complete set of phone/camera models. The audience remains technical trial users.
 
 | Input | Browsing | Watermark export |
 |---|---|---|
 | Static 8-bit JPEG / PNG / WebP | System ImageIO decode; orientation applied once; sRGB previews | Independent sRGB JPEG, subject to the 24MP / 32MiB / 100-photo limits |
+| Static 16-bit SDR PNG | Gray/RGB, transparency and Display P3 converted to sRGB | Independent JPEG under the same watermark limits |
 | Single-frame 8-bit SDR HEIC/HEIF | System ImageIO; generated SDR HEIC tested | Generated SDR HEIC tested; same limits |
 | Embedded Display P3 SDR | Converted to sRGB for preview; generated sample compared to system ColorSync output | System colour-managed SDR conversion; camera-specific colour fidelity is not comprehensively validated |
 | Transparency | Flattened over white for JPEG previews | Flattened over white for JPEG derivatives |
@@ -12,7 +13,7 @@ The public prerelease targets Apple Silicon macOS. Runtime evidence is from macO
 | Other high bit depth / multi-frame input, or HDR on systems without SDR decode | Refused with a specific message | Refused; no silent clipping or unsupported conversion |
 | Recognized Live Photo markers / same-name video or RAW companions | Static photo review with a resource label; no motion playback | Independent static watermark JPEG allowed with explicit scope; original pair copy only for a unique same-stem JPEG/HEIC + MOV with matching Apple identifiers; group move and Trash blocked |
 
-Previews: 128MiB source limit, at most 64MP / 30,000px per source edge; generated preview bitmap at most 24MP. Grid previews use 480px, regular panes 1600px, one requested detail pane up to 8192px. The detail request may be refused when its pixel budget is exceeded. The backend bounds decode workers to two and queue slots to 24; frontend fetch concurrency is four. A failed preview has a retry action and does not prevent reviewing other files.
+Previews: 128MiB source limit, at most 64MP / 30,000px per source edge; generated preview bitmap at most 24MP. Grid previews use 480px, regular panes 1600px, one requested detail pane up to 8192px. The detail request may be refused when its pixel budget is exceeded. The backend bounds decode workers to two and queue slots to 24; frontend fetch concurrency is four. Temporary failures offer retry. Reconnect unavailable originals and rescan. Detail failure keeps the screen preview. A display-layer cache decode failure triggers one rebuild. Original-format copy preserves source bytes and follows selection and associated-resource checks independently of preview or watermark eligibility. GIF, TIFF, AVIF, BMP, JPEG XL and camera RAW are skipped. APNG and unverified HDR PNG transfers are refused.
 
 These are operational limits, not promises that every source below them will decode. Metadata/profile-based HDR detection does not certify all proprietary HDR variants. Unknown camera-specific colour behaviour remains unverified; originals are not rewritten by browsing or derivative export. Copy exports retain source metadata, so choose watermark derivatives when source EXIF/GPS should be omitted.
 
@@ -34,7 +35,7 @@ ImageIO's [thumbnail transform](https://developer.apple.com/documentation/imagei
 
 The unmodified CC0 iPhone 13 JPEG above and ten derivatives generated with ImageIO are tested outside source control: normal SDR HEIC, Apple gain-map HEIC, 10-bit PQ HEIC, and seven gain-map JPEG orientation variants (2–8). The HEIC files are generated derivatives, not original phone HEIC captures. Core Image with `expandToHDR=false`, orientation applied and RGBA8/sRGB output provides an independent reference. Per-image pixel differences, dimensions and source hashes are recorded in the release evidence; this is not a visual-fidelity guarantee for every camera.
 
-ImageIO's [explicit SDR decode request](https://developer.apple.com/documentation/imageio/kcgimagesourcedecodetosdr) is available from macOS 14. Constants are looked up at runtime to preserve ordinary SDR use on earlier declared systems; an unavailable HDR decoder produces an error. Only macOS 27.2.1/arm64 was actually tested. Unknown high-depth PNG, multi-frame content, true HDR rendering, Live Photo playback and RAW processing remain unsupported. HEIC listing dimensions and EXIF dates now come from ImageIO metadata without decoding the full image.
+ImageIO's [explicit SDR decode request](https://developer.apple.com/documentation/imageio/kcgimagesourcedecodetosdr) is available from macOS 14. Constants are looked up at runtime to preserve ordinary SDR use on earlier declared systems; an unavailable HDR decoder produces an error. Only macOS 27.2.1/arm64 was actually tested. Untested high-depth encodings, multi-frame content, true HDR rendering, Live Photo playback and RAW processing remain unsupported. HEIC listing dimensions and EXIF dates now come from ImageIO metadata without decoding the full image.
 
 ## 0.4.0 everyday-photo trial
 

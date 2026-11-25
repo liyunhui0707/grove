@@ -2,7 +2,7 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.12.1 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.13.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
@@ -10,6 +10,7 @@
 
 ## What you can do
 
+- Preview static 8/16-bit SDR PNG in sRGB, including grayscale, transparency and Display P3. Detail failures retain the screen preview; discovered preview issues are grouped under library tools.
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.
 - Resume the last folder, exact photo and essential review settings after a normal quit. Normal exit waits for in-flight rating/undo and the resulting final checkpoint; failures keep the window open for return or retry without automatically repeating rating operations.
 - See the app version, build and data location; opening the same catalog again brings its existing window forward. On filesystems providing a persistent volume UUID, reconnecting the same disk keeps file identities; an offline or replaced root cannot be reported as a completed scan.
@@ -27,7 +28,7 @@
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.12.1 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.12.1). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.13.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.13.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt

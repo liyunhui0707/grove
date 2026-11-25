@@ -108,6 +108,9 @@ fn source(bytes: &[u8]) -> Result<(CFData, CFType, Dict)> {
     if bytes.is_empty() || bytes.len() as u64 > MAX_INPUT_BYTES {
         return Err("首版水印限单张32MiB以内".into());
     }
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        crate::imaging::check_png_header(std::io::Cursor::new(bytes))?;
+    }
     let data = CFData::from_buffer(bytes);
     let options = CFDictionary::from_CFType_pairs(&[(
         key(unsafe { kCGImageSourceShouldCache }),
@@ -275,15 +278,13 @@ pub fn render(bytes: &[u8], options: &Options, preview: Option<u32>) -> Result<R
     if raw.is_null() {
         return Err("系统无法解码这张照片".into());
     }
-    let image = unsafe { CGImage::from_ptr(raw) };
+    let image =
+        crate::imaging::display_thumbnail(unsafe { CGImage::from_ptr(raw) }, &source, &props)?;
     let (decoded_width, decoded_height) = if manual && orientation >= 5 {
         (image.height(), image.width())
     } else {
         (image.width(), image.height())
     };
-    if image.bits_per_component() > 8 {
-        return Err("暂不输出高位深/HDR照片".into());
-    }
     let (width, height) = super::output_dimensions(info.width, info.height, Some(max));
     // ImageIO may round a thumbnail edge differently by one pixel. The output
     // canvas uses our exact planned dimensions; larger mismatches remain errors.
