@@ -484,8 +484,8 @@ export function WatermarkDialog({
                 />
               </label>
               <p className="watermark-hint">
-                逐张读取城市标签或用 GPS
-                离线估算附近城市。清空手填值可恢复自动识别；没有匹配时仅显示日期。
+                逐张用 GPS
+                或照片里的城市标签匹配中文名。找不到中文名时只显示日期，也可以为这张照片填写城市。
               </p>
               {preview && !preview.canExport && !resuming && (
                 <p className="field-error" role="status">

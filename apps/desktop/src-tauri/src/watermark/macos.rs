@@ -152,8 +152,7 @@ fn detect_city(p: &Dict) -> Option<String> {
         return Some(city.to_owned());
     }
     let raw = string(&nested(p, "{IPTC}")?, "City")?;
-    let city = raw.trim();
-    (!city.is_empty() && super::valid_city(city)).then(|| city.to_owned())
+    super::cities::embedded_label(&raw).map(str::to_owned)
 }
 
 fn metadata(source: &CFType, p: &Dict, o: &Options, planned: Option<&Info>) -> Result<Info> {

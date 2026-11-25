@@ -1294,7 +1294,7 @@ fn watermark_resolves_each_photo_and_allows_a_previously_opened_sibling() {
         city_overrides: Some([(targets[3].id.clone(), "自选城市".to_owned())].into()),
         ..Default::default()
     };
-    let cities = ["Seoul", "Sydney", "", "自选城市", ""];
+    let cities = ["首尔特别市", "悉尼", "", "自选城市", ""];
     for (index, point) in points.into_iter().enumerate() {
         let bytes =
             crate::watermark::tests::gps_fixture(640, 480, 1, Some("2026:10:25 23:59:59"), point);

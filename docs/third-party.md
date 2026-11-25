@@ -1,6 +1,6 @@
 # 第三方依赖与素材来源
 
-The offline city-centre index is derived from the GeoNames cities15000 extract and distributed under CC BY 4.0. The source archive digest, transformations, links and attribution are included in THIRD-PARTY-NOTICES.txt.
+The offline city-centre index is derived from the GeoNames cities15000 and alternateNamesV2 extracts and distributed under CC BY 4.0. The source archive digests, transformations, links and attribution are included in THIRD-PARTY-NOTICES.txt.
 
 
 自写代码、程序图与 assets/grove.svg 为 Apache-2.0。没有复制 Lap/digiKam/nomacs 应用代码，没有捆绑 libheif、FFmpeg、AI 模型或字体。

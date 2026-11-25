@@ -10,6 +10,12 @@ Attribution: https://www.geonames.org/ | License: https://creativecommons.org/li
 Source archive SHA-256: 6068dba5be2fa7e2b9ef51a1350875b404255bcd968551a5428f83038ee36f22
 Grove retained 31710 populated places (PPL, PPLC, PPLA through PPLA5, PPLG),
 selected name and WGS84 coordinates, rounded coordinates to five decimals and sorted by latitude.
+Chinese labels: https://download.geonames.org/export/dump/alternateNamesV2.zip
+Archive SHA-256: a02d4c7b0fe30a9d012cc1cc078fc365dadc8a7022891a1e4d791ac5c6b77929
+Grove matched place IDs to Chinese names, excluding colloquial, historic and expired names,
+preferring Simplified Chinese locales and preferred names within a locale group.
+Han-script canonical names in CN, HK, MO and TW were also eligible. Labels were
+converted to Simplified Chinese with ICU. 10980 of the 31710 centres have a label.
 City estimates use nearby place centres. Coverage and accuracy vary.
 
 ========================================================================
