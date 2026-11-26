@@ -1084,6 +1084,38 @@ fn generated_output_directory(name: &str) -> bool {
         && suffix.len() == 8
         && suffix.bytes().all(|b| b.is_ascii_hexdigit())
 }
+// A destination containing only Grove batches is a browsable collection.
+fn export_collection(entries: fs::ReadDir) -> bool {
+    let mut found = false;
+    for entry in entries {
+        let Ok(entry) = entry else { return false };
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with('.') {
+            continue;
+        }
+        let Ok(kind) = entry.file_type() else {
+            return false;
+        };
+        if kind.is_symlink() {
+            continue;
+        }
+        if kind.is_dir() {
+            if !generated_output_directory(&name) {
+                return false;
+            }
+            found |= !name.contains("-Move-") && !name.contains("-Quarantine-");
+        } else if entry.path().extension().is_some_and(|e| {
+            matches!(
+                e.to_string_lossy().to_ascii_lowercase().as_str(),
+                "jpg" | "jpeg" | "png" | "webp" | "heic" | "heif"
+            )
+        }) {
+            return false;
+        }
+    }
+    found
+}
 // A path is not a volume/directory identity. Reject an unmounted or replaced
 // root throughout a scan, including after the last batch callback.
 fn verify_scan_root(state: &AppState, root: &Path, folder: i64) -> Result<()> {
@@ -1135,7 +1167,7 @@ fn scan_directory(
     if !metadata.is_dir() {
         return Err("原文件夹位置已被其他文件占用，请重新选择文件夹".into());
     }
-    fs::read_dir(root).map_err(root_error)?;
+    let browse_batches = export_collection(fs::read_dir(root).map_err(root_error)?);
     verify_scan_root(state, root, folder_id)?;
     if cfg!(target_os = "macos") && !imaging::directory_identity(root)?.starts_with("volume:") {
         warnings.push(
@@ -1151,7 +1183,9 @@ fn scan_directory(
                 !name.starts_with('.')
                     && !name.starts_with("Moment-Grove-Quarantine-")
                     && !name.starts_with("Grove-Quarantine-")
-                    && !(e.file_type().is_dir() && generated_output_directory(&name))
+                    && (!e.file_type().is_dir()
+                        || !generated_output_directory(&name)
+                        || (browse_batches && e.depth() == 1 && !name.contains("-Move-")))
                     && !matches!(
                         name.as_ref(),
                         "secrets" | "node_modules" | "target" | "exports" | "quarantine"

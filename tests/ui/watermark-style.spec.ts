@@ -37,6 +37,7 @@ async function mock(
     failPreview?: boolean;
     previewWarning?: string;
     companions?: boolean;
+    detectedCity?: string;
   } = {},
 ) {
   await page.addInitScript((config) => {
@@ -169,6 +170,7 @@ async function mock(
               canExport: !!args.options.fallbackDate,
               info: {
                 source: {
+                  detectedCity: config.detectedCity,
                   dateSource: args.options.fallbackDate ? 'manual' : 'missing',
                   date: args.options.fallbackDate,
                   text: args.options.fallbackDate
@@ -488,3 +490,20 @@ for (const failPreview of [false, true]) {
     await expect(currentHint.first()).toBeVisible();
   });
 }
+
+test('detected city can be edited, removed from the export, and restored', async ({ page }) => {
+  await mock(page, { detectedCity: '杭州市' });
+  const dialog = await open(page);
+  const city = dialog.getByLabel('手动城市');
+  await expect(city).toHaveValue('杭州市');
+  await city.fill('杭州西湖');
+  await expect(city).toHaveValue('杭州西湖');
+  await city.fill('');
+  await dialog.getByLabel('备用日期').fill('2026-11-26');
+  await dialog.getByRole('button', { name: '选择导出位置' }).click();
+  expect(await page.evaluate(() => (window as any).__wm.plans.at(-1).cityOverrides)).toEqual({
+    'generated-one': '',
+  });
+  await dialog.getByRole('button', { name: '恢复自动识别' }).click();
+  await expect(city).toHaveValue('杭州市');
+});

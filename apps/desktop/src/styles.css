@@ -958,9 +958,23 @@ nav {
   height: 22px;
 }
 .folder-tree {
+  display: block;
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   margin-bottom: 12px;
+}
+.folder-tree::-webkit-scrollbar {
+  width: 6px;
+}
+.folder-tree::-webkit-scrollbar-track,
+.folder-tree::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.folder-tree:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 6px;
 }
 .folder-tree ul {
   margin: 0;

@@ -92,6 +92,7 @@ export type ExportRow = {
 export type WatermarkOptions = {
   city: string;
   cityOverrides?: Record<string, string>;
+  jpegOnly?: boolean;
   fallbackDate: string | null;
   font: 'sans' | 'serif';
   sizePercent: number;

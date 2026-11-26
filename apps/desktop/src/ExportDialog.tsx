@@ -223,11 +223,6 @@ export function ExportDialog({
               浏览器预览不复制文件。请在桌面 App 中选择导出位置。
             </p>
           )}
-          {selection.length > 100 && !report && (
-            <p className="backup-error" role="alert">
-              单次最多 100 张，请缩小选择后分批导出。
-            </p>
-          )}
           {error && <TaskError error={error} title="导出照片未完成" />}
           {report && <DirectoryPath label="导出到" path={report.destination} />}
           <div className="export-summary">
@@ -294,8 +289,7 @@ export function ExportDialog({
           <details className="task-details">
             <summary>导出限制与中断恢复</summary>
             <p>
-              单次最多 100
-              张。取消或失败时保留已核验副本和部分文件，可重新选择原目标父目录后继续核验；同名不同内容不会覆盖。操作记录留在本机。
+              取消或失败时保留已核验副本和部分文件，可重新选择原目标父目录后继续核验；同名不同内容不会覆盖。操作记录留在本机。
             </p>
           </details>
           {historyError && <p className="backup-error">历史记录：{historyError}</p>}
@@ -361,7 +355,7 @@ export function ExportDialog({
             ) : (
               <button
                 className="button subtle"
-                disabled={!native || busy || selection.length === 0 || selection.length > 100}
+                disabled={!native || busy || selection.length === 0}
                 onClick={() => void choose()}
               >
                 <FolderOpen size={15} />

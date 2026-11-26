@@ -9,6 +9,8 @@ pub const MAX_PIXELS: u64 = 24_000_000;
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     pub city: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub jpeg_only: bool,
     // Absent in existing jobs, where city is the fixed caption for the batch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub city_overrides: Option<std::collections::BTreeMap<String, String>>,
@@ -31,6 +33,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             city: String::new(),
+            jpeg_only: false,
             city_overrides: None,
             fallback_date: None,
             font: "sans".into(),
@@ -73,9 +76,9 @@ impl Options {
         }
         o.city = o.city.trim().to_string();
         if !valid_city(&o.city)
-            || o.city_overrides.as_ref().is_some_and(|cities| {
-                cities.len() > 100 || cities.values().any(|city| !valid_city(city.trim()))
-            })
+            || o.city_overrides
+                .as_ref()
+                .is_some_and(|cities| cities.values().any(|city| !valid_city(city.trim())))
         {
             return Err("城市限32个字符，不含换行或控制字符".into());
         }

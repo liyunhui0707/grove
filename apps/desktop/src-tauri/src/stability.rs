@@ -524,6 +524,40 @@ fn generated_outputs_are_skipped_under_parent_but_can_be_opened_explicitly() {
 }
 
 #[test]
+fn export_destination_shows_copy_and_watermark_batches_together() {
+    let tmp = tempfile::tempdir().unwrap();
+    let base = tmp.path().canonicalize().unwrap();
+    let parent = base.join("exports-for-sharing");
+    fs::create_dir(&parent).unwrap();
+    for name in [
+        "Grove-123-deadbeef",
+        "Grove-Watermark-456-aaaabbbb",
+        "Grove-Quarantine-456-ccccdddd",
+        "Moment-Grove-Move-123-ffffffff",
+    ] {
+        let child = parent.join(name);
+        fs::create_dir(&child).unwrap();
+        image::RgbImage::new(48, 32)
+            .save(child.join("item.jpg"))
+            .unwrap();
+    }
+    fs::write(parent.join(".DS_Store"), []).unwrap();
+    let s = state(&base.join("runtime"));
+    let folder = grant(&s, parent.clone()).unwrap();
+    let (channel, recorded) = events();
+    scan_directory(&s, &parent, folder.id, 0, &channel).unwrap();
+    assert_eq!(
+        recorded
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == "done")
+            .unwrap()["count"],
+        2
+    );
+}
+
+#[test]
 fn jpeg_scan_dimensions_match_oriented_preview_for_all_eight_directions() {
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path().canonicalize().unwrap();

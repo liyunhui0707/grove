@@ -1289,12 +1289,19 @@ fn watermark_resolves_each_photo_and_allows_a_previously_opened_sibling() {
         None,
         Some((2254, 7619)),
         Some((0, -8400)),
+        Some((2254, 7619)),
     ];
     let options = crate::watermark::Options {
-        city_overrides: Some([(targets[3].id.clone(), "自选城市".to_owned())].into()),
+        city_overrides: Some(
+            [
+                (targets[3].id.clone(), "自选城市".to_owned()),
+                (targets[5].id.clone(), String::new()),
+            ]
+            .into(),
+        ),
         ..Default::default()
     };
-    let cities = ["首尔特别市", "悉尼", "", "自选城市", ""];
+    let cities = ["首尔特别市", "悉尼", "", "自选城市", "", ""];
     for (index, point) in points.into_iter().enumerate() {
         let bytes =
             crate::watermark::tests::gps_fixture(640, 480, 1, Some("2026:10:25 23:59:59"), point);
@@ -1323,4 +1330,72 @@ fn watermark_resolves_each_photo_and_allows_a_previously_opened_sibling() {
     let alias = b.join("alias");
     std::os::unix::fs::symlink(&roots[&f], &alias).unwrap();
     assert!(prepare(&c, &roots, f, selected, &alias, &data).is_err());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn exports_239_photos_and_recovers_a_large_jpeg_only_batch() {
+    let tmp = tempfile::tempdir().unwrap();
+    let base = tmp.path().canonicalize().unwrap();
+    let (catalog, roots, folder, _) = fixture(&base);
+    let out = base.join("output");
+    let data = base.join("data");
+    let bytes = crate::watermark::tests::fixture(128, 96, 1, Some("2026:10:25 23:59:59"));
+    let mut targets = Vec::new();
+    for i in 0..239 {
+        let path = roots[&folder].join(format!("sample-{i}.jpg"));
+        fs::write(&path, &bytes).unwrap();
+        let (id, _, revision) = catalog
+            .upsert(folder, &path, &imaging::identity(&path).unwrap(), None)
+            .unwrap();
+        targets.push(Target { id, revision });
+    }
+    let cancel = AtomicBool::new(false);
+    let copy = execute(
+        prepare(&catalog, &roots, folder, &targets, &out, &data).unwrap(),
+        &data,
+        &cancel,
+    );
+    assert_eq!(copy.verified, 239);
+    assert_eq!(fs::read_dir(copy.destination).unwrap().count(), 479);
+    let options = crate::watermark::Options {
+        jpeg_only: true,
+        city_overrides: Some(
+            targets
+                .iter()
+                .map(|t| (t.id.clone(), "杭州".to_owned()))
+                .collect(),
+        ),
+        ..Default::default()
+    };
+    let plan =
+        prepare_watermark(&catalog, &roots, folder, &targets, &out, &data, &options).unwrap();
+    let id = review(&plan).id;
+    let mut published = 0;
+    let interrupted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run(
+            plan,
+            &data,
+            &cancel,
+            |_| {},
+            || {
+                published += 1;
+                if published == 3 {
+                    panic!("simulate interruption after JPEG publication");
+                }
+                Ok(())
+            },
+        )
+    }));
+    assert!(interrupted.is_err());
+    let resumed = resume(&catalog, &roots, folder, &id, &out, &data).unwrap();
+    assert_eq!(review(&resumed).verified, 2);
+    let done = execute(resumed, &data, &cancel);
+    assert_eq!((done.status.as_str(), done.verified), ("completed", 239));
+    let destination = completed_destination(&data, folder, &id).unwrap();
+    assert_eq!(fs::read_dir(&destination).unwrap().count(), 239);
+    for row in done.items {
+        assert_eq!(row.caption.as_deref(), Some("2026-10-25 杭州"));
+        assert!(destination.join(row.output).is_file());
+    }
 }

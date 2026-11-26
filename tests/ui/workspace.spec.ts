@@ -1,15 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import { savedView } from './saved-view';
 
-async function workspaceMock(page: Page) {
-  await page.addInitScript(() => {
+async function workspaceMock(page: Page, longFolders = false) {
+  await page.addInitScript((longFolders) => {
     const read = (key: string) => JSON.parse(localStorage.getItem(key) || 'null');
-    const assets = Array.from({ length: 6 }, (_, i) => ({
+    const assets = Array.from({ length: longFolders ? 32 : 6 }, (_, i) => ({
       id: `photo-${i}`,
       folderId: 1,
       name: `photo-${i}.jpg`,
-      relative:
-        (i < 2 ? '旅行/海边/' : i === 2 ? '旅行/' : i === 3 ? '旅行旧/' : '') + `photo-${i}.jpg`,
+      relative: longFolders
+        ? `测试文件夹-${i}-${'很长的名字'.repeat(10)}/photo-${i}.jpg`
+        : (i < 2 ? '旅行/海边/' : i === 2 ? '旅行/' : i === 3 ? '旅行旧/' : '') + `photo-${i}.jpg`,
       width: 48,
       height: 32,
       bytes: 100,
@@ -74,7 +75,7 @@ async function workspaceMock(page: Page) {
         },
       },
     });
-  });
+  }, longFolders);
 }
 
 test('visible application identity opens exact app and catalog locations in a small dark window', async ({
@@ -276,4 +277,20 @@ test('folder branches share ratings, isolate selection and restore after relaunc
   await expect(folders.getByRole('button', { name: '海边', exact: true })).toHaveCount(0);
   await choose('Owned photos');
   await expect(page.locator('.photo-open')).toHaveCount(6);
+});
+
+test('long folder names fit the sidebar and the last folder is reachable', async ({ page }) => {
+  await workspaceMock(page, true);
+  await page.setViewportSize({ width: 1024, height: 680 });
+  await page.goto('/');
+  await page.locator('.welcome').getByRole('button', { name: '打开照片文件夹' }).click();
+  const tree = page.getByRole('navigation', { name: '文件夹导航' });
+  const last = tree.locator('.folder-link').last();
+  await expect(last).toHaveAttribute('title', /测试文件夹-31-/);
+  await last.focus();
+  await expect(last).toBeInViewport();
+  expect(await tree.evaluate((el) => el.scrollWidth <= el.clientWidth && el.scrollTop > 0)).toBe(
+    true,
+  );
+  expect(await last.locator('span').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
 });

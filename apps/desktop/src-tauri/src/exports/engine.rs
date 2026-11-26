@@ -16,7 +16,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-const LIMIT: usize = 100;
 const MAX_PLAN_BYTES: usize = 8 * 1024 * 1024;
 #[derive(Clone, Serialize, Deserialize)]
 struct Item {
@@ -280,8 +279,8 @@ fn prepare_kind(
     if !cfg!(target_os = "macos") {
         return Err("此平台复制导出尚未验证".into());
     }
-    if targets.is_empty() || targets.len() > LIMIT {
-        return Err("请选择1–100张照片，较大精选请分批导出".into());
+    if targets.is_empty() {
+        return Err("请至少选择一张照片".into());
     }
     review.begin("checking", targets.len())?;
     let root = roots.get(&folder).ok_or("照片目录尚未授权")?.clone();
@@ -317,6 +316,7 @@ fn prepare_kind(
     }
     let mut seen = HashSet::new();
     let mut items = Vec::new();
+    let mut plan_bytes = 0;
     for (index, t) in targets.iter().enumerate() {
         if !seen.insert(&t.id) {
             return Err("导出选择含重复照片".into());
@@ -380,7 +380,7 @@ fn prepare_kind(
             .to_str()
             .ok_or("文件名编码无效")?
             .to_string();
-        items.push(Item {
+        let item = Item {
             id: t.id.clone(),
             output: safe_name(
                 index,
@@ -405,14 +405,20 @@ fn prepare_kind(
             info,
             motion,
             derivative: None,
-        });
+        };
+        plan_bytes += serde_json::to_vec(&item).map_err(|e| e.to_string())?.len();
+        if plan_bytes > MAX_PLAN_BYTES {
+            return Err("导出清单超过 8 MiB，请分批导出".into());
+        }
+        items.push(item);
         review.done()?;
     }
     review.check()?;
     let job = Job {
-        // Older apps must reject a resized/different-quality plan rather than
-        // silently regenerate it using their fixed original-size settings.
-        format: if items.iter().any(|i| i.motion.is_some()) {
+        // Older apps must reject plans whose output contract they cannot honor.
+        format: if options.as_ref().is_some_and(|o| o.jpeg_only) {
+            4
+        } else if items.iter().any(|i| i.motion.is_some()) {
             3
         } else if options
             .as_ref()
@@ -436,12 +442,13 @@ fn prepare_kind(
         watermark: options,
     };
     if serde_json::to_vec(&job).map_err(|e| e.to_string())?.len() > MAX_PLAN_BYTES {
-        return Err("这批XMP元数据较多，请减少照片数量分批导出".into());
+        return Err("导出清单超过 8 MiB，请分批导出".into());
     }
     space(
         &dir,
         if job.watermark.is_some() {
-            job.items.len() as u64 * (watermark::MAX_INPUT_BYTES + 1_048_576)
+            // The encoded sizes are unknown until rendering. Recheck space before each photo.
+            watermark::MAX_INPUT_BYTES + 1_048_576
         } else {
             report(&job).bytes
         },
@@ -464,6 +471,36 @@ fn logs(data: &Path) -> Result<Dir> {
         }
     }
 }
+// A full checkpoint bounds replay. Between checkpoints, persist only the changed
+// photo so a large batch does not duplicate its entire state for every JPEG.
+#[derive(Serialize, Deserialize)]
+struct ItemCheckpoint {
+    id: String,
+    step: u64,
+    index: usize,
+    status: String,
+    error: Option<String>,
+    derivative: Option<Derivative>,
+}
+
+fn save_item(dir: &Dir, j: &mut Job, index: usize) -> Result<()> {
+    if j.items.len() <= 128 || (j.step + 1).is_multiple_of(128) {
+        return save(dir, j);
+    }
+    j.step += 1;
+    let item = &j.items[index];
+    let delta = ItemCheckpoint {
+        id: j.id.clone(),
+        step: j.step,
+        index,
+        status: item.status.clone(),
+        error: item.error.clone(),
+        derivative: item.derivative.clone(),
+    };
+    let bytes = serde_json::to_vec(&delta).map_err(|e| e.to_string())?;
+    dir.write_record(&format!("delta-{:08}.json", j.step), &bytes)
+}
+
 fn save(dir: &Dir, j: &mut Job) -> Result<()> {
     if j.step == 0 {
         dir.write_record(
@@ -513,16 +550,20 @@ fn load(data: &Path, id: &str) -> Result<Job> {
         .filter_map(|e| e.ok()?.file_name().into_string().ok())
         .filter(|n| {
             n.len() == 19
-                && n.starts_with("state-")
+                && (n.starts_with("state-") || n.starts_with("delta-"))
                 && n.ends_with(".json")
                 && n.as_bytes()[6..14].iter().all(|b| b.is_ascii_digit())
         })
         .collect::<Vec<_>>();
-    names.sort();
-    let name = names.last().ok_or("没有完整的导出记录，保留现场")?;
+    names.sort_unstable_by(|a, b| a[6..14].cmp(&b[6..14]));
+    let full = names
+        .iter()
+        .rposition(|n| n.starts_with("state-"))
+        .ok_or("没有完整的导出记录，保留现场")?;
+    let name = &names[full];
     let mut j: Job = serde_json::from_slice(&record(&dir, "plan.json", MAX_PLAN_BYTES)?)
         .map_err(|_| "导出清单损坏，已停止")?;
-    let checkpoint: Checkpoint = serde_json::from_slice(&record(&dir, name, 1_048_576)?)
+    let checkpoint: Checkpoint = serde_json::from_slice(&record(&dir, name, 2 * MAX_PLAN_BYTES)?)
         .map_err(|_| "导出进度损坏，已停止")?;
     if checkpoint.id != id || checkpoint.items.len() != j.items.len() {
         return Err("导出进度与清单不符".into());
@@ -543,12 +584,30 @@ fn load(data: &Path, id: &str) -> Result<Job> {
             item.derivative = d;
         }
     }
-    if ![1, 2, 3].contains(&j.format)
+    if name != &format!("state-{:08}.json", checkpoint.step) {
+        return Err("导出进度序号无效".into());
+    }
+    for name in &names[full + 1..] {
+        let delta: ItemCheckpoint = serde_json::from_slice(&record(&dir, name, MAX_PLAN_BYTES)?)
+            .map_err(|_| "导出进度损坏，已停止")?;
+        if delta.id != id
+            || Some(delta.step) != j.step.checked_add(1)
+            || name != &format!("delta-{:08}.json", delta.step)
+        {
+            return Err("导出进度不连续，已停止".into());
+        }
+        let item = j.items.get_mut(delta.index).ok_or("导出进度与清单不符")?;
+        item.status = delta.status;
+        item.error = delta.error;
+        item.derivative = delta.derivative;
+        j.step = delta.step;
+    }
+    if ![1, 2, 3, 4].contains(&j.format)
+        || (j.format == 4) != j.watermark.as_ref().is_some_and(|o| o.jpeg_only)
         || (j.format == 3) != j.items.iter().any(|i| i.motion.is_some())
         || (j.format == 3 && j.watermark.is_some())
         || j.id != id
         || j.items.is_empty()
-        || j.items.len() > LIMIT
         || j.directory
             != Path::new(&j.directory)
                 .file_name()
@@ -720,7 +779,7 @@ fn publish_photo(
         info: rendered.info,
     });
     // Durable expected derivative bytes precede publication, so crash recovery never adopts unknown files.
-    save(journal, j)?;
+    save_item(journal, j, n)?;
     files::cancelled(cancel)?;
     dir.publish(&i.output, rendered.jpeg.as_slice(), &hash, cancel)
 }
@@ -763,6 +822,7 @@ pub fn run(
     p.job.message = None;
     save(&journal, &mut p.job)?;
     progress(report(&p.job));
+    let mut last_report = std::time::Instant::now();
     for n in 0..p.job.items.len() {
         if cancel.load(Ordering::SeqCst) {
             break;
@@ -818,12 +878,14 @@ pub fn run(
                     cancel,
                 )?;
             }
-            dir.publish(
-                &format!("{}.xmp", i.output),
-                i.xml.as_bytes(),
-                &hash_bytes(i.xml.as_bytes()),
-                cancel,
-            )?;
+            if p.job.format != 4 {
+                dir.publish(
+                    &format!("{}.xmp", i.output),
+                    i.xml.as_bytes(),
+                    &hash_bytes(i.xml.as_bytes()),
+                    cancel,
+                )?;
+            }
             Ok(())
         })();
         let item = &mut p.job.items[n];
@@ -842,8 +904,11 @@ pub fn run(
                 item.error = Some(e)
             }
         }
-        save(&journal, &mut p.job)?;
-        progress(report(&p.job));
+        save_item(&journal, &mut p.job, n)?;
+        if p.job.items.len() <= 128 || last_report.elapsed().as_millis() >= 150 {
+            progress(report(&p.job));
+            last_report = std::time::Instant::now();
+        }
     }
     p.job.status = if cancel.load(Ordering::SeqCst) {
         "cancelled"
@@ -853,7 +918,7 @@ pub fn run(
         "partial"
     }
     .into();
-    if p.job.status == "completed" {
+    if p.job.status == "completed" && p.job.format != 4 {
         let current_brand = p.job.directory.starts_with("Grove-");
         let mut portable = serde_json::json!({"app":if current_brand {"Grove"} else {"Moment Grove"},"format":1,"files":p.job.items.iter().map(|i|serde_json::json!({"sourceRelative":i.relative,"name":i.output,"rating":i.rating,"bytes":i.derivative.as_ref().map(|d|d.bytes).unwrap_or(i.bytes),"sha256":i.derivative.as_ref().map(|d|d.sha256.as_str()).unwrap_or(&i.sha256),"sidecarSha256":hash_bytes(i.xml.as_bytes())})).collect::<Vec<_>>()});
         if p.job.format == 3 {

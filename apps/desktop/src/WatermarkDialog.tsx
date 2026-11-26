@@ -80,7 +80,9 @@ export function WatermarkDialog({
   const panel = useRef<HTMLElement>(null);
   const preparation = usePreparation(bridge.cancelExport);
   const asset = selection[index];
-  const manualCity = options.cityOverrides?.[asset?.id] ?? '';
+  const cityOverride = options.cityOverrides?.[asset?.id];
+  const [automaticCity, setAutomaticCity] = useState({ id: '', name: '' });
+  const city = cityOverride ?? (automaticCity.id === asset?.id ? automaticCity.name : '');
   const stepPreview = (delta: number) =>
     setIndex((i) => Math.max(0, Math.min(selection.length - 1, i + delta)));
   const remember = (next: WatermarkOptions) => {
@@ -163,7 +165,10 @@ export function WatermarkDialog({
       void bridge
         .previewWatermark(asset.id, options)
         .then((result) => {
-          if (!stale) setPreview(result);
+          if (stale) return;
+          setPreview(result);
+          if (options.cityOverrides?.[asset.id] === undefined)
+            setAutomaticCity({ id: asset.id, name: result.info.source.detectedCity ?? '' });
         })
         .catch((e) => {
           if (!stale) setPreviewError(String(e));
@@ -365,7 +370,7 @@ export function WatermarkDialog({
                           textShadow: options.shadow ? '0 1px 3px #0008' : 'none',
                         }}
                       >
-                        {options.fallbackDate} {manualCity.trim()}
+                        {options.fallbackDate} {city.trim()}
                       </span>
                     )}
                   </div>
@@ -461,19 +466,31 @@ export function WatermarkDialog({
                 城市 <span>{resuming ? '历史清单' : '仅当前照片'}</span>
                 <input
                   aria-label="手动城市"
-                  placeholder={preview?.info.source.detectedCity ?? '自动识别，也可手填'}
+                  placeholder={cityOverride === '' ? '仅显示日期' : '自动识别，也可手填'}
                   maxLength={32}
-                  value={resuming ? options.city : manualCity}
+                  value={resuming ? options.city : city}
                   onCompositionStart={() => setComposing(true)}
                   onCompositionEnd={() => setComposing(false)}
                   onChange={(e) => {
-                    const cityOverrides = { ...options.cityOverrides };
-                    if (e.target.value) cityOverrides[asset.id] = e.target.value;
-                    else delete cityOverrides[asset.id];
-                    update({ cityOverrides });
+                    update({
+                      cityOverrides: { ...options.cityOverrides, [asset.id]: e.target.value },
+                    });
                   }}
                 />
               </label>
+              {!resuming && cityOverride !== undefined && (
+                <button
+                  type="button"
+                  className="button subtle"
+                  onClick={() => {
+                    const cityOverrides = { ...options.cityOverrides };
+                    delete cityOverrides[asset.id];
+                    update({ cityOverrides });
+                  }}
+                >
+                  恢复自动识别
+                </button>
+              )}
               <label>
                 备用日期 <span>照片缺少拍摄日期时使用</span>
                 <input
@@ -485,13 +502,21 @@ export function WatermarkDialog({
               </label>
               <p className="watermark-hint">
                 逐张用 GPS
-                或照片里的城市标签匹配中文名。找不到中文名时只显示日期，也可以为这张照片填写城市。
+                或照片里的城市标签匹配中文名。可以直接修改识别结果，清空城市后这张照片只显示日期。
               </p>
               {preview && !preview.canExport && !resuming && (
                 <p className="field-error" role="status">
                   {preview.info.source.warning || '请填写备用日期后导出。'}
                 </p>
               )}
+              <label className="watermark-checkbox">
+                <input
+                  type="checkbox"
+                  checked={!!options.jpegOnly}
+                  onChange={(e) => update({ jpegOnly: e.target.checked })}
+                />
+                仅导出 JPEG（分享照片）
+              </label>
               <label>
                 成品尺寸
                 <select
@@ -600,15 +625,12 @@ export function WatermarkDialog({
           <div className="backup-scope">
             <ShieldCheck size={17} />
             <p>
-              右下角叠加在原画面内，独立导出 sRGB JPEG 与当前评分 XMP。成品不带源
-              EXIF/GPS；原件、源评分与待同步项不变。支持静态照片；macOS 14+ 可将已支持的 HDR
-              JPEG/HEIC 转为 SDR，不保留 HDR 效果。≤2400万像素、≤32MiB。
+              右下角叠加在原画面内，生成 sRGB JPEG。选择仅导出 JPEG 可省略评分 XMP
+              和导出清单。成品不带源 EXIF/GPS；原件、源评分与待同步项不变。支持静态照片；macOS 14+
+              可将已支持的 HDR JPEG/HEIC 转为 SDR，不保留 HDR 效果。≤2400万像素、≤32MiB。
             </p>
           </div>
           {error && <TaskError error={error} title="导出照片未完成" />}
-          {selection.length > 100 && !resuming && (
-            <p className="backup-error">单次最多100张，请缩小选择。</p>
-          )}
           {report && (
             <>
               {report.watermark && (
@@ -747,7 +769,6 @@ export function WatermarkDialog({
                   !native ||
                   busy ||
                   !selection.length ||
-                  selection.length > 100 ||
                   resuming ||
                   !preview?.canExport ||
                   previewBusy ||
