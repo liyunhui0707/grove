@@ -2,15 +2,15 @@
 
 给回忆，一点留白。A local-first desktop app for reviewing and organizing photos.
 
-**0.13.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
+**0.14.0 targets technical trial users on Apple Silicon Macs.** [Website](https://grove.outerepoch3.chatgpt.site) · [Releases](https://github.com/liyunhui0707/grove/releases) The app interface is currently Chinese. It runs locally without an account or a separate Node.js installation.
 
 ![Illustrative continuous two-photo comparison using generated demo artwork](docs/images/comparison.png)
 
 *Browser preview using generated demo artwork; this is not a photograph or a native macOS screenshot.*
 
-The current development branch adds per-photo offline city captions and arrow-key watermark previews. Copy and watermark exports can use a sibling of the active source folder even when its parent was previously opened.
+Expand folders to review one branch at a time. Export selections larger than 100 photos and reopen a folder of completed batches to review the results.
 
-## What you can do in 0.13.0
+## What you can do in 0.14.0
 
 - Preview static 8/16-bit SDR PNG in sRGB, including grayscale, transparency and Display P3. Detail failures retain the screen preview; discovered preview issues are grouped under library tools.
 - Browse ordinary folders, review photos with keyboard ratings, undo, and compare 2–8 images.
@@ -25,12 +25,12 @@ The current development branch adds per-photo offline city captions and arrow-ke
 - Keep seven distinct states: unreviewed, reject candidate (0), and ratings 1–5. A reject rating never deletes a file. Use the explicit macOS “Move to Trash” action for selected zero-rated photos (1–100 per batch), with confirmation and existing XMP handling. No permanent deletion or automatic retry; Finder restoration is separate from rating undo.
 - Carry ratings in XMP sidecars, review conflicts, and create local catalog snapshots.
 - Collect 4–5-star photos and export verified original-byte copies.
-- Export separate sRGB JPEGs with a date and optional manually entered city inside the photo. Choose original size or a 2048/4096-pixel long edge, and JPEG quality 80/92/98; smaller images are never enlarged.
+- Export separate sRGB JPEGs with an optional date and city inside the photo. Grove looks up cities offline. Edit or clear the city for each photo and choose JPEG-only output for sharing. If the capture date is missing, enter a fallback or leave it blank. Choose original size or a 2048/4096-pixel long edge, and JPEG quality 80/92/98; smaller images are never enlarged.
 - Review same-volume moves and low-rating isolation, with durable logs and reviewed withdrawal.
 
 ## Download and install
 
-Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.13.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.13.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
+Download the exact macOS arm64 ZIP or DMG and `SHA256SUMS.txt` from [0.14.0 test prerelease](https://github.com/liyunhui0707/grove/releases/tag/v0.14.0). Both archives contain the same app, user guide and license notices. Check the archive before opening it:
 
 ```sh
 shasum -a 256 --check --strict --ignore-missing SHA256SUMS.txt
