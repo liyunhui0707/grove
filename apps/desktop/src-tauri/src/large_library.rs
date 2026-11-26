@@ -202,6 +202,7 @@ fn mixed_library_scan_restart_and_ratings() {
         let mut sample = found.iter().collect::<Vec<_>>();
         sample.sort_by_key(|a| &a.name);
         let view = crate::workspace::View {
+            branch: String::new(),
             mode: "review".into(),
             active: sample[20].id.clone(),
             filter: "all".into(),

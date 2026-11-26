@@ -8,7 +8,8 @@ async function workspaceMock(page: Page) {
       id: `photo-${i}`,
       folderId: 1,
       name: `photo-${i}.jpg`,
-      relative: `photo-${i}.jpg`,
+      relative:
+        (i < 2 ? '旅行/海边/' : i === 2 ? '旅行/' : i === 3 ? '旅行旧/' : '') + `photo-${i}.jpg`,
       width: 48,
       height: 32,
       bytes: 100,
@@ -238,4 +239,41 @@ test('elastic scrolling saves only real positions and resumes at the edge', asyn
   await expect
     .poll(() => grid.evaluate((el) => Math.abs(el.scrollTop - (el.scrollHeight - el.clientHeight))))
     .toBeLessThan(2);
+});
+
+test('folder branches share ratings, isolate selection and restore after relaunch', async ({
+  page,
+}) => {
+  await workspaceMock(page);
+  await page.goto('/');
+  await page.locator('.welcome').getByRole('button', { name: '打开照片文件夹' }).click();
+  const folders = page.getByRole('navigation', { name: '文件夹导航' });
+  const choose = (name: string) => folders.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('button', { name: '选择 photo-5.jpg', exact: true }).click();
+  await choose('旅行');
+  await expect(page.locator('.photo-open')).toHaveCount(3);
+  await expect(page.locator('.selection-bar')).toHaveCount(0);
+  await choose('展开 旅行');
+  await choose('海边');
+  await expect(page.locator('.photo-open')).toHaveCount(2);
+  await expect(page.locator('.breadcrumb')).toContainText('Owned photos › 旅行 › 海边');
+  await page.getByRole('button', { name: '选择 photo-1.jpg', exact: true }).click();
+  await page.locator('.selection-bar').getByLabel('4 星', { exact: true }).click();
+  await choose('Owned photos');
+  await expect(page.locator('.photo-open')).toHaveCount(6);
+  await page.getByRole('button', { name: /^精选照片/ }).click();
+  await expect(page.locator('.photo-open')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: '查看 photo-1.jpg' })).toBeVisible();
+  await choose('海边');
+  await expect.poll(() => savedView(page)).toMatchObject({ branch: '旅行/海边' });
+  await page.reload();
+  await expect(page.locator('.photo-open')).toHaveCount(2);
+  await expect(folders.getByRole('button', { name: '海边', exact: true })).toHaveAttribute(
+    'aria-current',
+    'location',
+  );
+  await choose('折叠 旅行');
+  await expect(folders.getByRole('button', { name: '海边', exact: true })).toHaveCount(0);
+  await choose('Owned photos');
+  await expect(page.locator('.photo-open')).toHaveCount(6);
 });

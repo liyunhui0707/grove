@@ -85,7 +85,7 @@ export function RelocationDialog({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="重新关联目录"
+        aria-label="文件夹移动后重新关联…"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -115,7 +115,7 @@ export function RelocationDialog({
         <div className="dialog-heading">
           <Link2 size={22} />
           <div>
-            <h2>重新关联文件夹</h2>
+            <h2>文件夹移动后重新关联</h2>
           </div>
           <button
             className="icon-button"

@@ -10,6 +10,8 @@ use std::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct View {
+    #[serde(default)]
+    pub branch: String,
     pub mode: String,
     pub active: String,
     pub filter: String,
@@ -39,6 +41,7 @@ impl View {
             || !["name", "date", "rating"].contains(&self.sort.as_str())
             || !["light", "dark"].contains(&self.theme.as_str())
             || !(200..=380).contains(&self.size)
+            || self.branch.len() > 4096
             || self.active.len() > 128
             || self.search.len() > 4096
             || !self.offset.is_finite()

@@ -371,6 +371,7 @@ fn prepare_grove_native_fixture() {
         &s,
         Some(folder.id),
         workspace::View {
+            branch: String::new(),
             mode: "grid".into(),
             active: "".into(),
             filter: "reject".into(),

@@ -155,7 +155,7 @@ test('library tools open when WebKit blurs the summary before a button click', a
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '选择 山海_01.jpg', exact: true }).click();
   const trigger = page.getByRole('button', { name: '资料库工具', exact: true });
-  for (const name of ['安全整理', '日期城市水印', '重新关联目录', '评分同步', '资料库备份']) {
+  for (const name of ['安全整理', '日期城市水印', '文件夹移动后重新关联…', '评分同步', '资料库备份']) {
     await trigger.click();
     await trigger.focus();
     const item = page.getByRole('button', { name, exact: true });
@@ -853,8 +853,8 @@ test('relinking keeps review shortcuts isolated and explains browser limits', as
   await page.getByRole('button', { name: '体验示例图库' }).click();
   await page.getByRole('button', { name: '查看 山海_01.jpg', exact: true }).dblclick();
   await page.getByRole('button', { name: '资料库工具', exact: true }).click();
-  await page.getByRole('button', { name: '重新关联目录', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: '重新关联目录' });
+  await page.getByRole('button', { name: '文件夹移动后重新关联…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '文件夹移动后重新关联…' });
   await expect(dialog).toContainText('浏览器预览不访问本机目录或修改资料库');
   await page.keyboard.press('0');
   await page.keyboard.press('ArrowRight');
@@ -868,7 +868,7 @@ test('relinking keeps review shortcuts isolated and explains browser limits', as
   await expect(page.locator('.single-stage').getByLabel('0 分：淘汰候选')).not.toHaveClass(/rated/);
   await page.getByLabel('切换暗色主题').click();
   await page.getByRole('button', { name: '资料库工具', exact: true }).click();
-  await page.getByRole('button', { name: '重新关联目录', exact: true }).click();
+  await page.getByRole('button', { name: '文件夹移动后重新关联…', exact: true }).click();
   await expect(dialog).toBeVisible();
   await page.screenshot({ path: 'test-results/relink-preview-dark.png' });
   await page.keyboard.press('Escape');

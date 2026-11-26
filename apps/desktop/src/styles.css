@@ -957,26 +957,59 @@ nav {
   width: 22px;
   height: 22px;
 }
-.folder-item {
+.folder-tree {
+  min-height: 0;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+.folder-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.folder-row,
+.folder-link,
+.folder-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 13px;
-  font-size: 11px;
+}
+.folder-toggle,
+.folder-link {
   color: var(--subtle);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  border-radius: 5px;
 }
-.folder-item > span:first-of-type {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.folder-toggle,
+.folder-spacer {
+  flex: 0 0 22px;
 }
-.folder-dot {
-  margin-left: auto;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+.folder-toggle {
+  justify-content: center;
+  min-height: 30px;
+}
+.folder-link {
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  min-height: 32px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.folder-link svg {
   flex-shrink: 0;
+}
+.folder-link span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.folder-link[aria-current],
+.folder-link:hover,
+.folder-toggle:hover {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 .sidebar-empty {
   color: var(--muted);

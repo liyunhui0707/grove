@@ -3,7 +3,8 @@ import { listen } from '@tauri-apps/api/event';
 import { GuideDialog } from './GuideDialog';
 import { ApplicationBadge } from './ApplicationBadge';
 import { ExitSaveGuard } from './ExitSaveGuard';
-import { restoreReview, type ReviewView } from './workspace';
+import { FolderNavigation } from './FolderNavigation';
+import { photosInBranch, restoreReview, type ReviewView } from './workspace';
 import { createWorkspaceWriter } from './workspace-writer';
 import {
   useCallback,
@@ -88,6 +89,7 @@ const fit: Viewport = { scale: 1, x: 0, y: 0 };
 type History = {
   token: string;
   targets: string[];
+  branch: string;
   active: string;
   queue: string[];
   compare: string[];
@@ -580,7 +582,9 @@ export function App() {
     setSidebarHidden(!sidebarHidden);
   };
   const [folder, setFolder] = useState<Folder | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [libraryAssets, setAssets] = useState<Asset[]>([]);
+  const [branch, setBranch] = useState('');
+  const assets = useMemo(() => photosInBranch(libraryAssets, branch), [libraryAssets, branch]);
   const [loading, setLoading] = useState(native);
   const [workspaceReady, setWorkspaceReady] = useState(!native);
   const [workspaceError, setWorkspaceError] = useState('');
@@ -737,6 +741,8 @@ export function App() {
       if (!chosen) return;
       await bridge.cancel();
       const generation = ++scanGeneration.current;
+      const requestedBranch = restored?.branch ?? (provided && chosen.id === folder?.id ? branch : '');
+      setBranch(requestedBranch);
       setFolder(chosen);
       setAssets([]);
       setSelected([]);
@@ -774,8 +780,13 @@ export function App() {
             skipped: event.skipped ?? { videos: 0, raw: 0, images: 0 },
           });
           setScanOutcome('complete');
+          let scoped = photosInBranch(scanned, requestedBranch);
+          if (requestedBranch && !scoped.length) {
+            setBranch('');
+            scoped = scanned;
+          }
           if (restored) {
-            const resume = restoreReview(scanned, restored);
+            const resume = restoreReview(scoped, restored);
             setFilter(restored.filter);
             setSearch(restored.search);
             setSort(restored.sort);
@@ -783,7 +794,7 @@ export function App() {
             setReviewQueue(resume.queue);
             setMode(resume.mode);
             const count = filterAssets(
-              scanned,
+              scoped,
               restored.filter,
               restored.search,
               restored.sort,
@@ -887,6 +898,7 @@ export function App() {
         autoAdvance,
         theme,
         offset: gridOffset,
+        branch,
       },
     };
     const ticket = ++workspaceRevision.current;
@@ -916,6 +928,7 @@ export function App() {
     autoAdvance,
     theme,
     gridOffset,
+    branch,
   ]);
   // Release a rating/undo only after its resulting React state was committed
   // and the layout effect above queued that exact review checkpoint.
@@ -1037,6 +1050,7 @@ export function App() {
     const before: History = {
       token: '',
       targets: [...ids],
+      branch,
       active: explicitId ?? active,
       queue: [...reviewQueue],
       compare: [...compareIds],
@@ -1087,6 +1101,7 @@ export function App() {
       const batch = await bridge.undo(entry.token);
       setAssets((current) => applyChanges(current, batch.changes));
       setHistory((current) => current.slice(0, -1));
+      setBranch(entry.branch);
       setActive(entry.active);
       setReviewQueue(entry.queue);
       setCompareIds(entry.compare);
@@ -1421,11 +1436,30 @@ export function App() {
           </IconButton>
         </div>
         {folder ? (
-          <div className="folder-item">
-            <FolderOpen size={16} />
-            <span>{folder.demo ? '山海之间' : folder.name}</span>
-            <span className="folder-dot" />
-          </div>
+          <FolderNavigation
+            key={folder.id}
+            name={folder.demo ? '山海之间' : folder.name}
+            photos={libraryAssets}
+            branch={branch}
+            disabled={saving || loading || Boolean(reviewFailure)}
+            onChoose={(path) => {
+              setBranch(path);
+              setMode('grid');
+              setFilter('all');
+              setSearch('');
+              setActive('');
+              setSelected([]);
+              setSelectedOnly(false);
+              setReviewQueue([]);
+              setCompareIds([]);
+              setDetail(false);
+              gridReturnTarget.current = null;
+              layoutAnchor.current = null;
+              scrollOffset.current = 0;
+              setGridOffset(0);
+              setGridRestorePosition(null);
+            }}
+          />
         ) : (
           <p className="sidebar-empty">从一个本地文件夹开始</p>
         )}
@@ -1485,8 +1519,9 @@ export function App() {
             <PanelLeft size={18} />
           </button>
           <div className="breadcrumb">
-            <strong title={folder?.name}>
+            <strong title={[folder?.name, branch].filter(Boolean).join(' / ')}>
               {folder ? (folder.demo ? '山海之间' : folder.name) : 'Grove'}
+              {branch && ' › ' + branch.split('/').join(' › ')}
             </strong>
             {isGallery && (
               <>
@@ -1622,7 +1657,7 @@ export function App() {
                 <CalendarDays size={17} />
               </IconButton>
               <IconButton
-                label="重新关联目录"
+                label="文件夹移动后重新关联…"
                 buttonRef={relocationReturnFocus}
                 onClick={() => setRelocationOpen(true)}
                 disabled={loading || scanning || saving || Boolean(reviewFailure)}
@@ -1855,6 +1890,7 @@ export function App() {
               {visible.length ? (
                 <Gallery
                   layoutAnchor={layoutAnchor}
+                  key={branch}
                   assets={visible}
                   selected={selected}
                   active={active}
@@ -1927,7 +1963,7 @@ export function App() {
                 {scanning ? (
                   <>
                     <LoaderCircle size={12} className="spin" />
-                    扫描中 · 已找到 {assets.length} 张
+                    扫描中 · 已找到 {libraryAssets.length} 张
                     <button
                       className="cancel-scan"
                       onClick={() => void bridge.cancel().catch((e) => setError(String(e)))}
@@ -1948,7 +1984,7 @@ export function App() {
                   </>
                 )}
               </span>
-              {scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
+              {!branch && scanSummary && Object.values(scanSummary.skipped).some((n) => n > 0) && (
                 <details className="scan-details">
                   <summary>
                     {scanSummary.skipped.videos &&
@@ -2200,6 +2236,7 @@ export function App() {
                 mode: 'grid',
                 active: '',
                 filter: 'reject',
+                branch,
                 sort,
                 search,
                 size,
@@ -2259,7 +2296,10 @@ export function App() {
               ...current,
               {
                 token: batch.token,
-                targets: batch.changes.map((change) => change.id),
+                branch,
+                targets: batch.changes
+                  .map((change) => change.id)
+                  .filter((id) => libraryAssets.some((a) => a.id === id)),
                 active,
                 queue: [...reviewQueue],
                 compare: [...compareIds],
@@ -2279,6 +2319,7 @@ export function App() {
           onRestored={(result) => {
             scanGeneration.current += 1;
             setFolder(null);
+            setBranch('');
             setAssets([]);
             setSelected([]);
             setActive('');

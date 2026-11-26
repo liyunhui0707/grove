@@ -10,6 +10,7 @@ export type ReviewView = {
   autoAdvance: boolean;
   theme: string;
   offset: number;
+  branch?: string;
 };
 export type SavedWorkspace = { folderId: number | null; name: string; view: ReviewView };
 
@@ -27,4 +28,8 @@ export function restoreReview(assets: Asset[], view: ReviewView) {
     queue,
     missing: Boolean(view.active && !active),
   };
+}
+
+export function photosInBranch(assets: Asset[], branch: string) {
+  return branch ? assets.filter((a) => a.relative.startsWith(branch + '/')) : assets;
 }

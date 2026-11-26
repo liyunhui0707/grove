@@ -217,6 +217,7 @@ fn full_resolution_review_workflow() {
         &s,
         Some(folder.id),
         crate::workspace::View {
+            branch: String::new(),
             mode: "review".into(),
             active: assets[0].id.clone(),
             filter: "all".into(),
