@@ -289,12 +289,6 @@ fn render_image(
     let o = options.normalized()?;
     let (_data, source, props) = source(bytes)?;
     let info = metadata(&source, &props, &o, planned)?;
-    if preview.is_none() && info.date.is_none() {
-        return Err(info
-            .warning
-            .clone()
-            .unwrap_or_else(|| "缺少拍摄日期".into()));
-    }
     if preview.is_some_and(|n| !(320..=1600).contains(&n)) {
         return Err("水印预览尺寸无效".into());
     }

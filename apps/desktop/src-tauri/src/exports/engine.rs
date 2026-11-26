@@ -257,7 +257,7 @@ pub fn preview_watermark(
     Ok(watermark::Preview {
         export_width,
         export_height,
-        can_export: rendered.info.source.date.is_some(),
+        can_export: true,
         data_url: format!(
             "data:image/jpeg;base64,{}",
             base64::engine::general_purpose::STANDARD.encode(&rendered.jpeg)
@@ -345,12 +345,6 @@ fn prepare_kind(
         let (sha256, bytes, info) = if let Some(o) = &options {
             let input = watermark::read_input(source)?;
             let info = watermark::inspect(&input, &o.for_photo(&t.id))?;
-            if info.date.is_none() {
-                return Err(format!(
-                    "{}：请补充备用日期后重新核对",
-                    path.file_name().unwrap_or_default().to_string_lossy()
-                ));
-            }
             (hash_bytes(&input), input.len() as u64, Some(info))
         } else {
             let (s, b) = digest(source, review.cancel)?;
@@ -647,10 +641,15 @@ fn load(data: &Path, id: &str) -> Result<Job> {
             return Err("导出条目无效".into());
         }
         if j.watermark.is_some()
-            && i.info.as_ref().is_none_or(|info| {
-                info.date.is_none()
-                    || !watermark::valid_date(info.date.as_deref().unwrap_or_default())
-            })
+            && i.info
+                .as_ref()
+                .is_none_or(|info| match info.date.as_deref() {
+                    Some(date) => {
+                        !watermark::valid_date(date)
+                            || !matches!(info.date_source.as_str(), "exif" | "manual")
+                    }
+                    None => info.date_source != "missing",
+                })
         {
             return Err("水印清单日期无效".into());
         }

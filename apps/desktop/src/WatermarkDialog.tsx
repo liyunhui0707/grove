@@ -358,7 +358,7 @@ export function WatermarkDialog({
                 ) : asset ? (
                   <div className="watermark-illustration">
                     <img src={mediaSource(asset, 1600)} alt="水印布局示意" />
-                    {options.fallbackDate && (
+                    {(options.fallbackDate || city.trim()) && (
                       <span
                         style={{
                           right: `${options.marginPercent}%`,
@@ -418,15 +418,13 @@ export function WatermarkDialog({
                 <p className="watermark-caption" aria-live="polite">
                   {native
                     ? preview
-                      ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '日期待填写'} · ${preview.info.source.text || '尚无水印'} · ${preview.info.source.width} × ${preview.info.source.height}`
+                      ? `${preview.info.source.dateSource === 'exif' ? 'EXIF 拍摄日期' : preview.info.source.dateSource === 'manual' ? '手动备用日期' : '无拍摄日期'} · ${preview.info.source.text || '不叠加文字'} · ${preview.info.source.width} × ${preview.info.source.height}`
                       : previewError
                     : '浏览器仅布局示意，不读取 EXIF 或生成文件。'}
                 </p>
               )}
               {!resuming && preview?.info.source.warning && (
-                <p className="watermark-caption">
-                  {preview.info.source.dateSource === 'missing' ? '' : preview.info.source.warning}
-                </p>
+                <p className="watermark-caption">{preview.info.source.warning}</p>
               )}
               {preview && !resuming && (
                 <p className="watermark-caption" aria-label="成品尺寸说明">
@@ -492,7 +490,7 @@ export function WatermarkDialog({
                 </button>
               )}
               <label>
-                备用日期 <span>照片缺少拍摄日期时使用</span>
+                备用日期 <span>可留空，仅用于本批缺少拍摄日期的照片</span>
                 <input
                   aria-label="备用日期"
                   type="date"
@@ -502,11 +500,12 @@ export function WatermarkDialog({
               </label>
               <p className="watermark-hint">
                 逐张用 GPS
-                或照片里的城市标签匹配中文名。可以直接修改识别结果，清空城市后这张照片只显示日期。
+                或照片里的城市标签匹配中文名。可以直接修改识别结果，清空后省略城市。日期和城市都为空时，导出的
+                JPEG 不叠加文字。
               </p>
               {preview && !preview.canExport && !resuming && (
                 <p className="field-error" role="status">
-                  {preview.info.source.warning || '请填写备用日期后导出。'}
+                  {preview.info.source.warning || '当前照片无法导出。'}
                 </p>
               )}
               <label className="watermark-checkbox">
@@ -670,7 +669,7 @@ export function WatermarkDialog({
                     <div>
                       <strong>{row.name}</strong>
                       <small>
-                        {row.caption} → {row.output}
+                        {row.caption || '不叠加文字'} → {row.output}
                         {row.error && ` · ${row.error}`}
                       </small>
                     </div>

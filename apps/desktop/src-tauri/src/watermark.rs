@@ -255,16 +255,11 @@ pub fn caption(
             },
         ),
     };
-    let text = date
-        .as_ref()
-        .map(|d| {
-            if o.city.is_empty() {
-                d.clone()
-            } else {
-                format!("{d} {}", o.city)
-            }
-        })
-        .unwrap_or_default();
+    let text = match (&date, o.city.is_empty()) {
+        (Some(d), false) => format!("{d} {}", o.city),
+        (Some(d), true) => d.clone(),
+        (None, _) => o.city.clone(),
+    };
     Ok(Info {
         width,
         height,
@@ -273,11 +268,7 @@ pub fn caption(
         text,
         detected_city: None,
         source_profile: profile,
-        warning: if date_source == "missing" {
-            Some("未找到有效EXIF拍摄日期，请填写备用日期；不会使用文件修改时间".into())
-        } else {
-            None
-        },
+        warning: None,
     })
 }
 #[cfg(target_os = "macos")]

@@ -167,7 +167,7 @@ async function mock(
               dataUrl: svg,
               exportWidth: args.options.outputMaxEdge === 2048 ? 2048 : 4032,
               exportHeight: args.options.outputMaxEdge === 2048 ? 1536 : 3024,
-              canExport: !!args.options.fallbackDate,
+              canExport: true,
               info: {
                 source: {
                   detectedCity: config.detectedCity,
@@ -506,4 +506,16 @@ test('detected city can be edited, removed from the export, and restored', async
   });
   await dialog.getByRole('button', { name: '恢复自动识别' }).click();
   await expect(city).toHaveValue('杭州市');
+});
+
+test('a blank fallback date permits choosing a destination and confirming export', async ({
+  page,
+}) => {
+  await mock(page);
+  const dialog = await open(page);
+  await expect(dialog.getByLabel('备用日期')).toHaveValue('');
+  await expect(dialog).toContainText('无拍摄日期 · 不叠加文字');
+  await dialog.getByRole('button', { name: '选择导出位置' }).click();
+  await expect(dialog.getByRole('button', { name: '生成水印照片' })).toBeEnabled();
+  expect(await page.evaluate(() => (window as any).__wm.plans.at(-1).fallbackDate)).toBeNull();
 });

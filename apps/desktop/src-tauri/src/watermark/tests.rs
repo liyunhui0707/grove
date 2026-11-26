@@ -297,16 +297,21 @@ fn native_png_and_generated_sdr_heic_have_independent_jpeg_outputs() {
 
 #[test]
 #[cfg(target_os = "macos")]
-fn preview_and_export_share_layout_and_missing_dates_require_explicit_fallback() {
+fn preview_and_export_share_layout_with_optional_dates() {
     let bytes = fixture(1600, 1200, 1, None);
     let options = Options {
         city: "温州".into(),
         ..Options::default()
     };
-    assert!(render(&bytes, &options, None).is_err());
+    let full = render(&bytes, &options, None).unwrap();
+    assert_eq!(full.info.source.text, "温州");
+    assert!(full.info.bounds.is_some());
     let preview = render(&bytes, &options, Some(640)).unwrap();
     assert!(preview.info.source.date.is_none());
-    assert!(preview.info.bounds.is_none());
+    assert_eq!(preview.info.bounds, full.info.bounds);
+    let plain = render(&bytes, &Options::default(), None).unwrap();
+    assert!(plain.info.source.text.is_empty() && plain.info.bounds.is_none());
+    assert_eq!(image::load_from_memory(&plain.jpeg).unwrap().width(), 1600);
     let options = Options {
         fallback_date: Some("2026-10-25".into()),
         ..options

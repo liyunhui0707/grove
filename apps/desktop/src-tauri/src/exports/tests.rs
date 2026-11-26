@@ -1399,3 +1399,76 @@ fn exports_239_photos_and_recovers_a_large_jpeg_only_batch() {
         assert!(destination.join(row.output).is_file());
     }
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn mixed_watermark_batch_resumes_with_optional_dates() {
+    let tmp = tempfile::tempdir().unwrap();
+    let base = tmp.path().canonicalize().unwrap();
+    let (catalog, roots, folder, targets) = fixture(&base);
+    let root = &roots[&folder];
+    let data = base.join("data");
+    let out = base.join("output");
+    let png = root.join("download.png");
+    image::RgbImage::new(240, 160).save(&png).unwrap();
+    let (id, _, revision) = catalog
+        .upsert(folder, &png, &imaging::identity(&png).unwrap(), None)
+        .unwrap();
+    fs::write(
+        root.join("generated-0.jpg"),
+        crate::watermark::tests::fixture(240, 160, 1, None),
+    )
+    .unwrap();
+    fs::write(
+        root.join("generated-1.jpg"),
+        crate::watermark::tests::fixture(240, 160, 1, Some("2026:10:25 07:00:00")),
+    )
+    .unwrap();
+    let options = crate::watermark::Options {
+        city_overrides: Some([(targets[0].id.clone(), "温州".into())].into()),
+        ..Default::default()
+    };
+    let mut selected = vec![Target { id, revision }];
+    selected.extend_from_slice(&targets[..2]);
+    for fallback_date in [None, Some("2025-02-01".to_string())] {
+        let opts = crate::watermark::Options {
+            fallback_date,
+            ..options.clone()
+        };
+        let preview = preview_watermark(&catalog, &roots, &selected[0].id, &opts).unwrap();
+        assert!(preview.can_export);
+        let plan =
+            prepare_watermark(&catalog, &roots, folder, &selected, &out, &data, &opts).unwrap();
+        let cancel = AtomicBool::new(false);
+        let partial = run(
+            plan,
+            &data,
+            &cancel,
+            |r| {
+                if r.verified == 1 {
+                    cancel.store(true, Ordering::SeqCst);
+                }
+            },
+            || Ok(()),
+        )
+        .unwrap();
+        assert_eq!(partial.status, "cancelled");
+        let resumed = resume(&catalog, &roots, folder, &partial.id, &out, &data).unwrap();
+        let done = execute(resumed, &data, &AtomicBool::new(false));
+        assert_eq!(done.verified, 3);
+        let expected = if opts.fallback_date.is_some() {
+            ["2025-02-01", "2025-02-01 温州", "2026-10-25"]
+        } else {
+            ["", "温州", "2026-10-25"]
+        };
+        assert_eq!(preview.info.source.text, expected[0]);
+        for (row, caption) in done.items.iter().zip(expected) {
+            assert_eq!(row.caption.as_deref(), Some(caption));
+            let output = fs::read(Path::new(&done.destination).join(&row.output)).unwrap();
+            assert_eq!(
+                image::guess_format(&output).unwrap(),
+                image::ImageFormat::Jpeg
+            );
+        }
+    }
+}
