@@ -3,6 +3,45 @@ use crate::imaging;
 use std::fs;
 
 #[test]
+fn overlapping_roots_share_verified_xmp_writes_and_keep_external_conflicts() {
+    let mut f = Fixture::new(Some(&packet(Some(2))));
+    f.rate(Some(4));
+    let parent = f.temp.path().canonicalize().unwrap();
+    let folder = f.c.folder(&parent).unwrap();
+    f.roots.insert(folder, parent.clone());
+    let key = imaging::identity(&f.source).unwrap();
+    let observed = capture(&parent, &f.source, &key);
+    let (id, rating, revision) =
+        f.c.scan_occurrence(
+            folder,
+            &f.source,
+            &key,
+            observed.rating().unwrap(),
+            &mut Vec::new(),
+        )
+        .unwrap();
+    remember(&f.c, &id, &observed).unwrap();
+    assert_eq!(rating, Some(4));
+    assert_eq!(
+        sync(&mut f.c, &f.roots, folder, &[Target { id, revision }])
+            .unwrap()
+            .completed,
+        1
+    );
+    assert_eq!(report(&f.c, &f.roots, f.folder).unwrap().pending, 0);
+    assert_eq!(
+        xmp::read(&fs::read_to_string(&f.sidecar).unwrap()).unwrap(),
+        Some(4)
+    );
+    fs::write(&f.sidecar, packet(Some(1))).unwrap();
+    remember(&f.c, &f.id, &capture(&parent, &f.source, &key)).unwrap();
+    assert_eq!(
+        report(&f.c, &f.roots, f.folder).unwrap().items[0].state,
+        "conflict"
+    );
+}
+
+#[test]
 fn rescanning_detects_external_changes_even_when_the_catalog_was_clean() {
     let mut f = Fixture::new(Some(&packet(Some(3))));
     assert_eq!(report(&f.c, &f.roots, f.folder).unwrap().pending, 0);

@@ -134,14 +134,16 @@ impl Catalog {
             .query_row("SELECT id FROM folders WHERE path=?1", [path], |r| r.get(0))
             .map_err(|e| e.to_string())
     }
-    pub fn upsert(
+    /// A root owns its operational records (XMP, moves and recovery). Only the
+    /// rating is shared for the same on-disk occurrence seen through two roots.
+    pub fn scan_occurrence(
         &self,
         folder: i64,
         path: &Path,
         identity: &str,
-        initial: Option<i32>,
+        disk_rating: Option<i32>,
+        warnings: &mut Vec<String>,
     ) -> Result<(String, Option<i32>, i64)> {
-        validate_rating(initial)?;
         let path_text = path.to_str().ok_or("暂不支持非 UTF-8 文件名")?;
         // An online legacy occurrence can be upgraded only using its exact
         // current device/inode/birth identity, never its bytes or path alone.
@@ -155,6 +157,89 @@ impl Catalog {
         } else {
             identity.into()
         };
+        if identity != legacy {
+            self.db.execute("UPDATE assets SET identity=?1 WHERE folder_id IN (SELECT id FROM folders WHERE id<>?2) AND path=?3 AND identity=?4",
+                params![identity,folder,path_text,legacy]).map_err(|e|e.to_string())?;
+        }
+        // Drive the lookup from folders so SQLite uses the (folder_id,path) index.
+        let mut stmt = self
+            .db
+            .prepare_cached(
+                "SELECT f.path,a.rating,a.id,a.revision FROM folders f CROSS JOIN assets a
+            WHERE f.id<>?1 AND a.folder_id=f.id AND a.path=?2 AND a.identity IN (?3,?4)
+            AND (a.rating IS NOT NULL OR a.revision>0) ORDER BY a.revision DESC, f.id",
+            )
+            .map_err(|e| e.to_string())?;
+        let peers = stmt
+            .query_map(params![folder, path_text, identity, legacy], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Option<i32>>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, i64>(3)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let agreed = peers
+            .first()
+            .map(|p| p.1)
+            .filter(|value| peers.iter().all(|p| p.1 == *value));
+        let source = peers
+            .first()
+            .filter(|_| agreed.is_some())
+            .map(|p| (p.2.as_str(), p.3));
+        let (id, mut rating, mut revision) = self.upsert_row(
+            folder,
+            path_text,
+            identity,
+            &legacy,
+            agreed.unwrap_or(disk_rating),
+            source,
+        )?;
+        if let Some(Some(value)) = agreed
+            && rating.is_none()
+            && revision == 0
+        {
+            self.db.execute("UPDATE assets SET rating=?1,revision=1 WHERE id=?2 AND revision=0 AND rating IS NULL",params![value,id]).map_err(|e|e.to_string())?;
+            rating = Some(value);
+            revision = 1;
+        }
+        if peers.iter().any(|p| p.1 != rating) {
+            let label = |r: Option<i32>| {
+                r.map(|v| format!("{v} 分"))
+                    .unwrap_or_else(|| "未评分".into())
+            };
+            let others = peers
+                .iter()
+                .map(|(root, r, _, _)| format!("{root}（{}）", label(*r)))
+                .collect::<Vec<_>>()
+                .join("、");
+            warnings.push(format!("历史评分不同：{path_text}。当前目录记录为{}；其他目录为{}。已保留各自记录，可打开对应目录核对。", label(rating),others));
+        }
+        Ok((id, rating, revision))
+    }
+    #[cfg(test)]
+    pub fn upsert(
+        &self,
+        folder: i64,
+        path: &Path,
+        identity: &str,
+        initial: Option<i32>,
+    ) -> Result<(String, Option<i32>, i64)> {
+        self.scan_occurrence(folder, path, identity, initial, &mut Vec::new())
+    }
+    fn upsert_row(
+        &self,
+        folder: i64,
+        path_text: &str,
+        identity: &str,
+        legacy: &str,
+        initial: Option<i32>,
+        source: Option<(&str, i64)>,
+    ) -> Result<(String, Option<i32>, i64)> {
+        validate_rating(initial)?;
         let existing = self.db.query_row("SELECT id,rating,revision FROM assets WHERE folder_id=?1 AND path=?2 AND identity IN (?3,?4) ORDER BY identity=?3 DESC LIMIT 1",
             params![folder,path_text,identity,legacy], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e|e.to_string())?;
         if let Some(found) = existing {
@@ -200,13 +285,34 @@ impl Catalog {
             return Ok((c.0.clone(), c.2, c.3));
         }
         let id = Uuid::new_v4().to_string();
-        self.db
-            .execute(
-                "INSERT INTO assets(id,folder_id,path,identity,rating) VALUES (?1,?2,?3,?4,?5)",
-                params![id, folder, path_text, identity, initial],
+        let revision = source.map_or(0, |(_, revision)| revision);
+        let tx = self.db.unchecked_transaction().map_err(|e| e.to_string())?;
+        tx.execute("INSERT INTO assets(id,folder_id,path,identity,rating,revision) VALUES (?1,?2,?3,?4,?5,?6)",
+            params![id,folder,path_text,identity,initial,revision]).map_err(|e|e.to_string())?;
+        // A second root shares the same observed sidecar, but not recovery jobs or review tokens.
+        if let Some((peer, _)) = source {
+            tx.execute("INSERT INTO xmp_state(id,target,baseline) SELECT ?1,target,baseline FROM xmp_state
+                WHERE id=?2 AND error IS NULL AND NOT EXISTS (SELECT 1 FROM xmp_jobs WHERE asset_id=?2 AND status IN ('prepared','conflict'))",
+                params![id,peer]).map_err(|e|e.to_string())?;
+            tx.execute(
+                "INSERT INTO pending_xmp(id,revision) SELECT ?1,?3 FROM pending_xmp WHERE id=?2",
+                params![id, peer, revision],
             )
             .map_err(|e| e.to_string())?;
-        Ok((id, initial, 0))
+        }
+        // A root first opened after a rating must participate in undo of that rating too.
+        if let Some((peer, revision)) = source
+            && revision > 0
+        {
+            tx.execute(
+                "INSERT INTO history(token,id,before,after,revision)
+                SELECT token,?1,before,after,revision FROM history WHERE id=?2 ORDER BY rowid",
+                params![id, peer],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok((id, initial, revision))
     }
     pub fn location(&self, id: &str) -> Result<(i64, String, i64, String)> {
         self.db
@@ -246,7 +352,29 @@ impl Catalog {
         let tx = self.db.transaction().map_err(|e| e.to_string())?;
         let token = Uuid::new_v4().to_string();
         let mut changes = Vec::new();
-        for id in ids {
+        let mut targets = ids.to_vec();
+        let mut included: std::collections::HashSet<String> = ids.iter().cloned().collect();
+        {
+            let mut peers = tx
+                .prepare_cached(
+                    "SELECT b.id FROM assets a JOIN folders f ON f.id<>a.folder_id
+                JOIN assets b ON b.folder_id=f.id AND b.path=a.path AND b.identity=a.identity
+                WHERE a.id=?1 AND (b.rating IS a.rating OR (b.rating IS NULL AND b.revision=0))",
+                )
+                .map_err(|e| e.to_string())?;
+            for id in ids {
+                for row in peers
+                    .query_map([id], |r| r.get::<_, String>(0))
+                    .map_err(|e| e.to_string())?
+                {
+                    let peer = row.map_err(|e| e.to_string())?;
+                    if included.insert(peer.clone()) {
+                        targets.push(peer);
+                    }
+                }
+            }
+        }
+        for id in &targets {
             let (before, rev): (Option<i32>, i64) = tx
                 .query_row(
                     "SELECT rating,revision FROM assets WHERE id=?1",
@@ -341,6 +469,103 @@ impl Catalog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn nested_roots_share_ratings_without_merging_copies_or_conflicting_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let sub = root.join("child");
+        std::fs::create_dir(&sub).unwrap();
+        let path = sub.join("sample.jpg");
+        std::fs::write(&path, b"generated").unwrap();
+        let key = crate::imaging::identity(&path).unwrap();
+        let db = root.join("catalog.sqlite");
+        let mut c = Catalog::open(&db).unwrap();
+        let parent = c.folder(root).unwrap();
+        let child = c.folder(&sub).unwrap();
+        let mut warnings = Vec::new();
+        let a = c
+            .scan_occurrence(parent, &path, &key, None, &mut warnings)
+            .unwrap()
+            .0;
+        let first = c.rate(std::slice::from_ref(&a), Some(4)).unwrap();
+        let (b, r, _) = c
+            .scan_occurrence(child, &path, &key, None, &mut warnings)
+            .unwrap();
+        assert_eq!(r, Some(4));
+        c.undo(&first.token).unwrap();
+        assert_eq!(
+            c.scan_occurrence(child, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        c.rate(std::slice::from_ref(&a), Some(4)).unwrap();
+        let copy = sub.join("copy.jpg");
+        std::fs::copy(&path, &copy).unwrap();
+        let copy_key = crate::imaging::identity(&copy).unwrap();
+        assert_eq!(
+            c.scan_occurrence(child, &copy, &copy_key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        let batch = c.rate(std::slice::from_ref(&b), Some(0)).unwrap();
+        assert_eq!(batch.changes.len(), 2);
+        drop(c);
+        let mut c = Catalog::open(&db).unwrap();
+        assert_eq!(
+            c.scan_occurrence(parent, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            Some(0)
+        );
+        c.undo(&batch.token).unwrap();
+        assert_eq!(
+            c.scan_occurrence(child, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            Some(4)
+        );
+        assert_eq!(
+            c.scan_occurrence(parent, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            Some(4)
+        );
+        c.rate(std::slice::from_ref(&a), None).unwrap();
+        assert_eq!(
+            c.scan_occurrence(child, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        assert!(warnings.is_empty());
+        // Emulate two independent decisions made by an older version, including an explicit clear.
+        c.db.execute("UPDATE assets SET rating=2 WHERE id=?1", [&a])
+            .unwrap();
+        assert_eq!(
+            c.scan_occurrence(child, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        assert!(warnings.last().unwrap().contains("2 分"));
+        let edit = c.rate(std::slice::from_ref(&a), Some(5)).unwrap();
+        assert_eq!(edit.changes.len(), 1);
+        assert_eq!(
+            c.scan_occurrence(child, &path, &key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        assert_eq!(
+            c.scan_occurrence(child, &copy, &copy_key, None, &mut warnings)
+                .unwrap()
+                .1,
+            None
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"generated");
+    }
     #[test]
     fn unmarked_spike_catalog_is_upgraded_without_losing_ratings() {
         let dir = tempfile::tempdir().unwrap();

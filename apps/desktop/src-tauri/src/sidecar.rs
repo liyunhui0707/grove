@@ -307,7 +307,41 @@ fn complete(
     xml: &str,
     revision: i64,
 ) -> Result<()> {
+    let previous = baseline(c, &item.id)?;
+    let written_rating = xmp::read(xml)?;
     let tx = c.db.transaction().map_err(|e| e.to_string())?;
+    // The verified write changed one physical sidecar. Advance equivalent
+    // baselines only; independently conflicted or recovering rows need review.
+    let peers = {
+        let mut q = tx.prepare("SELECT a.id FROM folders f CROSS JOIN assets a JOIN xmp_state s ON s.id=a.id
+            WHERE f.id<>?1 AND a.folder_id=f.id AND a.path=?2 AND a.identity=?3 AND a.rating IS ?4
+            AND s.target=?5 AND s.baseline IS ?6 AND s.error IS NULL AND s.seen_token IS NULL
+            AND NOT EXISTS (SELECT 1 FROM xmp_jobs WHERE asset_id=a.id AND status IN ('prepared','conflict'))")
+            .map_err(|e|e.to_string())?;
+        q.query_map(
+            params![
+                item.folder,
+                item.source,
+                item.key,
+                written_rating,
+                target,
+                previous.xml
+            ],
+            |r| r.get::<_, String>(0),
+        )
+        .map_err(|e| e.to_string())?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?
+    };
+    for peer in peers {
+        tx.execute(
+            "UPDATE xmp_state SET baseline=?2 WHERE id=?1",
+            params![peer, xml],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM pending_xmp WHERE id=?1", [peer])
+            .map_err(|e| e.to_string())?;
+    }
     tx.execute("UPDATE xmp_state SET target=?2,baseline=?3,error=NULL,seen_token=NULL,seen_target=NULL,seen_xml=NULL WHERE id=?1",params![item.id,target,xml]).map_err(|e|e.to_string())?;
     tx.execute(
         "DELETE FROM pending_xmp WHERE id=?1 AND revision=?2",

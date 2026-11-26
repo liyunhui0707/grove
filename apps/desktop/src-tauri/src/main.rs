@@ -136,7 +136,7 @@ fn style_exit_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<ta
         ("move", "移动与隔离…"),
         ("sync", "评分同步…"),
         ("backups", "资料库备份…"),
-        ("relink", "重新关联文件夹…"),
+        ("relink", "文件夹移动后重新关联…"),
     ] {
         tools.append(&MenuItem::with_id(
             app,
@@ -1214,7 +1214,7 @@ fn scan_directory(
                 if state.generation.load(Ordering::SeqCst) != generation {
                     return Err("扫描已取消".into());
                 }
-                let item = catalog.upsert(folder_id, path, &key, rating)?;
+                let item = catalog.scan_occurrence(folder_id, path, &key, rating, &mut warnings)?;
                 sidecar::remember(&catalog, &item.0, &observed)?;
                 item
             };
@@ -1361,10 +1361,22 @@ async fn undo_rating(token: String, state: tauri::State<'_, Arc<AppState>>) -> R
                 .map_err(|e| e.to_string())?
         };
         let allowed = state.allowed.lock().map_err(|_| "目录忙碌")?;
-        for id in ids {
-            if !allowed.contains_key(&catalog.location(&id)?.0) {
-                return Err("撤销目标目录尚未打开".into());
-            }
+        // A rating can include sibling catalog rows for the exact same file.
+        // Each occurrence in the batch still needs an authorized representative.
+        let locations = ids
+            .iter()
+            .map(|id| catalog.location(id))
+            .collect::<Result<Vec<_>>>()?;
+        let authorized: std::collections::HashSet<_> = locations
+            .iter()
+            .filter(|(folder, _, _, _)| allowed.contains_key(folder))
+            .map(|(_, path, _, identity)| (path, identity))
+            .collect();
+        if locations
+            .iter()
+            .any(|(_, path, _, identity)| !authorized.contains(&(path, identity)))
+        {
+            return Err("撤销目标目录尚未打开".into());
         }
         catalog.undo(&token)
     })
